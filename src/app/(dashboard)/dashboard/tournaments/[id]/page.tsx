@@ -150,6 +150,9 @@ export default function TournamentPage() {
     if (res.ok) {
       setShowAddMatch(false)
       fetchData()
+    } else {
+      const err = await res.json()
+      alert(err.error || 'Error al generar')
     }
     setGenerating(false)
   }

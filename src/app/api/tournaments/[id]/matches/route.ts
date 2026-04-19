@@ -73,7 +73,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const action = url.searchParams.get('action')
 
     if (action === 'generate') {
-      const validated = generateMatchesSchema.parse(body)
+      const roundDateStr = body.roundDate || new Date().toISOString()
+      const roundDate = new Date(roundDateStr)
+      if (isNaN(roundDate.getTime())) {
+        return NextResponse.json({ error: 'Fecha inválida' }, { status: 400 })
+      }
       
       const teams = await prisma.tournamentTeam.findMany({
         where: { tournamentId: params.id },
@@ -102,7 +106,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             tournamentId: params.id,
             homeTeamId: m.homeTeamId,
             awayTeamId: m.awayTeamId,
-            matchDate: validated.roundDate,
+            matchDate: roundDate,
             roundName: m.roundName,
             status: 'SCHEDULED',
           })),
@@ -111,7 +115,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         return NextResponse.json({ count: createdMatches.count }, { status: 201 })
       } catch (error) {
         console.error('Generate matches error:', error)
-        return NextResponse.json({ error: 'Error al generar partidos' }, { status: 500 })
+        return NextResponse.json({ error: 'Error al generar partidos: ' + (error as Error).message }, { status: 500 })
       }
     }
 
