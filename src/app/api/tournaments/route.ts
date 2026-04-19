@@ -32,15 +32,23 @@ function getAuthToken(request: NextRequest): string | null {
 }
 
 export async function GET(request: NextRequest) {
+  const token = getAuthToken(request)
+  if (!token) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  const payload = verifyToken(token)
+  if (!payload) {
+    return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
   const sportType = searchParams.get('sportType')
-  const organizerId = searchParams.get('organizerId')
 
-  const where: Record<string, unknown> = {}
+  const where: Record<string, unknown> = { organizerId: payload.userId }
   if (status) where.status = status
   if (sportType) where.sportType = sportType
-  if (organizerId) where.organizerId = organizerId
 
   const tournaments = await prisma.tournament.findMany({
     where,
@@ -88,10 +96,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(tournament, { status: 201 })
   } catch (error) {
+    console.error('Create tournament error:', error)
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
-    console.error('Create tournament error:', error)
-    return NextResponse.json({ error: 'Error al crear torneo' }, { status: 500 })
+    const errMsg = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: 'Error al crear torneo: ' + errMsg }, { status: 500 })
   }
 }

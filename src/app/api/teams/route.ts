@@ -15,12 +15,20 @@ function getAuthToken(request: NextRequest): string | null {
 }
 
 export async function GET(request: NextRequest) {
+  const token = getAuthToken(request)
+  if (!token) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  const payload = verifyToken(token)
+  if (!payload) {
+    return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
-  const managerId = searchParams.get('managerId')
   const tournamentId = searchParams.get('tournamentId')
 
-  const where: Record<string, unknown> = {}
-  if (managerId) where.managerId = managerId
+  const where: Record<string, unknown> = { managerId: payload.userId }
   if (tournamentId) {
     where.tournaments = { some: { tournamentId } }
   }

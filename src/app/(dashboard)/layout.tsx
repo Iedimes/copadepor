@@ -18,16 +18,18 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
-  { label: 'Torneos', href: '/dashboard/tournaments', icon: '🏆' },
-  { label: 'Equipos', href: '/dashboard/teams', icon: '👥' },
-  { label: 'Partidos', href: '/dashboard/matches', icon: '⚽' },
-  { label: 'Jugadores', href: '/dashboard/players', icon: '👤' },
-  { label: 'Estadísticas', href: '/dashboard/stats', icon: '📊' },
-  { label: 'Sanciones', href: '/dashboard/sanctions', icon: '⚠️' },
-  { label: 'Noticias', href: '/dashboard/news', icon: '📰' },
-  { label: 'Patrocinadores', href: '/dashboard/sponsors', icon: '🏢' },
-  { label: 'Configuración', href: '/dashboard/settings', icon: '⚙️' },
+  { label: 'Mis Campeonatos', href: '/dashboard', icon: '🏆' },
+  { label: 'Registro de Equipos', href: '/dashboard/teams', icon: '👥' },
+  { label: 'Registro de Jugadores', href: '/dashboard/players', icon: '⚽' },
+  { label: 'Página del Organizador', href: '/dashboard/organizer', icon: '📋' },
+  { label: 'Planes de Suscripción', href: '/dashboard/plans', icon: '💳' },
+  { label: 'Campeonatos que Sigo', href: '/dashboard/following', icon: '⭐' },
+  { label: 'Arbitraje', href: '/dashboard/referee', icon: '⚖️' },
+  { label: 'Patrocinios', href: '/dashboard/sponsors', icon: '🏢' },
+  { label: 'Apoyo', href: '/dashboard/support', icon: '💬' },
+  { label: 'Sitio de Juego', href: '/dashboard/venues', icon: '📍' },
+  { label: 'Formulario', href: '/dashboard/forms', icon: '📝' },
+  { label: 'Conversaciones', href: '/dashboard/messages', icon: '💭' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -85,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="flex pt-16">
         <aside className={`fixed inset-y-0 left-0 z-20 w-64 bg-white shadow-lg transform transition-transform duration-200 lg:translate-x-0 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <nav className="mt-8 px-4 space-y-2">
+          <nav className="mt-8 px-4 space-y-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}

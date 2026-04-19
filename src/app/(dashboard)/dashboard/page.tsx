@@ -20,34 +20,35 @@ interface Stats {
 }
 
 const sports = [
-  { id: 'FUTBOL_11', name: 'Fútbol 11', icon: '⚽', category: 'Fútbol' },
-  { id: 'FUTSAL', name: 'Futsal', icon: '⚽', category: 'Fútbol' },
-  { id: 'FUTBOL_7', name: 'Fútbol 7', icon: '⚽', category: 'Fútbol' },
-  { id: 'FUTBOL_SALA', name: 'Fútbol Sala', icon: '⚽', category: 'Fútbol' },
-  { id: 'BALONMANO', name: 'Balonmano', icon: '🤾', category: 'Balón' },
-  { id: 'BALONCESTO', name: 'Baloncesto', icon: '🏀', category: 'Balón' },
-  { id: 'VOLEY', name: 'Voleibol', icon: '🏐', category: 'Balón' },
-  { id: 'VOLEY_PLAYA', name: 'Voleibol de Playa', icon: '🏐', category: 'Balón' },
-  { id: 'TENIS_MESA', name: 'Tenis de Mesa', icon: '🏓', category: 'Raqueta' },
-  { id: 'TENIS', name: 'Tenis', icon: '🎾', category: 'Raqueta' },
-  { id: 'BEACH_TENNIS', name: 'Beach Tennis', icon: '🏖️', category: 'Raqueta' },
-  { id: 'AJEDREZ', name: 'Ajedrez', icon: '♟️', category: 'Tablero' },
-  { id: 'ATLETISMO', name: 'Atletismo', icon: '🏃', category: 'Atletismo' },
-  { id: 'DEPORTE_GENERICO', name: 'Deporte Genérico', icon: '🏅', category: 'Otros' },
-  { id: 'DISPAROS', name: 'Juego de Disparos', icon: '🔫', category: 'Videojuegos' },
-  { id: 'BATTLE_ROYALE', name: 'Battle Royale', icon: '🎮', category: 'Videojuegos' },
-  { id: 'MOBA_LOL', name: 'MOBA (LoL)', icon: '🛡️', category: 'Videojuegos' },
-  { id: 'MOBA_DOTA', name: 'MOBA (Dota)', icon: '🛡️', category: 'Videojuegos' },
+  { id: 'FUTBOL_11', name: 'Fútbol 11', icon: '⚽' },
+  { id: 'FUTSAL', name: 'Futsal', icon: '⚽' },
+  { id: 'FUTBOL_7', name: 'Fútbol 7', icon: '⚽' },
+  { id: 'FUTBOL_SALA', name: 'Fútbol Sala', icon: '⚽' },
+  { id: 'BALONMANO', name: 'Balonmano', icon: '🤾' },
+  { id: 'BALONCESTO', name: 'Baloncesto', icon: '🏀' },
+  { id: 'VOLEY', name: 'Voleibol', icon: '🏐' },
+  { id: 'VOLEY_PLAYA', name: 'Voleibol de Playa', icon: '🏐' },
+  { id: 'TENIS_MESA', name: 'Tenis de Mesa', icon: '🏓' },
+  { id: 'TENIS', name: 'Tenis', icon: '🎾' },
+  { id: 'BEACH_TENNIS', name: 'Beach Tennis', icon: '🏖️' },
+  { id: 'AJEDREZ', name: 'Ajedrez', icon: '♟️' },
+  { id: 'ATLETISMO', name: 'Atletismo', icon: '🏃' },
+  { id: 'DEPORTE_GENERICO', name: 'Deporte Genérico', icon: '🏅' },
+  { id: 'DISPAROS', name: 'Juego de Disparos', icon: '🔫' },
+  { id: 'BATTLE_ROYALE', name: 'Battle Royale', icon: '🎮' },
+  { id: 'MOBA_LOL', name: 'MOBA (LoL)', icon: '🛡️' },
+  { id: 'MOBA_DOTA', name: 'MOBA (Dota)', icon: '🛡️' },
 ]
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ tournaments: 0, teams: 0, matches: 0, players: 0 })
   const [tournaments, setTournaments] = useState<Tournament[]>([])
-  const [showTypeModal, setShowTypeModal] = useState(false)
   const [showSportModal, setShowSportModal] = useState(false)
-  const [showFormatModal, setShowFormatModal] = useState(false)
-  const [selectedType, setSelectedType] = useState<'single' | 'multiple'>('single')
-  const [tournamentData, setTournamentData] = useState({ sport: '', name: '', format: '' })
+  const [showChampionshipModal, setShowChampionshipModal] = useState(false)
+  const [selectedSport, setSelectedSport] = useState('')
+  const [championshipName, setChampionshipName] = useState('')
+  const [championshipFormat, setChampionshipFormat] = useState('todos_contra_todos')
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function DashboardPage() {
         const teamsData = await teamsRes.json()
         const matchesData = await matchesRes.json()
         
-        setTournaments(tournamentsData.slice(0, 5))
+        setTournaments(tournamentsData)
         setStats({
           tournaments: tournamentsData.length,
           teams: teamsData.length,
@@ -87,153 +88,160 @@ export default function DashboardPage() {
     }
   }
 
-  const handleTypeSelect = (type: 'single' | 'multiple') => {
-    setSelectedType(type)
-    setShowTypeModal(false)
-    setShowSportModal(true)
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'IN_PROGRESS': return 'En curso'
+      case 'REGISTRATION_OPEN': return 'Inscripciones'
+      case 'COMPLETED': return 'Finalizado'
+      default: return 'Borrador'
+    }
   }
 
-  const handleSportSelect = (sportId: string, sportName: string) => {
-    setTournamentData({ ...tournamentData, sport: sportId, name: sportName })
+  const handleSportSelect = (sportId: string) => {
+    console.log('Selected sport:', sportId)
+    setSelectedSport(sportId)
     setShowSportModal(false)
-    setShowFormatModal(true)
+    setTimeout(() => {
+      console.log('Modal state:', { showChampionshipModal: true, selectedSport: sportId })
+      setShowChampionshipModal(true)
+    }, 100)
   }
 
-  const handleFormatSelect = (format: string) => {
-    setShowFormatModal(false)
-    router.push(`/dashboard/tournaments/new?type=${selectedType}&sport=${tournamentData.sport}&format=${format}&name=${encodeURIComponent(tournamentData.name)}`)
+  const handleDeleteTournament = async (e: React.MouseEvent, tournament: Tournament) => {
+    e.stopPropagation()
+    if (!confirm(`¿Eliminar "${tournament.name}"?`)) return
+    
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournament.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    
+    if (res.ok) {
+      setTournaments(tournaments.filter(t => t.id !== tournament.id))
+      setStats({ ...stats, tournaments: stats.tournaments - 1 })
+    } else {
+      const err = await res.json()
+      alert(err.error || 'Error al eliminar')
+    }
+  }
+
+  const handleCreateChampionship = async () => {
+    if (!championshipName.trim() || !selectedSport) {
+      alert('Por favor completa todos los campos')
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      console.log('Sending:', { name: championshipName, sportType: selectedSport, format: championshipFormat })
+      
+      const res = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: championshipName,
+          sportType: selectedSport,
+          format: championshipFormat,
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        }),
+      })
+
+      const data = await res.json()
+      console.log('Response:', res.status, data)
+      
+      if (res.ok) {
+        setShowChampionshipModal(false)
+        setChampionshipName('')
+        setSelectedSport('')
+        setChampionshipFormat('todos_contra_todos')
+        router.refresh()
+      } else {
+        alert('Error: ' + (data.error || 'No se pudo crear el campeonato'))
+      }
+    } catch (error) {
+      console.error('Error creating championship:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        <button 
-          onClick={() => setShowTypeModal(true)}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2"
-        >
-          <span>🏆</span> Nuevo Campeonato
-        </button>
+        <h1 className="text-2xl font-bold text-gray-800">Mis Campeonatos</h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-blue-600">{stats.tournaments}</div>
-          <div className="text-gray-500">Torneos</div>
+      {tournaments.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="text-6xl mb-4">🏆</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">No hay Campeonatos</h2>
+          <p className="text-gray-500 mb-8">Crea tu primer campeonato para comenzar</p>
+          <button 
+            onClick={() => setShowSportModal(true)}
+            className="bg-blue-600 text-white px-8 py-4 rounded-xl font-medium hover:bg-blue-700 text-lg"
+          >
+            + Nuevo Campeonato
+          </button>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-green-600">{stats.teams}</div>
-          <div className="text-gray-500">Equipos</div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-orange-600">{stats.matches}</div>
-          <div className="text-gray-500">Partidos</div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="text-3xl font-bold text-purple-600">{stats.players}</div>
-          <div className="text-gray-500">Jugadores</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Torneos Recientes</h2>
-            <Link href="/dashboard/tournaments" className="text-blue-600 hover:underline text-sm">
-              Ver todos
-            </Link>
-          </div>
-          {tournaments.length > 0 ? (
-            <div className="space-y-3">
-              {tournaments.map((t) => (
-                <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-medium">{t.name}</div>
-                    <div className="text-sm text-gray-500">{t.sportType} • {new Date(t.startDate).toLocaleDateString()}</div>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(t.status)}`}>
-                    {t.status === 'IN_PROGRESS' ? 'En curso' : t.status === 'REGISTRATION_OPEN' ? 'Inscripciones' : t.status}
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tournaments.map((tournament) => (
+            <div 
+              key={tournament.id} 
+              className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition cursor-pointer"
+              onClick={() => router.push(`/dashboard/tournaments/${tournament.id}`)}
+            >
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
+                <div className="flex justify-between items-start">
+                  <span className="text-4xl">⚽</span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(tournament.status)}`}>
+                    {getStatusLabel(tournament.status)}
                   </span>
                 </div>
-              ))}
+              </div>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold mb-2">{tournament.name}</h3>
+                <div className="text-sm text-gray-500">
+                  <p>📅 {new Date(tournament.startDate).toLocaleDateString()}</p>
+                </div>
+                <button 
+                  onClick={(e) => handleDeleteTournament(e, tournament)}
+                  className="mt-3 text-red-600 hover:text-red-800 text-sm"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
-          ) : (
-            <p className="text-gray-500 text-center py-8">No hay torneos todavía</p>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Acciones Rápidas</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <Link href="/dashboard/teams/new" className="p-4 bg-green-50 rounded-lg text-center hover:bg-green-100">
-              <div className="text-2xl mb-2">👥</div>
-              <div className="text-green-700 font-medium">Nuevo Equipo</div>
-            </Link>
-            <Link href="/dashboard/matches/new" className="p-4 bg-orange-50 rounded-lg text-center hover:bg-orange-100">
-              <div className="text-2xl mb-2">⚽</div>
-              <div className="text-orange-700 font-medium">Nuevo Partido</div>
-            </Link>
-            <Link href="/dashboard/players/new" className="p-4 bg-purple-50 rounded-lg text-center hover:bg-purple-100">
-              <div className="text-2xl mb-2">👤</div>
-              <div className="text-purple-700 font-medium">Nuevo Jugador</div>
-            </Link>
-            <Link href="/dashboard/sponsors/new" className="p-4 bg-yellow-50 rounded-lg text-center hover:bg-yellow-100">
-              <div className="text-2xl mb-2">🏢</div>
-              <div className="text-yellow-700 font-medium">Nuevo Sponsor</div>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal: Tipo de Campeonato */}
-      {showTypeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">🏆 Nuevo Campeonato</h2>
-            <p className="text-gray-600 text-center mb-6">Selecciona el tipo de torneo que deseas crear:</p>
-            
-            <div className="space-y-4">
-              <button
-                onClick={() => handleTypeSelect('single')}
-                className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition text-left group"
-              >
-                <div className="text-3xl mb-2">⚽</div>
-                <h3 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600">Campeonato Único</h3>
-                <p className="text-sm text-gray-500 mt-1">Campeonato de una sola modalidad con una sola categoría</p>
-              </button>
-
-              <button
-                onClick={() => handleTypeSelect('multiple')}
-                className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition text-left group"
-              >
-                <div className="text-3xl mb-2">📊</div>
-                <h3 className="text-lg font-semibold text-gray-800 group-hover:text-purple-600">Campeonato con Categorías</h3>
-                <p className="text-sm text-gray-500 mt-1">Campeonato con múltiples categorías (edad, género, deporte, etc.)</p>
-              </button>
-            </div>
-
-            <button
-              onClick={() => setShowTypeModal(false)}
-              className="mt-6 w-full py-3 text-gray-500 hover:text-gray-700"
-            >
-              Cancelar
-            </button>
-          </div>
+          ))}
+          
+          <button 
+            onClick={() => setShowSportModal(true)}
+            className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 transition"
+          >
+            <span className="text-4xl mb-2">+</span>
+            <span className="font-medium">Agregar Campeonato</span>
+          </button>
         </div>
       )}
 
       {/* Modal: Selección de Deporte */}
       {showSportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-3xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">🎯 Selecciona el Deporte</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowSportModal(false)}>
+          <div className="bg-white rounded-2xl p-8 max-w-3xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">🎯 Selecciona la Modalidad</h2>
             <p className="text-gray-600 text-center mb-6">Elige el deporte para tu campeonato</p>
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {sports.map((sport) => (
                 <button
                   key={sport.id}
-                  onClick={() => handleSportSelect(sport.id, sport.name)}
+                  onClick={() => handleSportSelect(sport.id)}
                   className="p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition text-center group"
                 >
                   <div className="text-3xl mb-2">{sport.icon}</div>
@@ -242,55 +250,90 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            <button
-              onClick={() => setShowSportModal(false)}
-              className="mt-6 w-full py-3 text-gray-500 hover:text-gray-700"
-            >
+            <button onClick={() => setShowSportModal(false)} className="mt-6 w-full py-3 text-gray-500 hover:text-gray-700">
               Cancelar
             </button>
           </div>
         </div>
       )}
 
-      {/* Modal: Formato del Campeonato */}
-      {showFormatModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">📋 Formato del Campeonato</h2>
-            <p className="text-gray-600 text-center mb-6">Selecciona cómo se jugarán los partidos</p>
+      {/* Modal: Nuevo Campeonato */}
+      {showChampionshipModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowChampionshipModal(false)}>
+          <div className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Nuevo Campeonato</h2>
             
-            <div className="space-y-3">
-              <button
-                onClick={() => handleFormatSelect('todos_contra_todos')}
-                className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition text-left group"
-              >
-                <h3 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600">Todos contra todos</h3>
-                <p className="text-sm text-gray-500">Cada equipo juega contra todos los demás</p>
-              </button>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Campeonato</label>
+                <input
+                  type="text"
+                  value={championshipName}
+                  onChange={(e) => setChampionshipName(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
+                  placeholder="Ej: Copa Oro"
+                />
+              </div>
 
-              <button
-                onClick={() => handleFormatSelect('liga_eliminacion')}
-                className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition text-left group"
-              >
-                <h3 className="text-lg font-semibold text-gray-800 group-hover:text-purple-600">Todos contra todos + Eliminatoria</h3>
-                <p className="text-sm text-gray-500">Fase de grupos seguida de playoffs</p>
-              </button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Fases del Campeonato</label>
+                <div className="space-y-2">
+                  <label className="flex items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+                    <input
+                      type="radio"
+                      name="format"
+                      value="todos_contra_todos"
+                      checked={championshipFormat === 'todos_contra_todos'}
+                      onChange={(e) => setChampionshipFormat(e.target.value)}
+                      className="mr-3"
+                    />
+                    <span>Todos contra todos</span>
+                  </label>
+                  <label className="flex items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+                    <input
+                      type="radio"
+                      name="format"
+                      value="liga_eliminacion"
+                      checked={championshipFormat === 'liga_eliminacion'}
+                      onChange={(e) => setChampionshipFormat(e.target.value)}
+                      className="mr-3"
+                    />
+                    <span>Todos contra todos + Eliminatoria</span>
+                  </label>
+                  <label className="flex items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+                    <input
+                      type="radio"
+                      name="format"
+                      value="eliminacion"
+                      checked={championshipFormat === 'eliminacion'}
+                      onChange={(e) => setChampionshipFormat(e.target.value)}
+                      className="mr-3"
+                    />
+                    <span>Eliminatoria</span>
+                  </label>
+                </div>
+              </div>
 
-              <button
-                onClick={() => handleFormatSelect('eliminacion')}
-                className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition text-left group"
-              >
-                <h3 className="text-lg font-semibold text-gray-800 group-hover:text-red-600">Eliminatoria directa</h3>
-                <p className="text-sm text-gray-500">El perdedor queda eliminado en cada ronda</p>
-              </button>
+              <p className="text-sm text-gray-500 italic">
+                * Se pueden crear o eliminar fases más tarde
+              </p>
             </div>
 
-            <button
-              onClick={() => setShowFormatModal(false)}
-              className="mt-6 w-full py-3 text-gray-500 hover:text-gray-700"
-            >
-              Cancelar
-            </button>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowChampionshipModal(false)}
+                className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateChampionship}
+                disabled={!championshipName.trim() || loading}
+                className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Creando...' : 'Crear Campeonato'}
+              </button>
+            </div>
           </div>
         </div>
       )}
