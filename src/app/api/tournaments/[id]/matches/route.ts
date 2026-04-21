@@ -90,29 +90,52 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const teamIds = teams.map(t => t.teamId)
       const matches: { homeTeamId: string; awayTeamId: string; roundName: string }[] = []
       
-      for (let i = 0; i < teamIds.length; i++) {
-        for (let j = i + 1; j < teamIds.length; j++) {
-          matches.push({ 
-            homeTeamId: teamIds[i], 
-            awayTeamId: teamIds[j],
-            roundName: `${i + 1}v${j + 1}`
-          })
+      const numRounds = teamIds.length - 1
+      const matchType = body.matchType || 'ida'
+      
+      for (let round = 1; round <= numRounds; round++) {
+        const roundName = `${round}`
+        
+        for (let i = 0; i < teamIds.length; i++) {
+          for (let j = i + 1; j < teamIds.length; j++) {
+            matches.push({ 
+              homeTeamId: teamIds[i], 
+              awayTeamId: teamIds[j],
+              roundName: roundName
+            })
+          }
+        }
+        
+        if (matchType === 'idayvuelta') {
+          for (let i = 0; i < teamIds.length; i++) {
+            for (let j = i + 1; j < teamIds.length; j++) {
+              matches.push({ 
+                homeTeamId: teamIds[j], 
+                awayTeamId: teamIds[i],
+                roundName: roundName
+              })
+            }
+          }
         }
       }
 
       try {
-        const createdMatches = await prisma.match.createMany({
-          data: matches.map(m => ({
-            tournamentId: params.id,
-            homeTeamId: m.homeTeamId,
-            awayTeamId: m.awayTeamId,
-            matchDate: roundDate,
-            roundName: m.roundName,
-            status: 'SCHEDULED',
-          })),
-        })
+        let count = 0
+        for (const m of matches) {
+          await prisma.match.create({
+            data: {
+              tournamentId: params.id,
+              homeTeamId: m.homeTeamId,
+              awayTeamId: m.awayTeamId,
+              matchDate: roundDate,
+              roundName: String(m.roundName),
+              status: 'SCHEDULED',
+            },
+          })
+          count++
+        }
 
-        return NextResponse.json({ count: createdMatches.count }, { status: 201 })
+        return NextResponse.json({ count }, { status: 201 })
       } catch (error) {
         console.error('Generate matches error:', error)
         return NextResponse.json({ error: 'Error al generar partidos: ' + (error as Error).message }, { status: 500 })

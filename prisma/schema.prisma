@@ -191,7 +191,7 @@ model Match {
   awayScore    Int?
   status       MatchStatus  @default(SCHEDULED)
   matchDate    DateTime
-  roundName    String       @default("1ª Fecha")
+  roundName    String
   location     String?
   referee      String?
   notes        String?

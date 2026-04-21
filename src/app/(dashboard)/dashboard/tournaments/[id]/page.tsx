@@ -51,9 +51,11 @@ export default function TournamentPage() {
   const [activeMenu, setActiveMenu] = useState<MenuType>('inicio')
   const [showAddTeam, setShowAddTeam] = useState(false)
   const [showAddMatch, setShowAddMatch] = useState(false)
-  const [selectedRound, setSelectedRound] = useState('1v2')
+  const [selectedRound, setSelectedRound] = useState('1')
   const [roundDate, setRoundDate] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [showGenType, setShowGenType] = useState(false)
+  const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
   const [editingScore, setEditingScore] = useState<{matchId: string, home: number, away: number} | null>(null)
 
   const tournamentId = params.id as string
@@ -63,25 +65,47 @@ export default function TournamentPage() {
   }, [tournamentId, activeMenu])
 
   const fetchData = async () => {
+    setLoading(true)
     const token = localStorage.getItem('token')
+    if (!token) {
+      console.log('No token')
+      setLoading(false)
+      return
+    }
+    
     try {
       if (activeMenu === 'inicio') {
+        console.log('Fetching inicio...')
         const [tRes, mRes] = await Promise.all([
           fetch(`/api/tournaments/${tournamentId}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`/api/tournaments/${tournamentId}/messages`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ json: () => [] })),
+          fetch(`/api/tournaments/${tournamentId}/messages`, { headers: { Authorization: `Bearer ${token}` } }),
         ])
+        console.log('tRes status:', tRes.status)
         const tData = await tRes.json()
+        console.log('tData:', tData)
         setTournament(tData)
         if (mRes.ok) setMessages(await mRes.json())
       } else if (activeMenu === 'clasificacion') {
+        console.log('Fetching clasificacion...', tournamentId)
         const [matchesRes, teamsRes, allTeamsRes] = await Promise.all([
-          fetch(`/api/tournaments/${tournamentId}/matches`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ json: () => [] })),
-          fetch(`/api/tournaments/${tournamentId}/teams`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ json: () => [] })),
-          fetch('/api/teams', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ json: [] })),
+          fetch(`/api/tournaments/${tournamentId}/matches`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/tournaments/${tournamentId}/teams`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/teams', { headers: { Authorization: `Bearer ${token}` } }),
         ])
-        if (matchesRes.ok) setMatches(await matchesRes.json())
-        if (teamsRes.ok) setTournamentTeams(await teamsRes.json())
+        console.log('matchesRes:', matchesRes.status, 'teamsRes:', teamsRes.status, 'allTeamsRes:', allTeamsRes.status)
+        
+        if (matchesRes.ok) {
+          const m = await matchesRes.json()
+          console.log('matches:', m.length)
+          setMatches(m)
+        }
+        if (teamsRes.ok) {
+          const t = await teamsRes.json()
+          console.log('tournamentTeams:', t.length)
+          setTournamentTeams(t)
+        }
         const at = await allTeamsRes.json()
+        console.log('allTeams:', at.length)
         setAllTeams(Array.isArray(at) ? at : [])
       }
     } catch (error) {
@@ -136,23 +160,31 @@ export default function TournamentPage() {
   }
 
   const handleGenerateMatches = async () => {
-    if (tournamentTeams.length < 2) return
+    setShowGenType(false)
+    if (tournamentTeams.length < 2) {
+      alert('Necesitas al menos 2 equipos')
+      return
+    }
     setGenerating(true)
     const token = localStorage.getItem('token')
-    const date = roundDate || new Date().toISOString().split('T')[0]
+    const date = roundDate || new Date().toISOString()
+    
+    console.log('Generating with teams:', tournamentTeams.length, 'type:', matchType)
     
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roundName: selectedRound, roundDate: date }),
+      body: JSON.stringify({ roundName: '1', roundDate: date, matchType }),
     })
 
+    const data = await res.json()
+    console.log('Generate response:', res.status, data)
+    
     if (res.ok) {
       setShowAddMatch(false)
       fetchData()
     } else {
-      const err = await res.json()
-      alert(err.error || 'Error al generar')
+      alert(data.error || 'Error al generar')
     }
     setGenerating(false)
   }
@@ -199,14 +231,15 @@ export default function TournamentPage() {
   const shareUrl = `https://copafacil.com/${tournamentId}`
   const sportIcon = getSportIcon(tournament?.sportType || '')
 
-  const rounds = [...new Set(matches.map(m => m.roundName))].sort((a, b) => {
-  const aNum = parseInt(a.replace('v', ''))
-  const bNum = parseInt(b.replace('v', ''))
-  return aNum - bNum
+  const allRounds = [...new Set(matches.map(m => m.roundName))].sort((a, b) => {
+  const na = parseInt(a) || 0
+  const nb = parseInt(b) || 0
+  return na - nb
 })
+const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º Fase']
 
   if (loading) return <div className="p-8">Cargando...</div>
-  if (!tournament) return <div className="p-8">Torneo no encontrado</div>
+  if (!tournament) return <div className="p-8">Torneo no encontrado. <button onClick={fetchData}>Recargar</button></div>
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
@@ -216,7 +249,10 @@ export default function TournamentPage() {
           <button onClick={() => router.push('/dashboard')} className="text-gray-500 text-sm mb-4">
             ← Volver
           </button>
-          <h2 className="font-bold text-lg mb-4 truncate">{tournament.name}</h2>
+          <button onClick={fetchData} className="text-blue-500 text-xs ml-2">
+            🔄
+          </button>
+          <h2 className="font-bold text-lg mb-4 truncate">{tournament?.name || 'Torneo'}</h2>
           <nav className="space-y-1">
             <button
               onClick={() => setActiveMenu('inicio')}
@@ -247,7 +283,7 @@ export default function TournamentPage() {
             
             <div className="bg-white rounded-b-xl shadow-lg p-6">
               <h1 className="text-2xl font-bold mb-2">{tournament.name}</h1>
-              <p className="text-gray-600 mb-4">Organizado por <span className="font-semibold">{tournament.organizer.name}</span></p>
+              <p className="text-gray-600 mb-4">Organizado por <span className="font-semibold">{tournament?.organizer?.name || 'Organizador'}</span></p>
               
               <button onClick={() => setShowQR(!showQR)} className="flex items-center gap-2 text-blue-600 mb-4">
                 <span>📤</span> <span className="font-medium">Compartir</span>
@@ -287,7 +323,12 @@ export default function TournamentPage() {
             {/* Tabla de Clasificación - Izquierda */}
             <div className="flex-1 bg-white rounded-xl shadow-lg p-4">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">📊 Clasificación</h2>
+                <div className="mb-4">
+                <h2 className="text-xl font-bold inline mr-4">📊 1º Fase</h2>
+                <select className="ml-2 px-2 py-1 border rounded text-sm">
+                  <option>Estadísticas</option>
+                </select>
+              </div>
                 <div className="flex gap-2">
                   {allTeams.length > tournamentTeams.length && (
                     <button onClick={() => addAllTeams()} className="text-green-600 text-sm">+ AgregarTodos</button>
@@ -338,31 +379,48 @@ export default function TournamentPage() {
             </div>
 
             {/* Panel de Juegos - Derecha */}
-            <div className="w-80 bg-white rounded-xl shadow-lg p-4">
+            <div className="w-96 bg-white rounded-xl shadow-lg p-4">
               <h2 className="text-lg font-bold mb-3">⚽ Juegos</h2>
               
-              <select 
-                value={selectedRound} 
-                onChange={(e) => setSelectedRound(e.target.value)}
-                className="w-full mb-3 px-3 py-2 border rounded-lg"
-              >
-                {rounds.length > 0 ? rounds.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                )) : (
-                  <option value="1v2">1v2</option>
-                )}
-              </select>
-
-              {tournamentTeams.length < 2 ? (
-                <p className="text-sm text-orange-600 mb-3">Agrega al menos 2 equipos</p>
-              ) : (
-                <button 
-                  onClick={() => setShowAddMatch(true)}
-                  className="w-full mb-3 px-4 py-2 bg-green-600 text-white rounded-lg text-sm"
+              <div className="flex gap-2 mb-3">
+                <select 
+                  value={selectedRound} 
+                  onChange={(e) => setSelectedRound(e.target.value)}
+                  className="flex-1 px-3 py-2 border rounded-lg"
                 >
-                  ⚡ Generar Partidos
-                </button>
-              )}
+                  {rounds.length > 0 ? rounds.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  )) : (
+                    <option value="1">1º Fase</option>
+                  )}
+                </select>
+                <select 
+                  className="flex-1 px-3 py-2 border rounded-lg"
+                >
+                  <option value="">Ver Fecha</option>
+                  {rounds.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                {tournamentTeams.length >= 2 ? (
+                  <>
+                    <button 
+                      onClick={() => setShowGenType(true)}
+                      className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm"
+                    >
+                      ⚡ Generar Partidos
+                    </button>
+                    <button className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">
+                      + Agregar Fecha
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-sm text-orange-600">Agrega al menos 2 equipos</p>
+                )}
+              </div>
 
               {/* Partidos de la fecha seleccionada */}
               <div className="space-y-2 mt-4">
@@ -419,6 +477,42 @@ export default function TournamentPage() {
               {generating ? 'Generando...' : '⚡ Generar Partidos'}
             </button>
             <button onClick={() => setShowAddMatch(false)} className="mt-3 w-full py-2 border rounded-lg">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Match Type Modal */}
+      {showGenType && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowGenType(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-4">Tipo de Fixture</h3>
+            <p className="text-sm text-gray-600 mb-4">Selecciona el tipo de partidos</p>
+            
+            <div className="space-y-3 mb-4">
+              <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="matchType" value="ida" checked={matchType === 'ida'} onChange={() => setMatchType('ida')} className="mr-3" />
+                <div>
+                  <div className="font-medium">Solo Ida</div>
+                  <div className="text-xs text-gray-500">Cada equipo juega una vez contra otro</div>
+                </div>
+              </label>
+              <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input type="radio" name="matchType" value="idayvuelta" checked={matchType === 'idayvuelta'} onChange={() => setMatchType('idayvuelta')} className="mr-3" />
+                <div>
+                  <div className="font-medium">Ida y Vuelta</div>
+                  <div className="text-xs text-gray-500">Partido de local y visita</div>
+                </div>
+              </label>
+            </div>
+
+            <button 
+              onClick={handleGenerateMatches}
+              disabled={generating}
+              className="w-full py-3 bg-green-600 text-white rounded-lg disabled:opacity-50"
+            >
+              {generating ? 'Generando...' : '⚡ Generar Partidos'}
+            </button>
+            <button onClick={() => setShowGenType(false)} className="mt-3 w-full py-2 border rounded-lg">Cancelar</button>
           </div>
         </div>
       )}

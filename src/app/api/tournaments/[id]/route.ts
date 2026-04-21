@@ -19,6 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
+    console.log('Getting tournament:', params.id)
     const tournament = await prisma.tournament.findUnique({
       where: { id: params.id },
       include: {
@@ -33,6 +34,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json(tournament)
   } catch (error) {
     console.error('Get tournament error:', error)
-    return NextResponse.json({ error: 'Error al obtener torneo' }, { status: 500 })
+    return NextResponse.json({ error: 'Error al obtener torneo: ' + (error as Error).message }, { status: 500 })
   }
 }

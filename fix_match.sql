@@ -1,0 +1,1 @@
+ALTER TABLE `match` ADD COLUMN roundName VARCHAR(255) DEFAULT '1';
