@@ -323,12 +323,13 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
             {/* Tabla de Clasificación - Izquierda */}
             <div className="flex-1 bg-white rounded-xl shadow-lg p-4">
               <div className="flex justify-between items-center mb-4">
-                <div className="mb-4">
-                <h2 className="text-xl font-bold inline mr-4">📊 1º Fase</h2>
-                <select className="ml-2 px-2 py-1 border rounded text-sm">
+                <div className="mb-2">
+                <select className="px-3 py-2 border rounded-lg font-medium">
+                  <option>1º Fase</option>
                   <option>Estadísticas</option>
                 </select>
               </div>
+              <h2 className="text-xl font-bold mb-4">📊 CLASIFICACIÓN</h2>
                 <div className="flex gap-2">
                   {allTeams.length > tournamentTeams.length && (
                     <button onClick={() => addAllTeams()} className="text-green-600 text-sm">+ AgregarTodos</button>
@@ -383,23 +384,21 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
               <h2 className="text-lg font-bold mb-3">⚽ Juegos</h2>
               
               <div className="flex gap-2 mb-3">
+                <select className="flex-1 px-3 py-2 border rounded-lg">
+                  <option>1º Fase</option>
+                </select>
                 <select 
-                  value={selectedRound} 
+                  value={selectedRound}
                   onChange={(e) => setSelectedRound(e.target.value)}
                   className="flex-1 px-3 py-2 border rounded-lg"
                 >
-                  {rounds.length > 0 ? rounds.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  )) : (
-                    <option value="1">1º Fase</option>
-                  )}
-                </select>
-                <select 
-                  className="flex-1 px-3 py-2 border rounded-lg"
-                >
-                  <option value="">Ver Fecha</option>
-                  {rounds.map(r => (
-                    <option key={r} value={r}>{r}</option>
+                  <option value="">Seleccionar Fecha</option>
+                  {matches.length > 0 && [...new Set(matches.map(m => m.roundName))].sort((a,b) => {
+                    const na = parseInt(a) || 0
+                    const nb = parseInt(b) || 0
+                    return na - nb
+                  }).map(r => (
+                    <option key={r} value={r}>{parseInt(r) || 1}º Fecha</option>
                   ))}
                 </select>
               </div>
