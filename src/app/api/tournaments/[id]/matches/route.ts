@@ -90,32 +90,58 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const teamIds = teams.map(t => t.teamId)
       const matches: { homeTeamId: string; awayTeamId: string; roundName: string }[] = []
       
-      const numRounds = teamIds.length - 1
+      const n = teamIds.length
+      const numRounds = n % 2 === 0 ? n - 1 : n
       const matchType = body.matchType || 'ida'
+      
+      let rotatingTeams = [...teamIds]
+      if (n % 2 === 0) {
+        rotatingTeams = [teamIds[0], ...teamIds.slice(1)]
+      }
       
       for (let round = 1; round <= numRounds; round++) {
         const roundName = `${round}`
         
-        for (let i = 0; i < teamIds.length; i++) {
-          for (let j = i + 1; j < teamIds.length; j++) {
-            matches.push({ 
-              homeTeamId: teamIds[i], 
-              awayTeamId: teamIds[j],
-              roundName: roundName
-            })
-          }
-        }
-        
-        if (matchType === 'idayvuelta') {
-          for (let i = 0; i < teamIds.length; i++) {
-            for (let j = i + 1; j < teamIds.length; j++) {
-              matches.push({ 
-                homeTeamId: teamIds[j], 
-                awayTeamId: teamIds[i],
-                roundName: roundName
-              })
+        if (n % 2 === 0) {
+          for (let i = 0; i < n / 2; i++) {
+            const home = rotatingTeams[i]
+            const away = rotatingTeams[n - 1 - i]
+            if (home && away) {
+              matches.push({ homeTeamId: home, awayTeamId: away, roundName })
             }
           }
+          
+          if (matchType === 'idayvuelta') {
+            for (let i = 0; i < n / 2; i++) {
+              const home = rotatingTeams[n - 1 - i]
+              const away = rotatingTeams[i]
+              if (home && away) {
+                matches.push({ homeTeamId: home, awayTeamId: away, roundName })
+              }
+            }
+          }
+          
+          rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
+        } else {
+          for (let i = 0; i < (n - 1) / 2; i++) {
+            const home = rotatingTeams[i]
+            const away = rotatingTeams[n - 2 - i]
+            if (home && away) {
+              matches.push({ homeTeamId: home, awayTeamId: away, roundName })
+            }
+          }
+          
+          if (matchType === 'idayvuelta') {
+            for (let i = 0; i < (n - 1) / 2; i++) {
+              const home = rotatingTeams[n - 2 - i]
+              const away = rotatingTeams[i]
+              if (home && away) {
+                matches.push({ homeTeamId: home, awayTeamId: away, roundName })
+              }
+            }
+          }
+          
+          rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
         }
       }
 
