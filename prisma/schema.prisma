@@ -140,16 +140,38 @@ model Team {
   name        String
   logo        String?
   color       String?
+  coach       String?
   managerId   String
   manager     User      @relation("TeamManager", fields: [managerId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   players         TeamPlayer[]
+  teamMembers    TeamMember[]
   homeMatches     Match[]       @relation("HomeTeam")
   awayMatches     Match[]       @relation("AwayTeam")
   tournamentTeams TournamentTeam[]
   messages        Message[]
+}
+
+enum MemberRole {
+  PLAYER
+  COACH
+  ASSISTANT
+  TECHNICAL
+}
+
+model TeamMember {
+  id        String    @id @default(cuid())
+  teamId    String
+  name      String
+  role      MemberRole
+  number    Int?
+  phone    String?
+  isActive Boolean  @default(true)
+  createdAt DateTime  @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 }
 
 model PlayerProfile {
