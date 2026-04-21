@@ -19,6 +19,7 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [showNewModal, setShowNewModal] = useState(false)
 
   useEffect(() => {
     const fetchTournaments = async () => {
@@ -70,9 +71,9 @@ export default function TournamentsPage() {
     <div>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Torneos</h1>
-        <Link href="/dashboard/tournaments/new" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+        <button onClick={() => setShowNewModal(true)} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
           + Nuevo Torneo
-        </Link>
+        </button>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -124,9 +125,52 @@ export default function TournamentsPage() {
           <div className="text-6xl mb-4">🏆</div>
           <h3 className="text-xl font-semibold text-gray-700 mb-2">No hay torneos</h3>
           <p className="text-gray-500 mb-6">Crea tu primer torneo para comenzar</p>
-          <Link href="/dashboard/tournaments/new" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+          <button onClick={() => setShowNewModal(true)} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
             Crear Torneo
-          </Link>
+          </button>
+        </div>
+      )}
+
+      {showNewModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowNewModal(false)}>
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Nuevo Torneo</h2>
+            <p className="text-gray-500 text-center mb-6">Selecciona el tipo de campeonato</p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setShowNewModal(false)
+                  window.location.href = '/dashboard/tournaments/new?type=single'
+                }}
+                className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition text-left"
+              >
+                <div className="text-3xl mb-2">🏆</div>
+                <h3 className="text-lg font-bold text-gray-800">Campeonato Único</h3>
+                <p className="text-sm text-gray-500">Un solo deporte y categoría</p>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setShowNewModal(false)
+                  alert('Campeonato con categorías - Próximamente')
+                }}
+                className="w-full p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition text-left opacity-50"
+                disabled
+              >
+                <div className="text-3xl mb-2">📊</div>
+                <h3 className="text-lg font-bold text-gray-800">Campeonato con Categorías</h3>
+                <p className="text-sm text-gray-500">Múltiples categorías (edad, género, etc.) - Próximamente</p>
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowNewModal(false)}
+              className="w-full mt-4 py-3 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
     </div>
