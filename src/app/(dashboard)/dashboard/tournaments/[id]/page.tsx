@@ -427,8 +427,11 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
 
               {/* Partidos de la fecha seleccionada */}
               <div className="space-y-2 mt-4">
-                <h3 className="font-medium text-sm text-gray-600">{selectedRound}</h3>
-                {matches.filter(m => m.roundName === selectedRound).map(m => (
+                <h3 className="font-medium text-sm text-gray-600">Fecha {selectedRound}</h3>
+                {(() => {
+                  const filtered = matches.filter(m => m.roundName === selectedRound)
+                  console.log('Filtering:', selectedRound, 'matches found:', filtered.length, 'all rounds:', [...new Set(matches.map(m => m.roundName))])
+                  return filtered.map(m => (
                   <div key={m.id} className="p-2 bg-gray-50 rounded-lg flex items-center justify-between text-sm">
                     <span className="flex-1 text-right truncate">{m.homeTeam.name}</span>
                     <span className="px-2 font-bold">
@@ -436,10 +439,13 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
                     </span>
                     <span className="flex-1 text-left truncate">{m.awayTeam.name}</span>
                   </div>
-                ))}
-                {matches.filter(m => m.roundName === selectedRound).length === 0 && (
-                  <p className="text-center text-gray-400 text-sm py-4">No hay partidos</p>
-                )}
+                ))})()}
+                {(() => {
+                  const filtered = matches.filter(m => m.roundName === selectedRound)
+                  return filtered.length === 0 && (
+                    <p className="text-center text-gray-400 text-sm py-4">No hay partidos</p>
+                  )
+                })()}
               </div>
             </div>
           </div>
