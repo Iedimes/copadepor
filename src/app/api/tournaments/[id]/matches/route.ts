@@ -148,16 +148,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             }
           }
           
-          if (matchType === 'idayvuelta') {
-            for (let i = 0; i < n / 2; i++) {
-              const home = rotatingTeams[n - 1 - i]
-              const away = rotatingTeams[i]
-              if (home && away) {
-                matches.push({ homeTeamId: home, awayTeamId: away, roundName })
-              }
-            }
-          }
-          
           rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
         } else {
           for (let i = 0; i < (n - 1) / 2; i++) {
@@ -168,7 +158,30 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             }
           }
           
-          if (matchType === 'idayvuelta') {
+          rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
+        }
+      }
+      
+      if (matchType === 'idayvuelta') {
+        rotatingTeams = [...teamIds]
+        if (n % 2 === 0) {
+          rotatingTeams = [teamIds[0], ...teamIds.slice(1)]
+        }
+        
+        for (let round = 1; round <= numRounds; round++) {
+          const roundName = `${round + numRounds}`
+          
+          if (n % 2 === 0) {
+            for (let i = 0; i < n / 2; i++) {
+              const home = rotatingTeams[n - 1 - i]
+              const away = rotatingTeams[i]
+              if (home && away) {
+                matches.push({ homeTeamId: home, awayTeamId: away, roundName })
+              }
+            }
+            
+            rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
+          } else {
             for (let i = 0; i < (n - 1) / 2; i++) {
               const home = rotatingTeams[n - 2 - i]
               const away = rotatingTeams[i]
@@ -176,9 +189,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
                 matches.push({ homeTeamId: home, awayTeamId: away, roundName })
               }
             }
+            
+            rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
           }
-          
-          rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
         }
       }
 
