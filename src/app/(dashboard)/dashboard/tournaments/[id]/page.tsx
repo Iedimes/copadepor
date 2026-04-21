@@ -98,6 +98,10 @@ export default function TournamentPage() {
           const m = await matchesRes.json()
           console.log('matches:', m.length)
           setMatches(m)
+          const rounds = [...new Set(m.map((x: any) => x.roundName))].sort((a: string, b: string) => parseInt(a) - parseInt(b))
+          if (rounds.length > 0) {
+            setSelectedRound(rounds[0] as string)
+          }
         }
         if (teamsRes.ok) {
           const t = await teamsRes.json()
