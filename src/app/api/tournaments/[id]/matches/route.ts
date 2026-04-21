@@ -48,6 +48,43 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const token = getAuthToken(request)
+  if (!token) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  const payload = verifyToken(token)
+  if (!payload) {
+    return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+  }
+
+  try {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!tournament || tournament.organizerId !== payload.userId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+
+    const url = new URL(request.url)
+    const action = url.searchParams.get('action')
+
+    if (action === 'deleteAll') {
+      await prisma.match.deleteMany({
+        where: { tournamentId: params.id },
+      })
+      return NextResponse.json({ message: 'Todos los partidos eliminados' })
+    }
+
+    return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+  } catch (error) {
+    console.error('Delete matches error:', error)
+    return NextResponse.json({ error: 'Error al eliminar partidos' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const token = getAuthToken(request)
   if (!token) {

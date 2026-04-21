@@ -419,6 +419,22 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
                     <button className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">
                       + Agregar Fecha
                     </button>
+                    {matches.length > 0 && (
+                      <button 
+                        onClick={async () => {
+                          if (!confirm('¿Eliminar todos los partidos y regenerar?')) return
+                          const token = localStorage.getItem('token')
+                          await fetch(`/api/tournaments/${tournamentId}/matches?action=deleteAll`, {
+                            method: 'DELETE',
+                            headers: { Authorization: `Bearer ${token}` },
+                          })
+                          fetchData()
+                        }}
+                        className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm"
+                      >
+                        🔄 Regenerar
+                      </button>
+                    )}
                   </>
                 ) : (
                   <p className="text-sm text-orange-600">Agrega al menos 2 equipos</p>
