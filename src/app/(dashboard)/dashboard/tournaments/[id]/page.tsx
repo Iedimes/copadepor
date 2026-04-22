@@ -102,15 +102,26 @@ export default function TournamentPage() {
           if (rounds.length > 0) {
             setSelectedRound(rounds[0] as string)
           }
+        } else {
+          console.error('Failed to fetch matches', matchesRes.status, await matchesRes.text())
         }
+
         if (teamsRes.ok) {
           const t = await teamsRes.json()
           console.log('tournamentTeams:', t.length)
           setTournamentTeams(t)
+        } else {
+          console.error('Failed to fetch tournament teams', teamsRes.status, await teamsRes.text())
         }
-        const at = await allTeamsRes.json()
-        console.log('allTeams:', at.length)
-        setAllTeams(Array.isArray(at) ? at : [])
+
+        if (allTeamsRes.ok) {
+          const at = await allTeamsRes.json()
+          console.log('allTeams:', at.length)
+          setAllTeams(Array.isArray(at) ? at : [])
+        } else {
+          console.error('Failed to fetch all teams', allTeamsRes.status, await allTeamsRes.text())
+          setAllTeams([])
+        }
       }
     } catch (error) {
       console.error('Error fetching:', error)

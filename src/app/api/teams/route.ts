@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 const teamSchema = z.object({
   name: z.string().min(2),
+  coach: z.string().optional(),
   logo: z.string().optional(),
   color: z.string().optional(),
 })
@@ -30,17 +31,23 @@ export async function GET(request: NextRequest) {
 
   const where: Record<string, unknown> = { managerId: payload.userId }
   if (tournamentId) {
-    where.tournaments = { some: { tournamentId } }
+    where.tournamentTeams = { some: { tournamentId } }
   }
 
-  const teams = await prisma.team.findMany({
-    where,
-    include: {
-      manager: { select: { id: true, name: true } },
-      players: { include: { player: true } },
-    },
-    orderBy: { name: 'asc' },
-  })
+  let teams
+  try {
+    teams = await prisma.team.findMany({
+      where,
+      include: {
+        manager: { select: { id: true, name: true } },
+        players: { include: { player: true } },
+      },
+      orderBy: { name: 'asc' },
+    })
+  } catch (error) {
+    console.error('Get teams error:', error)
+    return NextResponse.json({ error: 'Error al obtener equipos' }, { status: 500 })
+  }
 
   return NextResponse.json(teams)
 }

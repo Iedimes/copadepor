@@ -43,11 +43,13 @@ const sports = [
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ tournaments: 0, teams: 0, matches: 0, players: 0 })
   const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [showTypeModal, setShowTypeModal] = useState(false)
   const [showSportModal, setShowSportModal] = useState(false)
   const [showChampionshipModal, setShowChampionshipModal] = useState(false)
   const [selectedSport, setSelectedSport] = useState('')
   const [championshipName, setChampionshipName] = useState('')
   const [championshipFormat, setChampionshipFormat] = useState('todos_contra_todos')
+  const [selectedChampionshipType, setSelectedChampionshipType] = useState<'single' | 'multiple' | ''>('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -94,6 +96,17 @@ export default function DashboardPage() {
       case 'REGISTRATION_OPEN': return 'Inscripciones'
       case 'COMPLETED': return 'Finalizado'
       default: return 'Borrador'
+    }
+  }
+
+  const handleTypeSelect = (type: 'single' | 'multiple') => {
+    setSelectedChampionshipType(type)
+    setShowTypeModal(false)
+
+    if (type === 'single') {
+      setTimeout(() => setShowSportModal(true), 100)
+    } else {
+      router.push('/dashboard/tournaments/new?type=multiple')
     }
   }
 
@@ -160,7 +173,9 @@ export default function DashboardPage() {
         setChampionshipName('')
         setSelectedSport('')
         setChampionshipFormat('todos_contra_todos')
-        router.refresh()
+        setSelectedChampionshipType('')
+        setTournaments((prev) => [data, ...prev])
+        setStats((prev) => ({ ...prev, tournaments: prev.tournaments + 1 }))
       } else {
         alert('Error: ' + (data.error || 'No se pudo crear el campeonato'))
       }
@@ -183,7 +198,7 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">No hay Campeonatos</h2>
           <p className="text-gray-500 mb-8">Crea tu primer campeonato para comenzar</p>
           <button 
-            onClick={() => setShowSportModal(true)}
+            onClick={() => setShowTypeModal(true)}
             className="bg-blue-600 text-white px-8 py-4 rounded-xl font-medium hover:bg-blue-700 text-lg"
           >
             + Nuevo Campeonato
@@ -221,12 +236,43 @@ export default function DashboardPage() {
           ))}
           
           <button 
-            onClick={() => setShowSportModal(true)}
+            onClick={() => setShowTypeModal(true)}
             className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 transition"
           >
             <span className="text-4xl mb-2">+</span>
             <span className="font-medium">Agregar Campeonato</span>
           </button>
+        </div>
+      )}
+
+      {/* Modal: Tipo de Campeonato */}
+      {showTypeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTypeModal(false)}>
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Nuevo Campeonato</h2>
+            <p className="text-gray-600 text-center mb-6">Selecciona el tipo de campeonato</p>
+            <div className="space-y-4">
+              <button
+                onClick={() => handleTypeSelect('single')}
+                className="w-full text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition"
+              >
+                <div className="text-3xl mb-2">🏆</div>
+                <h3 className="text-lg font-semibold text-gray-800">Campeonato Único</h3>
+                <p className="text-sm text-gray-500">Un solo deporte y una sola categoría</p>
+              </button>
+              <button
+                onClick={() => handleTypeSelect('multiple')}
+                className="w-full text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition"
+              >
+                <div className="text-3xl mb-2">📊</div>
+                <h3 className="text-lg font-semibold text-gray-800">Campeonato con Categorías</h3>
+                <p className="text-sm text-gray-500">Múltiples categorías por edad, género o modalidad</p>
+              </button>
+            </div>
+            <button onClick={() => setShowTypeModal(false)} className="mt-6 w-full py-3 text-gray-500 hover:text-gray-700">
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
 

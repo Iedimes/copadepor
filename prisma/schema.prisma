@@ -151,6 +151,7 @@ model Team {
   homeMatches     Match[]       @relation("HomeTeam")
   awayMatches     Match[]       @relation("AwayTeam")
   tournamentTeams TournamentTeam[]
+  standings       Standings[]
   messages        Message[]
 }
 
@@ -268,6 +269,7 @@ model Standings {
   points        Int     @default(0)
 
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
 }
 
 model Sanction {
