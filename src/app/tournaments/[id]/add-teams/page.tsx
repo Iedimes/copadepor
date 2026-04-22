@@ -97,11 +97,11 @@ export default function AddTeamsPage() {
   }
 
   const handleGoBack = () => {
-    router.push(`/dashboard/tournaments/${tournamentId}?view=clasificacion`)
+    router.push(`/tournaments/${tournamentId}?view=clasificacion`)
   }
 
   const handleAddPlayers = (teamId: string, teamName: string) => {
-    router.push(`/dashboard/tournaments/${tournamentId}/add-players?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}`)
+    router.push(`/tournaments/${tournamentId}/add-players?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}`)
   }
 
   if (loading) {

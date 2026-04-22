@@ -103,7 +103,7 @@ export default function AddPlayersPage() {
   }
 
   const handleGoBack = () => {
-    router.push(`/dashboard/tournaments/${tournamentId}/add-teams`)
+    router.push(`/tournaments/${tournamentId}/add-teams`)
   }
 
   const handleOpenModal = (member: TeamMember, mode: 'edit' | 'add') => {

@@ -83,7 +83,7 @@ export default function NewTournamentPage() {
         return
       }
 
-      router.push('/dashboard/tournaments')
+      router.push('/tournaments')
     } catch {
       setError('Error de conexión')
     } finally {

@@ -106,7 +106,7 @@ export default function DashboardPage() {
     if (type === 'single') {
       setTimeout(() => setShowSportModal(true), 100)
     } else {
-      router.push('/dashboard/tournaments/new?type=multiple')
+      router.push('/tournaments/new?type=multiple')
     }
   }
 
@@ -210,7 +210,7 @@ export default function DashboardPage() {
             <div 
               key={tournament.id} 
               className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition cursor-pointer"
-              onClick={() => router.push(`/dashboard/tournaments/${tournament.id}`)}
+              onClick={() => router.push(`/tournaments/${tournament.id}`)}
             >
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
                 <div className="flex justify-between items-start">
