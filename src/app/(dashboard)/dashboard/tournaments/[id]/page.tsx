@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 
 interface Tournament {
   id: string
@@ -40,6 +40,7 @@ type MenuType = 'inicio' | 'clasificacion'
 export default function TournamentPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [matches, setMatches] = useState<Match[]>([])
@@ -48,7 +49,10 @@ export default function TournamentPage() {
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [showQR, setShowQR] = useState(false)
-  const [activeMenu, setActiveMenu] = useState<MenuType>('inicio')
+  const [activeMenu, setActiveMenu] = useState<MenuType>(() => {
+    const view = searchParams.get('view')
+    return view === 'clasificacion' ? 'clasificacion' : 'inicio'
+  })
   const [showAddTeam, setShowAddTeam] = useState(false)
   const [showAddMatch, setShowAddMatch] = useState(false)
   const [selectedRound, setSelectedRound] = useState('1')
@@ -63,6 +67,13 @@ export default function TournamentPage() {
   useEffect(() => {
     fetchData()
   }, [tournamentId, activeMenu])
+
+  useEffect(() => {
+    const view = searchParams.get('view')
+    if (view === 'clasificacion' && activeMenu === 'inicio') {
+      setActiveMenu('clasificacion')
+    }
+  }, [searchParams])
 
   const fetchData = async () => {
     setLoading(true)
@@ -87,6 +98,14 @@ export default function TournamentPage() {
         if (mRes.ok) setMessages(await mRes.json())
       } else if (activeMenu === 'clasificacion') {
         console.log('Fetching clasificacion...', tournamentId)
+        
+        // Siempre cargar info del torneo
+        const tRes = await fetch(`/api/tournaments/${tournamentId}`, { headers: { Authorization: `Bearer ${token}` } })
+        if (tRes.ok) {
+          const tData = await tRes.json()
+          setTournament(tData)
+        }
+        
         const [matchesRes, teamsRes, allTeamsRes] = await Promise.all([
           fetch(`/api/tournaments/${tournamentId}/matches`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`/api/tournaments/${tournamentId}/teams`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -352,10 +371,6 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
                   >
                     ⚙️ Gestionar Equipos
                   </button>
-                  {allTeams.length > tournamentTeams.length && (
-                    <button onClick={() => addAllTeams()} className="text-green-600 text-sm">+ AgregarTodos</button>
-                  )}
-                  <button onClick={() => setShowAddTeam(true)} className="text-blue-600 text-sm">+ Agregar</button>
                 </div>
               </div>
 
