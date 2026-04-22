@@ -346,6 +346,12 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
               </div>
               <h2 className="text-xl font-bold mb-4">📊 CLASIFICACIÓN</h2>
                 <div className="flex gap-2">
+                  <button 
+                    onClick={() => router.push(`/dashboard/tournaments/${tournamentId}/add-teams`)}
+                    className="text-blue-600 text-sm px-3 py-2 border border-blue-600 rounded-lg hover:bg-blue-50"
+                  >
+                    ⚙️ Gestionar Equipos
+                  </button>
                   {allTeams.length > tournamentTeams.length && (
                     <button onClick={() => addAllTeams()} className="text-green-600 text-sm">+ AgregarTodos</button>
                   )}
@@ -355,8 +361,13 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
 
               {tournamentTeams.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-400 mb-4">No hay equipos</p>
-                  <button onClick={() => setShowAddTeam(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Agregar Equipo</button>
+                  <p className="text-gray-400 mb-4">No hay equipos agregados</p>
+                  <button 
+                    onClick={() => router.push(`/dashboard/tournaments/${tournamentId}/add-teams`)}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+                  >
+                    + Agregar Equipos
+                  </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
