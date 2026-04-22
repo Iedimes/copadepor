@@ -140,7 +140,7 @@ CREATE TABLE teamplayer (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- 9. Match
-CREATE TABLE match (
+CREATE TABLE `match` (
     id VARCHAR(30) NOT NULL,
     tournamentId VARCHAR(30) NOT NULL,
     categoryId VARCHAR(30),
@@ -150,7 +150,7 @@ CREATE TABLE match (
     awayScore INT,
     status ENUM('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'POSTPONED', 'CANCELLED') NOT NULL DEFAULT 'SCHEDULED',
     matchDate DATETIME NOT NULL,
-    roundName VARCHAR(255) NOT NULL DEFAULT '1ª Fecha',
+    roundName VARCHAR(255) NOT NULL DEFAULT '1',
     location VARCHAR(255),
     referee VARCHAR(255),
     notes TEXT,
@@ -256,17 +256,20 @@ CREATE TABLE message (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================
+-- DATOS DE PRUEBA (opcional - comentar si no se desea)
+-- ============================================
+
+-- Nota: Los datos de usuario se crean desde el registro de la app
+-- Para insertar datos de prueba, descomenta las líneas siguientes:
+
+-- INSERT INTO tournament (id, name, description, sportType, status, format, startDate, endDate, organizerId) VALUES
+-- ('tourn1', 'Copa Prueba', 'Torneo de prueba', 'FUTBOL_11', 'DRAFT', 'todos_contra_todos', NOW(), DATE_ADD(NOW(), INTERVAL 1 MONTH), 'user_id_del_organizador');
+-- 
+-- INSERT INTO team (id, name, coach, managerId) VALUES
+-- ('team1', 'Equipo Alpha', 'Entrenador A', 'user_id_del_manager'),
+-- ('team2', 'Equipo Beta', 'Entrenador B', 'user_id_del_manager');
+
+-- ============================================
 -- VERIFICAR ESTRUCTURA
 -- ============================================
 SHOW TABLES;
-
--- Verificar count de tablas
-SELECT 'tournament' as tabla, COUNT(*) as registros FROM tournament
-UNION ALL SELECT 'category', COUNT(*) FROM category
-UNION ALL SELECT 'team', COUNT(*) FROM team
-UNION ALL SELECT 'match', COUNT(*) FROM match
-UNION ALL SELECT 'standings', COUNT(*) FROM standings
-UNION ALL SELECT 'sponsor', COUNT(*) FROM sponsor
-UNION ALL SELECT 'news', COUNT(*) FROM news
-UNION ALL SELECT 'message', COUNT(*) FROM message
-UNION ALL SELECT 'user', COUNT(*) FROM user;
