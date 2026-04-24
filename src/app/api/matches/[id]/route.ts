@@ -2,18 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
-function getAuthToken(request: NextRequest): string | null {
-  const authHeader = request.headers.get('authorization')
-  return authHeader?.replace('Bearer ', '') || null
-}
-
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const matchId = searchParams.get('matchId')
-
-  if (!matchId) {
-    return NextResponse.json({ error: 'matchId requerido' }, { status: 400 })
-  }
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const matchId = params.id
 
   try {
     const match = await prisma.match.findUnique({
@@ -36,8 +26,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
-  const token = getAuthToken(request)
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '') || null
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
@@ -47,12 +37,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
-  const matchId = searchParams.get('matchId')
-
-  if (!matchId) {
-    return NextResponse.json({ error: 'matchId requerido' }, { status: 400 })
-  }
+  const matchId = params.id
 
   try {
     const body = await request.json()
@@ -77,8 +62,8 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
-  const token = getAuthToken(request)
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '') || null
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
@@ -88,12 +73,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
-  const matchId = searchParams.get('matchId')
-
-  if (!matchId) {
-    return NextResponse.json({ error: 'matchId requerido' }, { status: 400 })
-  }
+  const matchId = params.id
 
   try {
     await prisma.match.delete({

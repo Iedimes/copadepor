@@ -597,7 +597,15 @@ return filtered.map(m => (
             <div className="space-y-3">
               <button className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Ver partido</button>
               <button className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Seleccionar Equipos</button>
-              <button className="w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700">Editar resultado</button>
+              <button
+  onClick={() => {
+    router.push(`/tournaments/${tournamentId}/matches/${selectedMatch.id}/edit-result`)
+    setSelectedMatch(null)
+  }}
+  className="w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700"
+>
+  Editar resultado
+</button>
               <button className="w-full py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700">Editar información</button>
               <button className="w-full py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600">Restaurar</button>
               <button className="w-full py-3 bg-red-600 text-white rounded-xl hover:bg-red-700">Eliminar partido</button>
