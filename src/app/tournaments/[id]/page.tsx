@@ -58,6 +58,7 @@ export default function TournamentPage() {
   const [selectedRound, setSelectedRound] = useState('1')
   const [roundDate, setRoundDate] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
   const [showGenType, setShowGenType] = useState(false)
   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
   const [editingScore, setEditingScore] = useState<{matchId: string, home: number, away: number} | null>(null)
@@ -260,6 +261,10 @@ export default function TournamentPage() {
     })
 
     return Object.values(teamStats).sort((a, b) => b.points - a.points || b.gf - b.ga)
+  }
+
+  const handleOpenMatchModal = (match: Match) => {
+    setSelectedMatch(match)
   }
 
   const shareUrl = `https://copafacil.com/${tournamentId}`
@@ -484,11 +489,11 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
                 {(() => {
                   const filtered = matches.filter(m => m.roundName === selectedRound)
                   console.log('Filtering:', selectedRound, 'matches found:', filtered.length, 'all rounds:', [...new Set(matches.map(m => m.roundName))])
-                  return filtered.map(m => (
-                  <div key={m.id} className="p-2 bg-gray-50 rounded-lg flex items-center justify-between text-sm">
+return filtered.map(m => (
+                  <div key={m.id} onClick={() => { console.log('Opening modal for:', m.id); handleOpenMatchModal(m); }} className="p-2 bg-gray-50 rounded-lg flex items-center justify-between text-sm cursor-pointer">
                     <span className="flex-1 text-right truncate">{m.homeTeam.name}</span>
                     <span className="px-2 font-bold">
-                      {m.homeScore !== null ? `${m.homeScore} - ${m.awayScore}` : 'vs'}
+                      {m.homeScore !== null ? `${m.homeScore} - ${m.awayScore}` : 'VS'}
                     </span>
                     <span className="flex-1 text-left truncate">{m.awayTeam.name}</span>
                   </div>
@@ -575,6 +580,29 @@ const rounds = allRounds.length > 0 ? allRounds.map(r => `${r}º Fase`) : ['1º 
               {generating ? 'Generando...' : '⚡ Generar Partidos'}
             </button>
             <button onClick={() => setShowGenType(false)} className="mt-3 w-full py-2 border rounded-lg">Cancelar</button>
+</div>
+          </div>
+        )}
+
+        {/* Match Modal */}
+        {selectedMatch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedMatch(null)}>
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-4 text-center">
+              {selectedMatch.homeTeam.name} vs {selectedMatch.awayTeam.name}
+            </h3>
+            <p className="text-center text-gray-500 text-sm mb-4">
+              {selectedMatch.roundName} - {selectedMatch.matchDate ? new Date(selectedMatch.matchDate).toLocaleDateString() : ''}
+            </p>
+            <div className="space-y-3">
+              <button className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Ver partido</button>
+              <button className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Seleccionar Equipos</button>
+              <button className="w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700">Editar resultado</button>
+              <button className="w-full py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700">Editar información</button>
+              <button className="w-full py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600">Restaurar</button>
+              <button className="w-full py-3 bg-red-600 text-white rounded-xl hover:bg-red-700">Eliminar partido</button>
+            </div>
+            <button onClick={() => setSelectedMatch(null)} className="mt-4 w-full py-3 border rounded-xl hover:bg-gray-50">Cerrar</button>
           </div>
         </div>
       )}
