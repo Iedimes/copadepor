@@ -2,9 +2,9 @@
 
 ## Resumen
 Se ha implementado un nuevo modal **"Criterio de Clasificación"** que se integra en el flujo de creación de campeonatos. Este modal permite al usuario:
-- Seleccionar y ordenar criterios de clasificación mediante arrastre (drag-and-drop)
-- Cambiar el orden de prioridad de los criterios
-- Activar/desactivar criterios según necesidad
+- **Ver todos los criterios preseleccionados** (no se pueden deseleccionar)
+- **Ordenar criterios por prioridad** mediante arrastre (drag-and-drop)
+- Cada posición tiene máxima importancia en orden descendente
 
 ## Flujo Completo de Creación de Campeonato
 
@@ -31,18 +31,35 @@ Usuario selecciona un deporte
 
 ### 3. **NEW Modal: "Criterio de Clasificación"** ✨
 ```
-Se muestra la lista de criterios seleccionados en orden de prioridad:
-1. Puntos (predeterminado)
-2. Goles (predeterminado)
-3. Goles a Favor (predeterminado)
-4. Resultados Entre Sí (predeterminado)
-5. Tarjetas Amarillas (predeterminado)
-6. Tarjetas Rojas (predeterminado)
+Se muestra la lista de criterios en orden de prioridad (TODO POR DEFECTO):
+⋮⋮ Puntos                          ①
+   Suma de puntos obtenidos
 
-Usuario puede:
-✓ Arrastr los criterios para cambiar orden (⋮⋮ = drag handle)
-✓ Hacer clic en ✓ para remover un criterio
-✓ Ver lista de "Criterios no seleccionados" con opción + para agregar
+⋮⋮ Goles                           ②
+   Diferencia de goles
+
+⋮⋮ Goles a Favor                   ③
+   Total de goles marcados
+
+⋮⋮ Resultados Entre Sí             ④
+   Desempate directo
+
+⋮⋮ Tarjetas Amarillas              ⑤
+   Menos tarjetas amarillas
+
+⋮⋮ Tarjetas Rojas                  ⑥
+   Menos tarjetas rojas
+
+⋮⋮ W.O. (Walkover)                 ⑦
+   Victorias por incomparecencia
+
+Usuario SOLO puede:
+✓ Arrastrar los criterios para cambiar orden (⋮⋮ = drag handle)
+✓ Ver descripción de cada criterio
+✓ Ver posición actual (①②③ etc.)
+
+💡 Tip mostrado: "El orden determina la prioridad para desempate. 
+                  El criterio en posición 1 tiene máxima prioridad."
 
 Botones:
 - "Cancelar": Vuelve atrás
@@ -76,7 +93,7 @@ Botones:
 
 ### Base de Datos (Prisma Schema)
 ```prisma
-// Nuevo enum
+// Nuevo enum CON W.O.
 enum ClassificationCriterion {
   PUNTOS
   GOLES
@@ -84,12 +101,13 @@ enum ClassificationCriterion {
   RESULTADOS_ENTRE_SI
   TARJETAS_AMARILLAS
   TARJETAS_ROJAS
+  W_O
 }
 
-// Nuevo campo en Tournament
+// Nuevo campo en Tournament con W.O. incluido
 model Tournament {
   ...
-  classificationCriteria String @default("PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS")
+  classificationCriteria String @default("PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O")
   ...
 }
 ```
@@ -98,12 +116,26 @@ model Tournament {
 ```typescript
 // Nuevas variables de estado
 const [showCriteriaModal, setShowCriteriaModal] = useState(false)
-const [classificationCriteria, setClassificationCriteria] = useState<string[]>([...])
+const [classificationCriteria, setClassificationCriteria] = useState<string[]>([
+  'PUNTOS',
+  'GOLES',
+  'GOLES_A_FAVOR',
+  'RESULTADOS_ENTRE_SI',
+  'TARJETAS_AMARILLAS',
+  'TARJETAS_ROJAS',
+  'W_O'
+])
 
-// Nuevas funciones
-- handleCriteriaConfirm(): Avanza al siguiente modal
+// Única función de criterios
 - handleMoveCriteria(from, to): Reordena criterios (drag-and-drop)
-- handleToggleCriteria(criterionId): Activa/desactiva un criterio
+
+// Criterios vienen con descripción
+const CRITERIA_OPTIONS = [
+  { id: 'PUNTOS', label: 'Puntos', description: 'Suma de puntos obtenidos' },
+  { id: 'GOLES', label: 'Goles', description: 'Diferencia de goles' },
+  // ... etc
+  { id: 'W_O', label: 'W.O. (Walkover)', description: 'Victorias por incomparecencia' }
+]
 ```
 
 ### API (POST /api/tournaments)
@@ -112,7 +144,7 @@ const [classificationCriteria, setClassificationCriteria] = useState<string[]>([
   "name": "Copa Oro",
   "sportType": "FUTBOL_11",
   "format": "todos_contra_todos",
-  "classificationCriteria": "PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI",
+  "classificationCriteria": "PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O",
   "startDate": "2026-04-27",
   "endDate": "2026-07-26"
 }
@@ -121,32 +153,52 @@ const [classificationCriteria, setClassificationCriteria] = useState<string[]>([
 ## Archivos Modificados
 
 1. **src/app/(dashboard)/dashboard/page.tsx**
-   - Agregados: Estados, funciones de criterios, modal JSX
-   - Modificado: handleSportSelect, handleCreateChampionship
+   - Actualizado: Estado, funciones de criterios, modal JSX
+   - Eliminado: handleToggleCriteria (no se necesita)
 
 2. **prisma/schema.prisma**
-   - Agregado: enum ClassificationCriterion
-   - Modificado: model Tournament
+   - Actualizado: enum ClassificationCriterion (agregado W_O)
+   - Actualizado: model Tournament (default con W_O)
 
 3. **src/app/api/tournaments/route.ts**
-   - Modificado: tournamentSchema, POST handler
+   - Actualizado: default value en POST handler
 
-## Características del Modal de Criterios
+## Características del Modal de Criterios (MEJORADO)
+
+### Visual
+- Lista con todos 7 criterios preseleccionados
+- Ícono ⋮⋮ para indicar que se puede arrastrar
+- Número circular ① ② ③ etc. para mostrar posición
+- Descripción debajo del nombre de cada criterio
+- Fondo azul claro al pasar el mouse
+- Contenedor scrolleable si es necesario
 
 ### Drag-and-Drop
 - Click y arrastra en el ícono ⋮⋮ para reordenar
 - Visual feedback: hover hace background azul
-- Posición en tiempo real: "Posición: X"
+- Posición en tiempo real: número circular actualizado
 
-### Toggle de Criterios
-- Botón ✓ en criterios seleccionados para remover
-- Botón + en criterios no seleccionados para agregar
-- Validación: Mínimo 1 criterio debe estar seleccionado
+### Validación
+- NO hay validación: siempre hay 7 criterios
+- Mínimo necesario: 1 criterio ✓ (siempre cumple)
+- El botón "Continuar" siempre está habilitado
 
 ### Orden de Prioridad
 - El orden mostrado es el que se usa para desempate en la clasificación
-- Primer criterio: máxima prioridad
-- Último criterio: mínima prioridad
+- Primer criterio: máxima prioridad (①)
+- Último criterio: mínima prioridad (⑦)
+
+## Criterios Incluidos
+
+### 7 Criterios Predeterminados en Orden
+
+1. **PUNTOS** - Suma total de puntos obtenidos
+2. **GOLES** - Diferencia de goles (a favor - en contra)
+3. **GOLES_A_FAVOR** - Total de goles marcados
+4. **RESULTADOS_ENTRE_SI** - Desempate con encuentros directos
+5. **TARJETAS_AMARILLAS** - Menos tarjetas amarillas (orden inverso)
+6. **TARJETAS_ROJAS** - Menos tarjetas rojas (orden inverso)
+7. **W_O** - Victorias por incomparecencia/Walkover
 
 ## Pasos para Activar
 
@@ -171,16 +223,19 @@ npm run dev
 1. Ir a Dashboard
 2. Hacer clic en "+ Nuevo Campeonato"
 3. Seguir el flujo completo
+4. En el modal de criterios, **solo arrastrar para cambiar orden**
 
-## Criterios por Defecto
+## Cambios desde la Versión Anterior
 
-Al crear un campeonato, los criterios vienen preseleccionados en este orden:
-1. **PUNTOS** - Determina ganador por total de puntos
-2. **GOLES** - Diferencia de goles
-3. **GOLES_A_FAVOR** - Total de goles marcados
-4. **RESULTADOS_ENTRE_SI** - Desempate directo
-5. **TARJETAS_AMARILLAS** - Menos tarjetas amarillas (orden inverso)
-6. **TARJETAS_ROJAS** - Menos tarjetas rojas (orden inverso)
+| Aspecto | Antes | Ahora |
+|--------|-------|-------|
+| Criterios seleccionables | ✓ Sí (toggle) | ✗ No (todos fijos) |
+| Criterios por defecto | 6 | 7 (+ W.O.) |
+| Se pueden deseleccionar | ✓ Sí | ✗ No |
+| Solo cambiar orden | ✗ No | ✓ Sí |
+| Sección "no seleccionados" | ✓ Sí | ✗ No (removida) |
+| Descripción de criterios | ✗ No | ✓ Sí |
+| Indicador de posición | ✓ "Posición: X" | ✓ "① ② ③..." (mejorado) |
 
 ## Notas Importantes
 
@@ -188,6 +243,7 @@ Al crear un campeonato, los criterios vienen preseleccionados en este orden:
 - ⚠️ La migración de Prisma es necesaria para crear el campo en BD
 - ✓ Los criterios se guardan como string separado por comas
 - ✓ El modelo es extensible para futuras versiones
+- ✓ W.O. incluido para torneos con victorias por incomparecencia
 
 ## Próximas Fases (Opcional)
 
@@ -195,3 +251,5 @@ Al crear un campeonato, los criterios vienen preseleccionados en este orden:
 - [ ] Usar criterios en algoritmo de clasificación
 - [ ] UI para cambiar criterios después de crear campeonato
 - [ ] Validación de criterios según deporte
+- [ ] Permitir agregar criterios personalizados
+
