@@ -40,16 +40,29 @@ const sports = [
   { id: 'MOBA_DOTA', name: 'MOBA (Dota)', icon: '🛡️' },
 ]
 
+const CRITERIA_OPTIONS = [
+  { id: 'PUNTOS', label: 'Puntos' },
+  { id: 'GOLES', label: 'Goles' },
+  { id: 'GOLES_A_FAVOR', label: 'Goles a Favor' },
+  { id: 'RESULTADOS_ENTRE_SI', label: 'Resultados Entre Sí' },
+  { id: 'TARJETAS_AMARILLAS', label: 'Tarjetas Amarillas' },
+  { id: 'TARJETAS_ROJAS', label: 'Tarjetas Rojas' },
+]
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ tournaments: 0, teams: 0, matches: 0, players: 0 })
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [showTypeModal, setShowTypeModal] = useState(false)
   const [showSportModal, setShowSportModal] = useState(false)
+  const [showCriteriaModal, setShowCriteriaModal] = useState(false)
   const [showChampionshipModal, setShowChampionshipModal] = useState(false)
   const [selectedSport, setSelectedSport] = useState('')
   const [championshipName, setChampionshipName] = useState('')
   const [championshipFormat, setChampionshipFormat] = useState('todos_contra_todos')
   const [selectedChampionshipType, setSelectedChampionshipType] = useState<'single' | 'multiple' | ''>('')
+  const [classificationCriteria, setClassificationCriteria] = useState<string[]>(
+    CRITERIA_OPTIONS.map(c => c.id)
+  )
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -115,9 +128,33 @@ export default function DashboardPage() {
     setSelectedSport(sportId)
     setShowSportModal(false)
     setTimeout(() => {
-      console.log('Modal state:', { showChampionshipModal: true, selectedSport: sportId })
+      console.log('Showing criteria modal')
+      setShowCriteriaModal(true)
+    }, 100)
+  }
+
+  const handleCriteriaConfirm = () => {
+    setShowCriteriaModal(false)
+    setTimeout(() => {
       setShowChampionshipModal(true)
     }, 100)
+  }
+
+  const handleMoveCriteria = (from: number, to: number) => {
+    const newCriteria = [...classificationCriteria]
+    const [moved] = newCriteria.splice(from, 1)
+    newCriteria.splice(to, 0, moved)
+    setClassificationCriteria(newCriteria)
+  }
+
+  const handleToggleCriteria = (criterionId: string) => {
+    setClassificationCriteria(prev => {
+      if (prev.includes(criterionId)) {
+        return prev.filter(c => c !== criterionId)
+      } else {
+        return [...prev, criterionId]
+      }
+    })
   }
 
   const handleDeleteTournament = async (e: React.MouseEvent, tournament: Tournament) => {
@@ -145,10 +182,20 @@ export default function DashboardPage() {
       return
     }
     
+    if (classificationCriteria.length === 0) {
+      alert('Debes seleccionar al menos un criterio de clasificación')
+      return
+    }
+    
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      console.log('Sending:', { name: championshipName, sportType: selectedSport, format: championshipFormat })
+      console.log('Sending:', { 
+        name: championshipName, 
+        sportType: selectedSport, 
+        format: championshipFormat,
+        classificationCriteria: classificationCriteria.join(',')
+      })
       
       const res = await fetch('/api/tournaments', {
         method: 'POST',
@@ -160,6 +207,7 @@ export default function DashboardPage() {
           name: championshipName,
           sportType: selectedSport,
           format: championshipFormat,
+          classificationCriteria: classificationCriteria.join(','),
           startDate: new Date().toISOString().split('T')[0],
           endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         }),
@@ -174,6 +222,7 @@ export default function DashboardPage() {
         setSelectedSport('')
         setChampionshipFormat('todos_contra_todos')
         setSelectedChampionshipType('')
+        setClassificationCriteria(CRITERIA_OPTIONS.map(c => c.id))
         setTournaments((prev) => [data, ...prev])
         setStats((prev) => ({ ...prev, tournaments: prev.tournaments + 1 }))
       } else {
@@ -303,6 +352,83 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Modal: Criterio de Clasificación */}
+      {showCriteriaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCriteriaModal(false)}>
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Criterio de Clasificación</h2>
+            <p className="text-gray-600 text-center mb-6">Arrastra los criterios para cambiar el orden de prioridad</p>
+            
+            <div className="space-y-3 mb-6">
+              {classificationCriteria.length === 0 && (
+                <p className="text-center text-gray-400 py-8">Selecciona al menos un criterio</p>
+              )}
+              {classificationCriteria.map((criterionId, index) => {
+                const criterion = CRITERIA_OPTIONS.find(c => c.id === criterionId)
+                return (
+                  <div
+                    key={criterionId}
+                    draggable
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      const draggedIndex = parseInt(e.dataTransfer.getData('index'))
+                      handleMoveCriteria(draggedIndex, index)
+                    }}
+                    onDragStart={(e) => e.dataTransfer.setData('index', index.toString())}
+                    className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 cursor-move transition"
+                  >
+                    <span className="text-xl">⋮⋮</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-800">{criterion?.label}</p>
+                      <p className="text-xs text-gray-500">Posición: {index + 1}</p>
+                    </div>
+                    <button
+                      onClick={() => handleToggleCriteria(criterionId)}
+                      className="text-lg"
+                    >
+                      ✓
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm font-medium text-gray-700 mb-3">Criterios no seleccionados:</p>
+              <div className="space-y-2">
+                {CRITERIA_OPTIONS.filter(c => !classificationCriteria.includes(c.id)).map((criterion) => (
+                  <button
+                    key={criterion.id}
+                    onClick={() => handleToggleCriteria(criterion.id)}
+                    className="w-full text-left flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition"
+                  >
+                    <span className="text-lg">+</span>
+                    <p className="font-medium text-gray-700">{criterion.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowCriteriaModal(false)}
+                className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCriteriaConfirm}
+                disabled={classificationCriteria.length === 0}
+                className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Nuevo Campeonato */}
       {showChampionshipModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowChampionshipModal(false)}>
@@ -321,41 +447,50 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div>
+               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Fases del Campeonato</label>
                 <div className="space-y-2">
-                  <label className="flex items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+                  <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
                     <input
                       type="radio"
                       name="format"
                       value="todos_contra_todos"
                       checked={championshipFormat === 'todos_contra_todos'}
                       onChange={(e) => setChampionshipFormat(e.target.value)}
-                      className="mr-3"
+                      className="mr-3 mt-1"
                     />
-                    <span>Todos contra todos</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-800">Todos contra todos</p>
+                      <p className="text-xs text-gray-500">Una única fase donde todos los equipos juegan entre sí</p>
+                    </div>
                   </label>
-                  <label className="flex items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+                  <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
                     <input
                       type="radio"
                       name="format"
                       value="liga_eliminacion"
                       checked={championshipFormat === 'liga_eliminacion'}
                       onChange={(e) => setChampionshipFormat(e.target.value)}
-                      className="mr-3"
+                      className="mr-3 mt-1"
                     />
-                    <span>Todos contra todos + Eliminatoria</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-800">Todos contra todos + Eliminatoria</p>
+                      <p className="text-xs text-gray-500">Liga inicial seguida de fase eliminatoria con los mejores equipos</p>
+                    </div>
                   </label>
-                  <label className="flex items-center p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+                  <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
                     <input
                       type="radio"
                       name="format"
                       value="eliminacion"
                       checked={championshipFormat === 'eliminacion'}
                       onChange={(e) => setChampionshipFormat(e.target.value)}
-                      className="mr-3"
+                      className="mr-3 mt-1"
                     />
-                    <span>Eliminatoria</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-800">Eliminatoria</p>
+                      <p className="text-xs text-gray-500">Sistema de eliminación directa</p>
+                    </div>
                   </label>
                 </div>
               </div>

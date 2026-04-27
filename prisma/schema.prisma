@@ -60,6 +60,15 @@ enum Plan {
   PROFESIONAL
 }
 
+enum ClassificationCriterion {
+  PUNTOS
+  GOLES
+  GOLES_A_FAVOR
+  RESULTADOS_ENTRE_SI
+  TARJETAS_AMARILLAS
+  TARJETAS_ROJAS
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -98,6 +107,7 @@ model Tournament {
   plan               Plan             @default(PEQUENO)
   maxPlayersLimit    Int              @default(300)
   maxSponsors        Int              @default(3)
+  classificationCriteria String       @default("PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS")
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   organizerId        String

@@ -14,6 +14,7 @@ const tournamentSchema = z.object({
     'BATTLE_ROYALE', 'MOBA_LOL', 'MOBA_DOTA'
   ]).default('FUTBOL_11'),
   format: z.string().default('todos_contra_todos'),
+  classificationCriteria: z.string().optional(),
   startDate: z.string().transform((s) => new Date(s)),
   endDate: z.string().transform((s) => new Date(s)),
   registrationEnd: z.string().transform((s) => new Date(s)).optional(),
@@ -78,11 +79,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validated = tournamentSchema.parse(body)
     
-    const { categories, ...tournamentData } = validated
+    const { categories, classificationCriteria, ...tournamentData } = validated
 
     const tournament = await prisma.tournament.create({
       data: {
         ...tournamentData,
+        classificationCriteria: classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS',
         organizerId: payload.userId,
         categories: categories ? {
           create: categories
