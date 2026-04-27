@@ -23,18 +23,37 @@ export async function GET(
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   }
 
-  try {
+    try {
     // Verificar que el equipo existe y pertenece al usuario
     const team = await prisma.team.findUnique({
       where: { id },
       include: {
-        manager: { select: { id: true } },
-        members: {
+        manager: { select: { id: true, name: true } },
+        teamMembers: {
           include: {
             player: {
               include: {
-                user: { select: { id: true, name: true, avatar: true, phone: true } }
+                user: { select: { id: true, name: true, email: true } }
               }
+            }
+          }
+        }
+      }
+    })
+
+    if (!team) {
+      return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
+    }
+
+    if (team.managerId !== payload.userId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+
+    return NextResponse.json(team.teamMembers)
+  } catch (error) {
+    console.error('Get team members error:', error)
+    return NextResponse.json({ error: 'Error al obtener miembros' }, { status: 500 })
+  }
             }
           }
         }
@@ -99,7 +118,7 @@ export async function POST(
       include: {
         player: {
           include: {
-            user: { select: { id: true, name: true } }
+            user: { select: { id: true, name: true, avatar: true, phone: true } }
           }
         }
       }
