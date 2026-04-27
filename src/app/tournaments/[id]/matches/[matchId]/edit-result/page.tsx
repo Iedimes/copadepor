@@ -79,6 +79,31 @@ export default function EditResultPage() {
       setMatch(matchData)
       setMatchStatus(matchData.status || 'NO_REALIZADO')
 
+      if (matchData.events) {
+        const homeEvents = matchData.events.filter((e: any) => e.teamId === matchData.homeTeam.id && e.type === 'GOAL')
+        const awayEvents = matchData.events.filter((e: any) => e.teamId === matchData.awayTeam.id && e.type === 'GOAL')
+
+        setHomeGoals(homeEvents.map((e: any) => ({
+          id: e.id,
+          scorerId: e.playerId || '',
+          assistId: e.assistId || '',
+          defineTime: !!e.timeType,
+          timeType: e.timeType || '1°',
+          minutes: e.minute || 0,
+          seconds: e.second || 0
+        })))
+
+        setAwayGoals(awayEvents.map((e: any) => ({
+          id: e.id,
+          scorerId: e.playerId || '',
+          assistId: e.assistId || '',
+          defineTime: !!e.timeType,
+          timeType: e.timeType || '1°',
+          minutes: e.minute || 0,
+          seconds: e.second || 0
+        })))
+      }
+
       // Fetch players for home team
       const homePlayersRes = await fetch(`/api/teams/${matchData.homeTeam.id}/members`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -136,12 +161,37 @@ export default function EditResultPage() {
   }
 
   const handleSave = async () => {
-    // TODO: Implement save logic
-    console.log('Saving match status:', matchStatus)
-    console.log('Home goals:', homeGoals)
-    console.log('Away goals:', awayGoals)
-    // Navigate back
-    router.back()
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    try {
+      // Prepare events
+      const events = [
+        ...homeGoals.map(g => ({ ...g, teamId: match?.homeTeam.id, type: 'GOAL' })),
+        ...awayGoals.map(g => ({ ...g, teamId: match?.awayTeam.id, type: 'GOAL' }))
+      ]
+
+      const res = await fetch(`/api/matches/${matchId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          status: matchStatus,
+          homeScore: homeGoals.length,
+          awayScore: awayGoals.length,
+          events
+        })
+      })
+
+      if (!res.ok) throw new Error('Failed to save match')
+      
+      router.back()
+    } catch (err) {
+      console.error(err)
+      alert('Error al guardar el resultado')
+    }
   }
 
   if (loading) return <div className="p-8">Cargando...</div>
@@ -245,8 +295,7 @@ export default function EditResultPage() {
                           <option value="PRORROGA">Prórroga</option>
                         </select>
                       </div>
-                      {goal.timeType === 'PRORROGA' && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-3 mt-3">
                           <div>
                             <label className="block text-sm text-gray-600 mb-1">Minutos</label>
                             <input
@@ -269,7 +318,6 @@ export default function EditResultPage() {
                             />
                           </div>
                         </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -362,8 +410,7 @@ export default function EditResultPage() {
                           <option value="PRORROGA">Prórroga</option>
                         </select>
                       </div>
-                      {goal.timeType === 'PRORROGA' && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-3 mt-3">
                           <div>
                             <label className="block text-sm text-gray-600 mb-1">Minutos</label>
                             <input
@@ -386,7 +433,6 @@ export default function EditResultPage() {
                             />
                           </div>
                         </div>
-                      )}
                     </div>
                   )}
                 </div>

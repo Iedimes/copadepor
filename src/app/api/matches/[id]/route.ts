@@ -12,6 +12,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         homeTeam: { select: { id: true, name: true } },
         awayTeam: { select: { id: true, name: true } },
         tournament: { select: { id: true, name: true } },
+        events: true,
       },
     })
 
@@ -41,7 +42,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   try {
     const body = await request.json()
-    const { homeScore, awayScore, location, referee, matchDate, status } = body
+    const { homeScore, awayScore, location, referee, matchDate, status, events } = body
 
     const match = await prisma.match.update({
       where: { id: matchId },
@@ -54,6 +55,27 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         ...(status !== undefined && { status }),
       },
     })
+
+    if (events && Array.isArray(events)) {
+      await prisma.matchEvent.deleteMany({
+        where: { matchId }
+      })
+
+      if (events.length > 0) {
+        await prisma.matchEvent.createMany({
+          data: events.map((e: any) => ({
+            matchId,
+            teamId: e.teamId,
+            playerId: e.scorerId || e.playerId || null,
+            assistId: e.assistId || null,
+            type: e.type,
+            timeType: e.timeType || null,
+            minute: e.minutes || e.minute || null,
+            second: e.seconds || e.second || null,
+          }))
+        })
+      }
+    }
 
     return NextResponse.json(match)
   } catch (error) {

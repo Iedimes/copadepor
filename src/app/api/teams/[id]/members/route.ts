@@ -7,7 +7,7 @@ function getAuthToken(request: NextRequest): string | null {
   return authHeader?.replace('Bearer ', '') || null
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const token = getAuthToken(request)
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -18,8 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
-  const teamId = searchParams.get('teamId')
+  const teamId = params.id;
 
   if (!teamId) {
     return NextResponse.json({ error: 'teamId requerido' }, { status: 400 })
@@ -38,7 +37,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const token = getAuthToken(request)
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -51,7 +50,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { teamId, name, role, number, phone } = body
+    const { name, role, number, phone } = body
+    const teamId = params.id;
 
     if (!teamId || !name) {
       return NextResponse.json({ error: 'teamId y name requeridos' }, { status: 400 })
