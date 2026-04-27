@@ -70,16 +70,6 @@ enum ClassificationCriterion {
   W_O
 }
 
-enum ClassificationCriterion {
-  PUNTOS
-  GOLES
-  GOLES_A_FAVOR
-  RESULTADOS_ENTRE_SI
-  TARJETAS_AMARILLAS
-  TARJETAS_ROJAS
-  W_O
-}
-
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
