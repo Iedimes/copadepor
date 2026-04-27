@@ -67,6 +67,7 @@ enum ClassificationCriterion {
   RESULTADOS_ENTRE_SI
   TARJETAS_AMARILLAS
   TARJETAS_ROJAS
+  W_O
 }
 
 model User {
@@ -107,7 +108,7 @@ model Tournament {
   plan               Plan             @default(PEQUENO)
   maxPlayersLimit    Int              @default(300)
   maxSponsors        Int              @default(3)
-  classificationCriteria String       @default("PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS")
+  classificationCriteria String       @default("PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O")
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   organizerId        String

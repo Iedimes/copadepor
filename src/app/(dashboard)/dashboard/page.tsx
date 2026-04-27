@@ -41,12 +41,13 @@ const sports = [
 ]
 
 const CRITERIA_OPTIONS = [
-  { id: 'PUNTOS', label: 'Puntos' },
-  { id: 'GOLES', label: 'Goles' },
-  { id: 'GOLES_A_FAVOR', label: 'Goles a Favor' },
-  { id: 'RESULTADOS_ENTRE_SI', label: 'Resultados Entre Sí' },
-  { id: 'TARJETAS_AMARILLAS', label: 'Tarjetas Amarillas' },
-  { id: 'TARJETAS_ROJAS', label: 'Tarjetas Rojas' },
+  { id: 'PUNTOS', label: 'Puntos', description: 'Suma de puntos obtenidos' },
+  { id: 'GOLES', label: 'Goles', description: 'Diferencia de goles' },
+  { id: 'GOLES_A_FAVOR', label: 'Goles a Favor', description: 'Total de goles marcados' },
+  { id: 'RESULTADOS_ENTRE_SI', label: 'Resultados Entre Sí', description: 'Desempate directo' },
+  { id: 'TARJETAS_AMARILLAS', label: 'Tarjetas Amarillas', description: 'Menos tarjetas amarillas' },
+  { id: 'TARJETAS_ROJAS', label: 'Tarjetas Rojas', description: 'Menos tarjetas rojas' },
+  { id: 'W_O', label: 'W.O. (Walkover)', description: 'Victorias por incomparecencia' },
 ]
 
 export default function DashboardPage() {
@@ -145,16 +146,6 @@ export default function DashboardPage() {
     const [moved] = newCriteria.splice(from, 1)
     newCriteria.splice(to, 0, moved)
     setClassificationCriteria(newCriteria)
-  }
-
-  const handleToggleCriteria = (criterionId: string) => {
-    setClassificationCriteria(prev => {
-      if (prev.includes(criterionId)) {
-        return prev.filter(c => c !== criterionId)
-      } else {
-        return [...prev, criterionId]
-      }
-    })
   }
 
   const handleDeleteTournament = async (e: React.MouseEvent, tournament: Tournament) => {
@@ -359,10 +350,7 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">Criterio de Clasificación</h2>
             <p className="text-gray-600 text-center mb-6">Arrastra los criterios para cambiar el orden de prioridad</p>
             
-            <div className="space-y-3 mb-6">
-              {classificationCriteria.length === 0 && (
-                <p className="text-center text-gray-400 py-8">Selecciona al menos un criterio</p>
-              )}
+            <div className="space-y-3 mb-6 max-h-96 overflow-y-auto">
               {classificationCriteria.map((criterionId, index) => {
                 const criterion = CRITERIA_OPTIONS.find(c => c.id === criterionId)
                 return (
@@ -376,51 +364,37 @@ export default function DashboardPage() {
                       handleMoveCriteria(draggedIndex, index)
                     }}
                     onDragStart={(e) => e.dataTransfer.setData('index', index.toString())}
-                    className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 cursor-move transition"
+                    className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 cursor-move transition bg-white"
                   >
-                    <span className="text-xl">⋮⋮</span>
+                    <span className="text-lg text-gray-400">⋮⋮</span>
                     <div className="flex-1">
                       <p className="font-medium text-gray-800">{criterion?.label}</p>
-                      <p className="text-xs text-gray-500">Posición: {index + 1}</p>
+                      <p className="text-xs text-gray-500">{criterion?.description}</p>
                     </div>
-                    <button
-                      onClick={() => handleToggleCriteria(criterionId)}
-                      className="text-lg"
-                    >
-                      ✓
-                    </button>
+                    <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full font-semibold text-sm">
+                      {index + 1}
+                    </div>
                   </div>
                 )
               })}
             </div>
 
-            <div className="mb-6">
-              <p className="text-sm font-medium text-gray-700 mb-3">Criterios no seleccionados:</p>
-              <div className="space-y-2">
-                {CRITERIA_OPTIONS.filter(c => !classificationCriteria.includes(c.id)).map((criterion) => (
-                  <button
-                    key={criterion.id}
-                    onClick={() => handleToggleCriteria(criterion.id)}
-                    className="w-full text-left flex items-center gap-3 p-3 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition"
-                  >
-                    <span className="text-lg">+</span>
-                    <p className="font-medium text-gray-700">{criterion.label}</p>
-                  </button>
-                ))}
-              </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <p className="text-sm text-blue-700">
+                <span className="font-semibold">💡 Tip:</span> El orden determina la prioridad para desempate. El criterio en posición 1 tiene máxima prioridad.
+              </p>
             </div>
 
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowCriteriaModal(false)}
-                className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50"
+                className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 transition"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleCriteriaConfirm}
-                disabled={classificationCriteria.length === 0}
-                className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"
+                className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
               >
                 Continuar
               </button>

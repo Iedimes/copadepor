@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const tournament = await prisma.tournament.create({
       data: {
         ...tournamentData,
-        classificationCriteria: classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS',
+        classificationCriteria: classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O',
         organizerId: payload.userId,
         categories: categories ? {
           create: categories
