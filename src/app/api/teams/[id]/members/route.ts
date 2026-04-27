@@ -23,8 +23,7 @@ export async function GET(
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   }
 
-    try {
-    // Verificar que el equipo existe y pertenece al usuario
+  try {
     const team = await prisma.team.findUnique({
       where: { id },
       include: {
@@ -54,25 +53,6 @@ export async function GET(
     console.error('Get team members error:', error)
     return NextResponse.json({ error: 'Error al obtener miembros' }, { status: 500 })
   }
-            }
-          }
-        }
-      }
-    })
-
-    if (!team) {
-      return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
-    }
-
-    if (team.managerId !== payload.userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-    }
-
-    return NextResponse.json(team.members)
-  } catch (error) {
-    console.error('Get team members error:', error)
-    return NextResponse.json({ error: 'Error al obtener miembros' }, { status: 500 })
-  }
 }
 
 export async function POST(
@@ -95,7 +75,6 @@ export async function POST(
     const body = await request.json()
     const { playerId } = body
 
-    // Verificar que el equipo existe y pertenece al usuario
     const team = await prisma.team.findUnique({
       where: { id }
     })
@@ -108,7 +87,6 @@ export async function POST(
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    // Agregar jugador al equipo
     const member = await prisma.teamMember.create({
       data: {
         teamId: id,
@@ -118,7 +96,7 @@ export async function POST(
       include: {
         player: {
           include: {
-            user: { select: { id: true, name: true, avatar: true, phone: true } }
+            user: { select: { id: true, name: true } }
           }
         }
       }
@@ -151,7 +129,6 @@ export async function DELETE(
     const body = await request.json()
     const { memberId } = body
 
-    // Verificar que el equipo existe
     const team = await prisma.team.findUnique({
       where: { id }
     })
@@ -160,7 +137,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
     }
 
-    // Eliminar miembro
     await prisma.teamMember.delete({
       where: { id: memberId }
     })
