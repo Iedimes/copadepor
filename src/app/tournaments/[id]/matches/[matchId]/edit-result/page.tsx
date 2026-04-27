@@ -55,6 +55,28 @@ export default function EditResultPage() {
     seconds: number
   }>>([])
 
+  // Home team cards state
+  const [homeCards, setHomeCards] = useState<Array<{
+    id: string
+    playerId: string
+    type: 'YELLOW_CARD' | 'RED_CARD' | 'DOUBLE_YELLOW_CARD'
+    defineTime: boolean
+    timeType: '1°' | '2°' | '3°' | '4°' | 'PRORROGA'
+    minutes: number
+    seconds: number
+  }>>([])
+
+  // Away team cards state
+  const [awayCards, setAwayCards] = useState<Array<{
+    id: string
+    playerId: string
+    type: 'YELLOW_CARD' | 'RED_CARD' | 'DOUBLE_YELLOW_CARD'
+    defineTime: boolean
+    timeType: '1°' | '2°' | '3°' | '4°' | 'PRORROGA'
+    minutes: number
+    seconds: number
+  }>>([])
+
   useEffect(() => {
     fetchMatch()
   }, [matchId])
@@ -97,6 +119,29 @@ export default function EditResultPage() {
           id: e.id,
           scorerId: e.playerId || '',
           assistId: e.assistId || '',
+          defineTime: !!e.timeType,
+          timeType: e.timeType || '1°',
+          minutes: e.minute || 0,
+          seconds: e.second || 0
+        })))
+
+        const homeCardEvents = matchData.events.filter((e: any) => e.teamId === matchData.homeTeam.id && ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'].includes(e.type))
+        const awayCardEvents = matchData.events.filter((e: any) => e.teamId === matchData.awayTeam.id && ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'].includes(e.type))
+
+        setHomeCards(homeCardEvents.map((e: any) => ({
+          id: e.id,
+          playerId: e.playerId || '',
+          type: e.type,
+          defineTime: !!e.timeType,
+          timeType: e.timeType || '1°',
+          minutes: e.minute || 0,
+          seconds: e.second || 0
+        })))
+
+        setAwayCards(awayCardEvents.map((e: any) => ({
+          id: e.id,
+          playerId: e.playerId || '',
+          type: e.type,
           defineTime: !!e.timeType,
           timeType: e.timeType || '1°',
           minutes: e.minute || 0,
@@ -160,6 +205,38 @@ export default function EditResultPage() {
     setAwayGoals(prev => prev.filter(g => g.id !== goalId))
   }
 
+  const addHomeCard = () => {
+    setHomeCards(prev => [...prev, {
+      id: Date.now().toString(),
+      playerId: '',
+      type: 'YELLOW_CARD',
+      defineTime: false,
+      timeType: '1°',
+      minutes: 0,
+      seconds: 0
+    }])
+  }
+
+  const addAwayCard = () => {
+    setAwayCards(prev => [...prev, {
+      id: Date.now().toString(),
+      playerId: '',
+      type: 'YELLOW_CARD',
+      defineTime: false,
+      timeType: '1°',
+      minutes: 0,
+      seconds: 0
+    }])
+  }
+
+  const removeHomeCard = (cardId: string) => {
+    setHomeCards(prev => prev.filter(c => c.id !== cardId))
+  }
+
+  const removeAwayCard = (cardId: string) => {
+    setAwayCards(prev => prev.filter(c => c.id !== cardId))
+  }
+
   const handleSave = async () => {
     const token = localStorage.getItem('token')
     if (!token) return
@@ -168,7 +245,9 @@ export default function EditResultPage() {
       // Prepare events
       const events = [
         ...homeGoals.map(g => ({ ...g, teamId: match?.homeTeam.id, type: 'GOAL' })),
-        ...awayGoals.map(g => ({ ...g, teamId: match?.awayTeam.id, type: 'GOAL' }))
+        ...awayGoals.map(g => ({ ...g, teamId: match?.awayTeam.id, type: 'GOAL' })),
+        ...homeCards.map(c => ({ ...c, teamId: match?.homeTeam.id })),
+        ...awayCards.map(c => ({ ...c, teamId: match?.awayTeam.id }))
       ]
 
       const res = await fetch(`/api/matches/${matchId}`, {
@@ -325,10 +404,102 @@ export default function EditResultPage() {
               {homeGoals.length === 0 && <p className="text-sm text-gray-400">No hay goles registrados</p>}
             </div>
 
+            {/* Cards Section */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-medium">Tarjetas</h3>
+                <button onClick={addHomeCard} className="text-sm text-blue-600">+ Añadir Tarjeta</button>
+              </div>
+              {homeCards.map(card => (
+                <div key={card.id} className="border p-3 rounded-lg mb-3 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Tarjeta #{homeCards.indexOf(card) + 1}</span>
+                    <button onClick={() => removeHomeCard(card.id)} className="text-red-500 text-sm">Eliminar</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Jugador</label>
+                      <select
+                        value={card.playerId}
+                        onChange={(e) => setHomeCards(prev => prev.map(c => c.id === card.id ? { ...c, playerId: e.target.value } : c))}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      >
+                        <option value="">Seleccionar jugador</option>
+                        {match.homeTeam.players?.map(player => (
+                          <option key={player.id} value={player.id}>{player.number ? `${player.number}. ` : ''}{player.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Tipo</label>
+                      <select
+                        value={card.type}
+                        onChange={(e) => setHomeCards(prev => prev.map(c => c.id === card.id ? { ...c, type: e.target.value as any } : c))}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      >
+                        <option value="YELLOW_CARD">Amarilla</option>
+                        <option value="DOUBLE_YELLOW_CARD">Doble Amarilla (Roja)</option>
+                        <option value="RED_CARD">Roja Directa</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={card.defineTime}
+                      onChange={(e) => setHomeCards(prev => prev.map(c => c.id === card.id ? { ...c, defineTime: e.target.checked } : c))}
+                      id={`home-card-define-time-${card.id}`}
+                    />
+                    <label htmlFor={`home-card-define-time-${card.id}`} className="text-sm text-gray-600">Definir tiempo</label>
+                  </div>
+                  {card.defineTime && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Tiempo</label>
+                        <select
+                          value={card.timeType}
+                          onChange={(e) => setHomeCards(prev => prev.map(c => c.id === card.id ? { ...c, timeType: e.target.value as any } : c))}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        >
+                          <option value="1°">1° Tiempo</option>
+                          <option value="2°">2° Tiempo</option>
+                          <option value="3°">3° Tiempo</option>
+                          <option value="4°">4° Tiempo</option>
+                          <option value="PRORROGA">Prórroga</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">Minutos</label>
+                          <input
+                            type="number"
+                            value={card.minutes}
+                            onChange={(e) => setHomeCards(prev => prev.map(c => c.id === card.id ? { ...c, minutes: parseInt(e.target.value) || 0 } : c))}
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            min="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">Segundos</label>
+                          <input
+                            type="number"
+                            value={card.seconds}
+                            onChange={(e) => setHomeCards(prev => prev.map(c => c.id === card.id ? { ...c, seconds: parseInt(e.target.value) || 0 } : c))}
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            min="0"
+                            max="59"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {homeCards.length === 0 && <p className="text-sm text-gray-400">No hay tarjetas registradas</p>}
+            </div>
+
             {/* Other sections (buttons for now) */}
             <div className="space-y-3">
-              <button className="w-full py-2 border rounded-lg text-sm">Tarjeta amarilla (Añadir)</button>
-              <button className="w-full py-2 border rounded-lg text-sm">Tarjeta Roja (Añadir)</button>
               <button className="w-full py-2 border rounded-lg text-sm">Faltas</button>
               <button className="w-full py-2 border rounded-lg text-sm">Alineación (Añadir)</button>
               <button className="w-full py-2 border rounded-lg text-sm">Sustituciones (Añadir)</button>
@@ -440,10 +611,102 @@ export default function EditResultPage() {
               {awayGoals.length === 0 && <p className="text-sm text-gray-400">No hay goles registrados</p>}
             </div>
 
+            {/* Cards Section */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-medium">Tarjetas</h3>
+                <button onClick={addAwayCard} className="text-sm text-blue-600">+ Añadir Tarjeta</button>
+              </div>
+              {awayCards.map(card => (
+                <div key={card.id} className="border p-3 rounded-lg mb-3 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Tarjeta #{awayCards.indexOf(card) + 1}</span>
+                    <button onClick={() => removeAwayCard(card.id)} className="text-red-500 text-sm">Eliminar</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Jugador</label>
+                      <select
+                        value={card.playerId}
+                        onChange={(e) => setAwayCards(prev => prev.map(c => c.id === card.id ? { ...c, playerId: e.target.value } : c))}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      >
+                        <option value="">Seleccionar jugador</option>
+                        {match.awayTeam.players?.map(player => (
+                          <option key={player.id} value={player.id}>{player.number ? `${player.number}. ` : ''}{player.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">Tipo</label>
+                      <select
+                        value={card.type}
+                        onChange={(e) => setAwayCards(prev => prev.map(c => c.id === card.id ? { ...c, type: e.target.value as any } : c))}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      >
+                        <option value="YELLOW_CARD">Amarilla</option>
+                        <option value="DOUBLE_YELLOW_CARD">Doble Amarilla (Roja)</option>
+                        <option value="RED_CARD">Roja Directa</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={card.defineTime}
+                      onChange={(e) => setAwayCards(prev => prev.map(c => c.id === card.id ? { ...c, defineTime: e.target.checked } : c))}
+                      id={`away-card-define-time-${card.id}`}
+                    />
+                    <label htmlFor={`away-card-define-time-${card.id}`} className="text-sm text-gray-600">Definir tiempo</label>
+                  </div>
+                  {card.defineTime && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Tiempo</label>
+                        <select
+                          value={card.timeType}
+                          onChange={(e) => setAwayCards(prev => prev.map(c => c.id === card.id ? { ...c, timeType: e.target.value as any } : c))}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        >
+                          <option value="1°">1° Tiempo</option>
+                          <option value="2°">2° Tiempo</option>
+                          <option value="3°">3° Tiempo</option>
+                          <option value="4°">4° Tiempo</option>
+                          <option value="PRORROGA">Prórroga</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">Minutos</label>
+                          <input
+                            type="number"
+                            value={card.minutes}
+                            onChange={(e) => setAwayCards(prev => prev.map(c => c.id === card.id ? { ...c, minutes: parseInt(e.target.value) || 0 } : c))}
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            min="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">Segundos</label>
+                          <input
+                            type="number"
+                            value={card.seconds}
+                            onChange={(e) => setAwayCards(prev => prev.map(c => c.id === card.id ? { ...c, seconds: parseInt(e.target.value) || 0 } : c))}
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            min="0"
+                            max="59"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {awayCards.length === 0 && <p className="text-sm text-gray-400">No hay tarjetas registradas</p>}
+            </div>
+
             {/* Other sections (buttons for now) */}
             <div className="space-y-3">
-              <button className="w-full py-2 border rounded-lg text-sm">Tarjeta amarilla (Añadir)</button>
-              <button className="w-full py-2 border rounded-lg text-sm">Tarjeta Roja (Añadir)</button>
               <button className="w-full py-2 border rounded-lg text-sm">Faltas</button>
               <button className="w-full py-2 border rounded-lg text-sm">Alineación (Añadir)</button>
               <button className="w-full py-2 border rounded-lg text-sm">Sustituciones (Añadir)</button>
