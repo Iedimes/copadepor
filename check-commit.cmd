@@ -1,0 +1,1 @@
+cd C:\\wamp64\\www\\copadepor && git log --oneline -1

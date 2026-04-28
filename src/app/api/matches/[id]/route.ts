@@ -66,12 +66,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
           data: events.map((e: any) => ({
             matchId,
             teamId: e.teamId,
-            playerId: e.scorerId || e.playerId || null,
-            assistId: e.assistId || null,
+            playerId: (e.scorerId || e.playerId) ? (e.scorerId || e.playerId) : null,
+            assistId: e.assistId ? e.assistId : null,
             type: e.type,
             timeType: e.timeType || null,
-            minute: e.minutes || e.minute || null,
-            second: e.seconds || e.second || null,
+            minute: (e.minutes || e.minute) !== undefined ? (e.minutes || e.minute) : null,
+            second: (e.seconds || e.second) !== undefined ? (e.seconds || e.second) : null,
             detail: e.detail || null,
           }))
         })
