@@ -72,6 +72,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             timeType: e.timeType || null,
             minute: e.minutes || e.minute || null,
             second: e.seconds || e.second || null,
+            detail: e.detail || null,
           }))
         })
       }
