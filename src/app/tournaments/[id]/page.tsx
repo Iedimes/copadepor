@@ -210,30 +210,36 @@ export default function TournamentPage() {
     })).sort((a, b) => b.points - a.points || b.diff - a.diff || b.gf - a.gf)
   }
 
-  const getTopScorers = () => {
-    const scorers: Record<string, any> = {}
-    matches.forEach(m => {
-      (m.events || []).filter((e: any) => e.type === 'GOAL' || e.type === 'OWN_GOAL').forEach((e: any) => {
-        if (!e.player) return
-        if (!scorers[e.player.id]) scorers[e.player.id] = { name: e.player.name, team: e.team.name, goals: 0 }
-        scorers[e.player.id].goals++
-      })
+  const getTeamRankings = () => {
+    const stats: Record<string, any> = {}
+    tournamentTeams.forEach(tt => { 
+      stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, gf: 0, ga: 0, red: 0, yellow: 0, totalCards: 0 } 
     })
-    return Object.values(scorers).sort((a, b) => b.goals - a.goals).slice(0, 20)
-  }
 
-  const getTopDisciplined = () => {
-    const players: Record<string, any> = {}
     matches.forEach(m => {
-      (m.events || []).filter((e: any) => ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'].includes(e.type)).forEach((e: any) => {
-        if (!e.player) return
-        if (!players[e.player.id]) players[e.player.id] = { name: e.player.name, team: e.team.name, yellow: 0, red: 0 }
-        if (e.type === 'YELLOW_CARD') players[e.player.id].yellow++
-        else if (e.type === 'RED_CARD') players[e.player.id].red++
-        else if (e.type === 'DOUBLE_YELLOW_CARD') { players[e.player.id].yellow++; players[e.player.id].red++ }
+      const hS = m.homeScore; const aS = m.awayScore;
+      if (hS !== null && aS !== null && m.status !== 'NO_REALIZADO') {
+        const h = stats[m.homeTeam.id]; const a = stats[m.awayTeam.id]
+        if (h && a) {
+          h.gf += hS; h.ga += aS; a.gf += aS; a.ga += hS
+        }
+      }
+      (m.events || []).forEach((e: any) => {
+        const t = stats[e.teamId]
+        if (!t) return
+        if (e.type === 'RED_CARD') { t.red++; t.totalCards++ }
+        else if (e.type === 'YELLOW_CARD') { t.yellow++; t.totalCards++ }
+        else if (e.type === 'DOUBLE_YELLOW_CARD') { t.red++; t.yellow++; t.totalCards += 2 }
       })
     })
-    return Object.values(players).sort((a, b) => b.red - a.red || b.yellow - a.yellow).slice(0, 20)
+
+    const list = Object.values(stats)
+    return {
+      bestAttack: [...list].sort((a, b) => b.gf - a.gf).slice(0, 5),
+      bestDefense: [...list].sort((a, b) => a.ga - b.ga).slice(0, 5),
+      redCards: [...list].sort((a, b) => b.red - a.red).filter(x => x.red > 0).slice(0, 5),
+      totalCards: [...list].sort((a, b) => b.totalCards - a.totalCards).filter(x => x.totalCards > 0).slice(0, 5)
+    }
   }
 
   const shareUrl = `https://copafacil.com/${tournamentId}`
@@ -419,6 +425,17 @@ export default function TournamentPage() {
                   </>
                 )}
               </div>
+            </div>
+          </div>
+        ) : activeMenu === 'estadisticas' ? (
+          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-500">
+            <h2 className="text-3xl font-black text-slate-900 mb-8">Estadísticas del Torneo</h2>
+            
+            <div className="grid grid-cols-1 gap-6">
+              <RankingCard title="Mejor ataque" label="Goles" data={getTeamRankings().bestAttack} field="gf" />
+              <RankingCard title="Mejor defensa" label="Goles" data={getTeamRankings().bestDefense} field="ga" />
+              <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
+              <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
             </div>
           </div>
         ) : (
@@ -952,6 +969,47 @@ function PitchV6({ lin, setLin, players, color }: any) {
           <button onClick={() => rm(p.id)} className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white rounded-lg text-[8px] scale-0 group-hover/pn:scale-100 flex items-center justify-center shadow-lg transition-all">✕</button>
         </div>
       ))}
+    </div>
+  )
+}
+
+function RankingCard({ title, label, data, field }: any) {
+  return (
+    <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100">
+      <div className="bg-[#4CAF50] p-4 text-center">
+        <h3 className="text-white font-black uppercase tracking-widest text-sm">{title}</h3>
+      </div>
+      <div className="p-0">
+        <table className="w-full">
+          <thead className="bg-[#4CAF50]/10 text-[10px] font-black text-[#4CAF50] uppercase tracking-widest">
+            <tr>
+              <th className="px-6 py-3 text-left">Equipos</th>
+              <th className="px-6 py-3 text-right">{label}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {data.length === 0 ? (
+              <tr>
+                <td colSpan={2} className="px-6 py-10 text-center text-slate-300 font-bold italic text-xs uppercase tracking-widest">Aún no hay datos</td>
+              </tr>
+            ) : (
+              data.map((item: any, idx: number) => (
+                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-black text-slate-400">#{idx + 1}</span>
+                      <span className="font-bold text-slate-700">{item.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <span className="inline-flex items-center justify-center w-10 h-10 bg-slate-100 rounded-xl font-black text-slate-900">{item[field]}</span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
