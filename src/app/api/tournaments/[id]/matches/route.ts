@@ -35,8 +35,20 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const matches = await prisma.match.findMany({
       where: { tournamentId: params.id },
       include: {
-        homeTeam: { select: { id: true, name: true } },
-        awayTeam: { select: { id: true, name: true } },
+        homeTeam: { 
+          select: { 
+            id: true, 
+            name: true,
+            _count: { select: { teamMembers: true } }
+          } 
+        },
+        awayTeam: { 
+          select: { 
+            id: true, 
+            name: true,
+            _count: { select: { teamMembers: true } }
+          } 
+        },
         events: {
           include: {
             player: { select: { id: true, name: true } },

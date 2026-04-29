@@ -154,6 +154,20 @@ export default function TournamentPage() {
   }
 
   const handleOpenMatchModal = (m: any) => {
+    const homePlayers = m.homeTeam._count?.teamMembers || 0
+    const awayPlayers = m.awayTeam._count?.teamMembers || 0
+
+    if (homePlayers === 0) {
+      alert(`El equipo ${m.homeTeam.name} no tiene jugadores. Redirigiendo para cargar plantilla...`)
+      router.push(`/tournaments/${tournamentId}/add-players?teamId=${m.homeTeam.id}&teamName=${encodeURIComponent(m.homeTeam.name)}`)
+      return
+    }
+    if (awayPlayers === 0) {
+      alert(`El equipo ${m.awayTeam.name} no tiene jugadores. Redirigiendo para cargar plantilla...`)
+      router.push(`/tournaments/${tournamentId}/add-players?teamId=${m.awayTeam.id}&teamName=${encodeURIComponent(m.awayTeam.name)}`)
+      return
+    }
+
     setSelectedMatchId(m.id)
     setShowMatchMenu(true)
   }
