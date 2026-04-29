@@ -35,7 +35,7 @@ interface TournamentTeam {
   team: { id: string; name: string }
 }
 
-type MenuType = 'inicio' | 'clasificacion'
+type MenuType = 'inicio' | 'clasificacion' | 'estadisticas'
 
 export default function TournamentPage() {
   const params = useParams()
@@ -63,6 +63,11 @@ export default function TournamentPage() {
   const [editingMatchData, setEditingMatchData] = useState<{ id: string, homeScore: number | null, awayScore: number | null, status: string } | null>(null)
   const [showEditResult, setShowEditResult] = useState(false)
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null)
+  const [showConfigMenu, setShowConfigMenu] = useState(false)
+  const [showFixtureMenu, setShowFixtureMenu] = useState(false)
+  const [showAddMatchModal, setShowAddMatchModal] = useState(false)
+  const [showMatchMenu, setShowMatchMenu] = useState(false)
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
 
   const tournamentId = params.id as string
 
@@ -95,7 +100,7 @@ export default function TournamentPage() {
       if (activeMenu === 'inicio') {
         const mRes = await fetch(`/api/tournaments/${tournamentId}/messages`, { headers: { Authorization: `Bearer ${token}` } })
         if (mRes.ok) setMessages(await mRes.json())
-      } else if (activeMenu === 'clasificacion') {
+      } else if (activeMenu === 'clasificacion' || activeMenu === 'estadisticas') {
         const [matchesRes, teamsRes, allTeamsRes] = await Promise.all([
           fetch(`/api/tournaments/${tournamentId}/matches`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`/api/tournaments/${tournamentId}/teams`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -105,8 +110,10 @@ export default function TournamentPage() {
         if (matchesRes.ok) {
           const m = await matchesRes.json()
           setMatches(m)
-          const rounds = [...new Set(m.map((x: any) => x.roundName))].sort((a: any, b: any) => parseInt(a) - parseInt(b))
-          if (rounds.length > 0 && !selectedRound) setSelectedRound(rounds[0] as string)
+          const rounds = [...new Set(m.map((x: any) => String(x.roundName)))].sort((a: any, b: any) => parseInt(a) - parseInt(b))
+          if (rounds.length > 0 && (!selectedRound || !rounds.includes(selectedRound))) {
+            setSelectedRound(rounds[0])
+          }
         }
         if (teamsRes.ok) setTournamentTeams(await teamsRes.json())
         if (allTeamsRes.ok) setAllTeams(await allTeamsRes.json())
@@ -129,19 +136,40 @@ export default function TournamentPage() {
     if (res.ok) { setNewMessage(''); fetchData(); }
   }
 
-  const handleGenerateMatches = async () => {
+  const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
     setShowGenType(false); setGenerating(true)
     const token = localStorage.getItem('token')
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType }),
+      body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType: type }),
     })
-    if (res.ok) fetchData(); else alert('Error al generar');
+    if (res.ok) {
+      await fetchData();
+      setSelectedRound('1');
+    } else {
+      alert('Error al generar');
+    }
     setGenerating(false)
   }
 
-  const handleOpenMatchModal = (match: Match) => setSelectedMatch(match)
+  const handleOpenMatchModal = (m: any) => {
+    setSelectedMatchId(m.id)
+    setShowMatchMenu(true)
+  }
+
+  const handleRemoveMatch = async (matchId: string) => {
+    if (!confirm('¿Eliminar este partido?')) return
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/matches/${matchId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (res.ok) {
+      setShowMatchMenu(false)
+      fetchData()
+    } else alert('Error al eliminar')
+  }
 
   const getStandings = () => {
     const stats: Record<string, any> = {}
@@ -168,6 +196,32 @@ export default function TournamentPage() {
     })).sort((a, b) => b.points - a.points || b.diff - a.diff || b.gf - a.gf)
   }
 
+  const getTopScorers = () => {
+    const scorers: Record<string, any> = {}
+    matches.forEach(m => {
+      (m.events || []).filter((e: any) => e.type === 'GOAL' || e.type === 'OWN_GOAL').forEach((e: any) => {
+        if (!e.player) return
+        if (!scorers[e.player.id]) scorers[e.player.id] = { name: e.player.name, team: e.team.name, goals: 0 }
+        scorers[e.player.id].goals++
+      })
+    })
+    return Object.values(scorers).sort((a, b) => b.goals - a.goals).slice(0, 20)
+  }
+
+  const getTopDisciplined = () => {
+    const players: Record<string, any> = {}
+    matches.forEach(m => {
+      (m.events || []).filter((e: any) => ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'].includes(e.type)).forEach((e: any) => {
+        if (!e.player) return
+        if (!players[e.player.id]) players[e.player.id] = { name: e.player.name, team: e.team.name, yellow: 0, red: 0 }
+        if (e.type === 'YELLOW_CARD') players[e.player.id].yellow++
+        else if (e.type === 'RED_CARD') players[e.player.id].red++
+        else if (e.type === 'DOUBLE_YELLOW_CARD') { players[e.player.id].yellow++; players[e.player.id].red++ }
+      })
+    })
+    return Object.values(players).sort((a, b) => b.red - a.red || b.yellow - a.yellow).slice(0, 20)
+  }
+
   const shareUrl = `https://copafacil.com/${tournamentId}`
   const sportIcon = getSportIcon(tournament?.sportType || '')
 
@@ -187,6 +241,7 @@ export default function TournamentPage() {
           <nav className="space-y-1">
             <button onClick={() => setActiveMenu('inicio')} className={`w-full text-left px-4 py-3 rounded-2xl font-black text-sm transition-all ${activeMenu === 'inicio' ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>🏠 Inicio</button>
             <button onClick={() => setActiveMenu('clasificacion')} className={`w-full text-left px-4 py-3 rounded-2xl font-black text-sm transition-all ${activeMenu === 'clasificacion' ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>📊 Clasificación</button>
+            <button onClick={() => setActiveMenu('estadisticas')} className={`w-full text-left px-4 py-3 rounded-2xl font-black text-sm transition-all ${activeMenu === 'estadisticas' ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>🏆 Estadísticas</button>
           </nav>
         </div>
       </div>
@@ -227,12 +282,15 @@ export default function TournamentPage() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : activeMenu === 'clasificacion' ? (
           <div className="flex flex-col xl:flex-row gap-8 max-w-[1600px] mx-auto h-full">
             {/* Classification */}
             <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50 overflow-y-auto">
               <div className="flex justify-between items-center mb-8">
-                <h2 className="text-3xl font-black text-slate-900">📊 CLASIFICACIÓN</h2>
+                <div className="flex items-center gap-4">
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">📊 CLASIFICACIÓN</h2>
+                  <button onClick={() => setShowConfigMenu(true)} className="bg-slate-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm hover:scale-110 transition-all">+</button>
+                </div>
                 <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all">GESTOR DE EQUIPOS</button>
               </div>
               <div className="overflow-x-auto rounded-3xl border border-slate-100">
@@ -292,51 +350,130 @@ export default function TournamentPage() {
                 </div>
               </div>
               
-              <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
-                <div className="flex justify-center mb-4">
-                  <button onClick={() => setShowGenType(true)} className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-black text-xl shadow-lg hover:scale-110 transition-all">+</button>
-                </div>
-                
-                {matches.filter(m => m.roundName === selectedRound).map(m => {
-                  const isE = editingMatchData?.id === m.id; const hS = isE ? editingMatchData.homeScore : m.homeScore; const aS = isE ? editingMatchData.awayScore : m.awayScore; const st = isE ? editingMatchData.status : m.status
-                  return (
-                    <div key={m.id} onClick={() => handleOpenMatchModal(m)} className={`relative flex items-center justify-between p-4 group cursor-pointer transition-all ${isE ? 'scale-[1.02]' : ''}`}>
-                      {/* Home Team */}
-                      <div className="flex flex-col items-center gap-2 w-24">
-                        <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
-                          <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
-                          🏆
-                        </div>
-                        <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.homeTeam.name}</span>
-                      </div>
-
-                      {/* Score Block */}
-                      <div className="flex flex-col items-center">
-                        <div className="bg-white border border-slate-100 rounded-xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px]">
-                          <div className="text-2xl font-black text-slate-800 tracking-tighter">
-                            {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : ':'}
-                          </div>
-                          {st !== 'NO_REALIZADO' && (
-                            <div className={`text-[8px] font-black px-3 py-0.5 rounded-md mt-1 uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
-                              {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Away Team */}
-                      <div className="flex flex-col items-center gap-2 w-24">
-                        <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
-                          <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
-                          🏆
-                        </div>
-                        <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.awayTeam.name}</span>
-                      </div>
-
-                      {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2rem] pointer-events-none"></div>}
+              <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar flex-1 flex flex-col">
+                {matches.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center py-10 space-y-4">
+                    <button onClick={() => setShowGenType(true)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl">Generar Partidos</button>
+                    <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">0</div>
+                    <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl">Agregar Fecha</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-center mb-4">
+                      <button onClick={() => setShowFixtureMenu(true)} className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-black text-xl shadow-lg hover:scale-110 transition-all shadow-blue-100">+</button>
                     </div>
-                  )
-                })}
+                    {matches.filter(m => String(m.roundName) === selectedRound).map(m => {
+                      const isE = editingMatchData?.id === m.id; const hS = isE ? editingMatchData.homeScore : m.homeScore; const aS = isE ? editingMatchData.awayScore : m.awayScore; const st = isE ? editingMatchData.status : m.status
+                      return (
+                        <div key={m.id} onClick={() => handleOpenMatchModal(m)} className={`relative flex items-center justify-between p-4 group cursor-pointer transition-all ${isE ? 'scale-[1.02]' : ''}`}>
+                          {/* Home Team */}
+                          <div className="flex flex-col items-center gap-2 w-24">
+                            <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
+                              <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
+                              🏆
+                            </div>
+                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.homeTeam.name}</span>
+                          </div>
+
+                          {/* Score Block */}
+                          <div className="flex flex-col items-center">
+                            <div className="bg-white border border-slate-100 rounded-xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px]">
+                              <div className="text-2xl font-black text-slate-800 tracking-tighter">
+                                {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : ':'}
+                              </div>
+                              {st !== 'NO_REALIZADO' && (
+                                <div className={`text-[8px] font-black px-3 py-0.5 rounded-md mt-1 uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
+                                  {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Away Team */}
+                          <div className="flex flex-col items-center gap-2 w-24">
+                            <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
+                              <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
+                              🏆
+                            </div>
+                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.awayTeam.name}</span>
+                          </div>
+
+                          {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2rem] pointer-events-none"></div>}
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-3xl font-black text-slate-900">🏆 Estadísticas del Torneo</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Top Scorers */}
+              <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="text-3xl">🥅</span>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Tabla de Goleadores</h3>
+                </div>
+                <div className="overflow-hidden rounded-3xl border border-slate-100">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                        <th className="p-4 text-center">Pos</th>
+                        <th className="p-4 text-left">Jugador</th>
+                        <th className="p-4 text-left">Equipo</th>
+                        <th className="p-4 text-center">Goles</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {getTopScorers().length === 0 && <tr><td colSpan={4} className="p-8 text-center text-slate-300 font-bold italic">No hay goles registrados aún</td></tr>}
+                      {getTopScorers().map((p: any, i: number) => (
+                        <tr key={i} className="hover:bg-slate-50 transition-all">
+                          <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                          <td className="p-4 font-black text-slate-800">{p.name}</td>
+                          <td className="p-4 text-slate-500 font-bold text-xs uppercase">{p.team}</td>
+                          <td className="p-4 text-center font-black text-blue-600 text-lg">{p.goals}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Disciplined Players */}
+              <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="text-3xl">🟨</span>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Tabla de Sanciones</h3>
+                </div>
+                <div className="overflow-hidden rounded-3xl border border-slate-100">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                        <th className="p-4 text-center">Pos</th>
+                        <th className="p-4 text-left">Jugador</th>
+                        <th className="p-4 text-left">Equipo</th>
+                        <th className="p-4 text-center">🟨</th>
+                        <th className="p-4 text-center">🟥</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {getTopDisciplined().length === 0 && <tr><td colSpan={5} className="p-8 text-center text-slate-300 font-bold italic">Sin tarjetas registradas</td></tr>}
+                      {getTopDisciplined().map((p: any, i: number) => (
+                        <tr key={i} className="hover:bg-slate-50 transition-all">
+                          <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                          <td className="p-4 font-black text-slate-800">{p.name}</td>
+                          <td className="p-4 text-slate-500 font-bold text-xs uppercase">{p.team}</td>
+                          <td className="p-4 text-center font-black text-yellow-500 text-lg">{p.yellow}</td>
+                          <td className="p-4 text-center font-black text-red-500 text-lg">{p.red}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -375,13 +512,164 @@ export default function TournamentPage() {
           <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-black text-center mb-8 text-slate-900">Configurar Fixture</h3>
             <div className="space-y-3">
-              <button onClick={() => { setMatchType('ida'); handleGenerateMatches(); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100">SOLO IDA (Round Robin)</button>
-              <button onClick={() => { setMatchType('idayvuelta'); handleGenerateMatches(); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100">IDA Y VUELTA</button>
+              <button onClick={() => handleGenerateMatches('ida')} className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100">SOLO IDA (Round Robin)</button>
+              <button onClick={() => handleGenerateMatches('idayvuelta')} className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100">IDA Y VUELTA</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CENTRAL CONFIG MENU */}
+      {showConfigMenu && (
+        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setShowConfigMenu(false)}>
+          <div className="bg-[#0F172A] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-4 space-y-1">
+              <MenuOption icon="⚽" label="Generar Fixture" onClick={() => { setShowConfigMenu(false); setShowGenType(true); }} />
+              <MenuOption icon="👥" label="Equipos" onClick={() => { setShowConfigMenu(false); router.push(`/tournaments/${tournamentId}/add-teams`); }} />
+              <MenuOption icon="💠" label="Grupos" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="🔄" label="Reordenar" onClick={() => { setShowConfigMenu(false); }} />
+            </div>
+            <div className="p-4 bg-slate-800/50">
+              <button onClick={() => setShowConfigMenu(false)} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FIXTURE ACTIONS MENU */}
+      {showFixtureMenu && (
+        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setShowFixtureMenu(false)}>
+          <div className="bg-[#0F172A] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-4 space-y-1">
+              <MenuOption icon="➕" label="Agregar fecha" onClick={() => setShowFixtureMenu(false)} />
+              <MenuOption icon="⚽" label="Agregar partido" onClick={() => { setShowFixtureMenu(false); setShowAddMatchModal(true); }} />
+              <MenuOption icon="📝" label="Editar Fecha" onClick={() => setShowFixtureMenu(false)} />
+              <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => setShowFixtureMenu(false)} />
+              <MenuOption icon="📥" label="Exportar" onClick={() => setShowFixtureMenu(false)} />
+            </div>
+            <div className="p-4 bg-slate-800/50">
+              <button onClick={() => setShowFixtureMenu(false)} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MANUAL ADD MATCH MODAL */}
+      {showAddMatchModal && (
+        <AddMatchModal 
+          teams={tournamentTeams} 
+          tournamentId={tournamentId}
+          onClose={() => setShowAddMatchModal(false)} 
+          onSuccess={() => { setShowAddMatchModal(false); fetchData(); }} 
+        />
+      )}
+      {/* MATCH ACTIONS MENU */}
+      {showMatchMenu && (
+        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setShowMatchMenu(false)}>
+          <div className="bg-[#0F172A] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-4 space-y-1">
+              <MenuOption icon="📖" label="Ver partido" onClick={() => setShowMatchMenu(false)} />
+              <MenuOption icon="📋" label="Seleccionar equipos" onClick={() => setShowMatchMenu(false)} />
+              <MenuOption icon="✔️" label="Editar resultado" onClick={() => { 
+                const m = matches.find(x => x.id === selectedMatchId);
+                if (m) {
+                  setEditingMatchData({ id: m.id, homeScore: m.homeScore, awayScore: m.awayScore, status: m.status });
+                  setEditingMatchId(m.id);
+                  setShowEditResult(true);
+                }
+                setShowMatchMenu(false);
+              }} />
+              <MenuOption icon="✏️" label="Editar informacion" onClick={() => setShowMatchMenu(false)} />
+              
+              <div className="h-px bg-slate-800 my-2 mx-4"></div>
+              
+              <MenuOption icon="🔄" label="Restaurar" color="text-red-400" onClick={() => setShowMatchMenu(false)} />
+              <MenuOption icon="✕" label="Quitar" color="text-red-500" onClick={() => { if (selectedMatchId) handleRemoveMatch(selectedMatchId); }} />
+            </div>
+            <div className="p-4 bg-slate-800/50 text-center">
+              <button onClick={() => setShowMatchMenu(false)} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
             </div>
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+function AddMatchModal({ teams, tournamentId, onClose, onSuccess }: any) {
+  const [homeId, setHomeId] = useState('')
+  const [awayId, setAwayId] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [round, setRound] = useState('1')
+  const [loading, setLoading] = useState(false)
+
+  const handleSave = async () => {
+    if (!homeId || !awayId || homeId === awayId) return alert('Selecciona equipos distintos')
+    setLoading(true)
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ homeTeamId: homeId, awayTeamId: awayId, matchDate: date, roundName: round }),
+    })
+    if (res.ok) onSuccess(); else alert('Error al crear')
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[120] p-4" onClick={onClose}>
+      <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <h3 className="text-2xl font-black text-slate-900 mb-8 text-center uppercase tracking-tight">Agregar Partido</h3>
+        <div className="space-y-6">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Equipo Local</label>
+            <select value={homeId} onChange={e => setHomeId(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all">
+              <option value="">Seleccionar...</option>
+              {teams.map((t: any) => <option key={t.id} value={t.team.id}>{t.team.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Equipo Visitante</label>
+            <select value={awayId} onChange={e => setAwayId(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all">
+              <option value="">Seleccionar...</option>
+              {teams.map((t: any) => <option key={t.id} value={t.team.id}>{t.team.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fecha</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border border-slate-100 transition-all" />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nº Fecha</label>
+              <input type="text" value={round} onChange={e => setRound(e.target.value)} placeholder="Ej: 1" className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border border-slate-100 transition-all" />
+            </div>
+          </div>
+          <div className="pt-4 flex gap-3">
+            <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
+            <button onClick={handleSave} disabled={loading} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest disabled:opacity-50">
+              {loading ? 'Guardando...' : 'Crear Partido'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MenuOption({ icon, label, onClick, color = "text-white" }: { icon: string, label: string, onClick: () => void, color?: string }) {
+  return (
+    <button 
+      onClick={onClick}
+      className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-800 transition-all rounded-[1.5rem] group text-left"
+    >
+      <span className={`text-xl group-hover:scale-125 transition-transform ${color}`}>{icon}</span>
+      <span className={`font-bold text-sm tracking-tight ${color}`}>{label}</span>
+    </button>
   )
 }
 

@@ -156,22 +156,26 @@ export default function AddTeamsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {addedTeams.map((tt, idx) => (
+              {addedTeams.map((tt) => (
                 <div
                   key={tt.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-3xl hover:shadow-xl hover:shadow-slate-200/50 transition-all group"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded-full">
-                      {idx + 1}
-                    </span>
-                    <span className="font-medium text-lg">{tt.team.name}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white text-xl font-black">
+                      🏆
+                    </div>
+                    <div>
+                      <span className="block font-black text-slate-800 text-lg uppercase tracking-tight">{tt.team.name}</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registrado</span>
+                    </div>
                   </div>
                   <button
                     onClick={() => handleAddPlayers(tt.team.id, tt.team.name)}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                    className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                    title="Gestionar Jugadores"
                   >
-                    + Jugadores
+                    <span className="text-xl">👥</span>
                   </button>
                 </div>
               ))}

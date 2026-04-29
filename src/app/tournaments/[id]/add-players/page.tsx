@@ -23,7 +23,10 @@ export default function AddPlayersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [members, setMembers] = useState<TeamMember[]>([])
-  const [newMemberName, setNewMemberName] = useState('')
+  const [name, setName] = useState('')
+  const [number, setNumber] = useState('')
+  const [role, setRole] = useState<'PLAYER' | 'COACH' | 'ASSISTANT' | 'TECHNICAL'>('PLAYER')
+  const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<ModalData | null>(null)
@@ -31,7 +34,7 @@ export default function AddPlayersPage() {
   const [editNumber, setEditNumber] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editRole, setEditRole] = useState<'PLAYER' | 'COACH' | 'ASSISTANT' | 'TECHNICAL'>('PLAYER')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   const tournamentId = params.id as string
   const teamId = searchParams.get('teamId') || ''
@@ -66,11 +69,11 @@ export default function AddPlayersPage() {
     setLoading(false)
   }
 
-  const handleAddMember = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newMemberName.trim()) return
+    if (!name.trim()) return
 
-    setSaving(true)
+    setAdding(true)
     const token = localStorage.getItem('token')
 
     try {
@@ -81,33 +84,33 @@ export default function AddPlayersPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: newMemberName,
-          role: 'PLAYER',
+          name,
+          number: number ? parseInt(number) : null,
+          role,
           teamId: teamId,
         }),
       })
 
       if (res.ok) {
-        setNewMemberName('')
+        setName('')
+        setNumber('')
+        setRole('PLAYER')
         fetchMembers()
       }
     } catch (error) {
       console.error('Error adding member:', error)
       alert('Error al agregar jugador')
     }
-    setSaving(false)
-    // Enfocar el input después de que todo termine
-    setTimeout(() => {
-      inputRef.current?.focus()
-    }, 100)
+    setAdding(false)
+    setTimeout(() => nameRef.current?.focus(), 100)
   }
 
   const handleGoBack = () => {
     router.push(`/tournaments/${tournamentId}/add-teams`)
   }
 
-  const handleOpenModal = (member: TeamMember, mode: 'edit' | 'add') => {
-    setModal({ member, mode })
+  const handleOpenModal = (member: TeamMember) => {
+    setModal({ member, mode: 'edit' })
     setEditName(member.name)
     setEditNumber(member.number?.toString() || '')
     setEditPhone(member.phone || '')
@@ -176,173 +179,146 @@ export default function AddPlayersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-slate-50 font-sans">
       {/* Header */}
-      <div className="bg-white shadow-sm p-4 flex items-center gap-4">
-        <button onClick={handleGoBack} className="text-blue-600 hover:text-blue-800">
-          ← Volver
-        </button>
-        <div>
-          <h1 className="text-xl font-bold">Agregar Jugadores</h1>
-          <p className="text-sm text-gray-500">Equipo: {teamName}</p>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="max-w-2xl mx-auto p-6">
-        {/* Formulario para agregar jugador */}
-        <form onSubmit={handleAddMember} className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-bold mb-4">Nuevo Jugador</h2>
-          <div className="flex gap-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={newMemberName}
-              onChange={(e) => setNewMemberName(e.target.value)}
-              placeholder="Nombre del jugador (Enter para agregar)"
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={saving || !newMemberName.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? 'Agregando...' : 'Agregar'}
-            </button>
+      <div className="bg-white border-b border-slate-100 p-6 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-6">
+          <button onClick={handleGoBack} className="text-slate-400 font-black text-xs uppercase tracking-widest hover:text-blue-600 transition">← Volver</button>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Plantilla de {teamName}</h1>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Gestión de jugadores y cuerpo técnico</p>
           </div>
-        </form>
-
-        {/* Lista de jugadores */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-lg font-bold mb-4">Jugadores Agregados ({members.length})</h2>
-
-          {members.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              No hay jugadores agregados aún
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
-                  onClick={() => handleOpenModal(member, 'edit')}
-                >
-                  <div className="flex items-center gap-3">
-                    {member.number && (
-                      <span className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded-full text-sm">
-                        {member.number}
-                      </span>
-                    )}
-                    <div>
-                      <span className="font-medium">{member.name}</span>
-                      <span className="text-xs text-gray-400 ml-2">
-                        {member.role === 'PLAYER' ? 'Jugador' : member.role}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteMember(member.id)
-                    }}
-                    className="px-3 py-1 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 text-sm"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
-
-        {/* Botón Volver */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={handleGoBack}
-            className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
-          >
-            ✓ Volver a Equipos
-          </button>
+        <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl text-xs font-black">
+          {members.length} REGISTRADOS
         </div>
       </div>
 
-      {/* Modal para editar jugador */}
-      {modal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4">Editar Jugador</h3>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre
-                </label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Número
-                </label>
-                <input
-                  type="number"
-                  value={editNumber}
-                  onChange={(e) => setEditNumber(e.target.value)}
-                  placeholder="Ej: 10"
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono
-                </label>
-                <input
-                  type="text"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  placeholder="Ej: 300 123 4567"
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol
-                </label>
-                <select
-                  value={editRole}
-                  onChange={(e) => setEditRole(e.target.value as any)}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
+      <div className="max-w-6xl mx-auto p-4 md:p-8">
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* Columna Izquierda: Formulario */}
+          <div className="w-full md:w-1/3">
+            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100 sticky top-28">
+              <h2 className="text-xl font-black text-slate-900 mb-6 uppercase tracking-tight">Añadir Integrante</h2>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Nombre</label>
+                  <input
+                    ref={nameRef}
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ej: Juan Pérez"
+                    className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all shadow-sm"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Número</label>
+                    <input
+                      type="number"
+                      value={number}
+                      onChange={(e) => setNumber(e.target.value)}
+                      placeholder="10"
+                      className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Rol</label>
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as any)}
+                      className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all shadow-sm"
+                    >
+                      <option value="PLAYER">Jugador</option>
+                      <option value="COACH">Entrenador</option>
+                      <option value="ASSISTANT">Asistente</option>
+                      <option value="TECHNICAL">Técnico</option>
+                    </select>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={adding || !name.trim()}
+                  className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest active:scale-[0.98] disabled:opacity-50"
                 >
-                  <option value="PLAYER">Jugador</option>
-                  <option value="COACH">Entrenador</option>
-                  <option value="ASSISTANT">Asistente</option>
-                  <option value="TECHNICAL">Cuerpo Técnico</option>
-                </select>
+                  {adding ? 'Registrando...' : 'Añadir a Plantilla'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Columna Derecha: Lista */}
+          <div className="flex-1">
+            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100 min-h-[600px]">
+              <div className="flex justify-between items-center mb-8 px-4">
+                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Plantilla Oficial</h2>
+              </div>
+
+              {loading ? (
+                <div className="p-10 text-center text-slate-300 font-bold italic animate-pulse">Cargando...</div>
+              ) : members.length === 0 ? (
+                <div className="p-20 text-center text-slate-300 font-black uppercase text-xs tracking-widest italic">
+                  No hay jugadores registrados
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {members.map((member) => (
+                    <div
+                      key={member.id}
+                      onClick={() => handleOpenModal(member)}
+                      className="group p-5 bg-slate-50 rounded-[2rem] border border-transparent hover:border-blue-100 hover:bg-white hover:shadow-xl transition-all cursor-pointer flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg ${member.role === 'PLAYER' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                          {member.number || member.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <span className="block font-black text-slate-800 uppercase tracking-tight">{member.name}</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{member.role}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteMember(member.id); }}
+                        className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal para editar */}
+      {modal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={handleCloseModal}>
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Editar Integrante</h3>
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Nombre</label>
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border border-slate-100" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Número</label>
+                  <input type="number" value={editNumber} onChange={(e) => setEditNumber(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border border-slate-100" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Rol</label>
+                  <select value={editRole} onChange={(e) => setEditRole(e.target.value as any)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border border-slate-100">
+                    <option value="PLAYER">Jugador</option><option value="COACH">Entrenador</option><option value="ASSISTANT">Asistente</option><option value="TECHNICAL">Técnico</option>
+                  </select>
+                </div>
               </div>
             </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={handleSaveModal}
-                disabled={saving || !editName.trim()}
-                className="flex-1 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50"
-              >
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
-              <button
-                onClick={handleCloseModal}
-                className="flex-1 py-3 border rounded-xl hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
+            <div className="flex gap-4 mt-10">
+              <button onClick={handleCloseModal} className="flex-1 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest">Cancelar</button>
+              <button onClick={handleSaveModal} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest">Guardar Cambios</button>
             </div>
           </div>
         </div>

@@ -95,7 +95,8 @@ model Tournament {
   description        String?
   sportType          SportType
   status             TournamentStatus @default(DRAFT)
-  format             String           @default("liga")
+  format             String           @default("liga") // 'unico' o 'categorias'
+  phaseSystem        String           @default("TODOS_CONTRA_TODOS") // 'TODOS_CONTRA_TODOS', 'LIGA_ELIMINATORIA', 'ELIMINATORIA'
   startDate          DateTime
   endDate            DateTime
   registrationEnd    DateTime?
@@ -230,6 +231,8 @@ model Match {
   status       MatchStatus  @default(SCHEDULED)
   matchDate    DateTime
   roundName    String
+  phaseName    String?      @default("Primera Fase")
+  groupName    String?      
   location     String?
   referee      String?
   notes        String?

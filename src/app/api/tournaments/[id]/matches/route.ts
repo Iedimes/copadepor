@@ -37,6 +37,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       include: {
         homeTeam: { select: { id: true, name: true } },
         awayTeam: { select: { id: true, name: true } },
+        events: {
+          include: {
+            player: { select: { id: true, name: true } },
+            assist: { select: { id: true, name: true } }
+          }
+        }
       },
       orderBy: { matchDate: 'asc' },
     })
@@ -135,7 +141,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         return NextResponse.json({ error: 'Se necesitan al menos 2 equipos' }, { status: 400 })
       }
 
-      const teamIds = teams.map(t => t.teamId)
+      // Mezclar equipos aleatoriamente (Shuffle)
+      const teamIds = teams.map(t => t.teamId).sort(() => Math.random() - 0.5)
       const matches: { homeTeamId: string; awayTeamId: string; roundName: string }[] = []
       
       const n = teamIds.length
