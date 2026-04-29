@@ -12,6 +12,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         homeTeam: { select: { id: true, name: true } },
         awayTeam: { select: { id: true, name: true } },
         tournament: { select: { id: true, name: true } },
+        events: true,
       },
     })
 
@@ -19,7 +20,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 })
     }
 
-    return NextResponse.json(match)
+    // Map database status to frontend strings
+    const statusMap: Record<string, string> = {
+      'SCHEDULED': 'NO_REALIZADO',
+      'IN_PROGRESS': 'EN_VIVO',
+      'COMPLETED': 'FINALIZADO'
+    }
+    const responseData = {
+      ...match,
+      status: statusMap[match.status] || match.status
+    }
+
+    return NextResponse.json(responseData)
   } catch (error) {
     console.error('Get match error:', error)
     return NextResponse.json({ error: 'Error al obtener partido' }, { status: 500 })
@@ -41,7 +53,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   try {
     const body = await request.json()
-    const { homeScore, awayScore, location, referee, matchDate, status } = body
+    const { homeScore, awayScore, location, referee, matchDate, status, events } = body
+
+    // Map frontend status to database enum
+    const statusMap: Record<string, string> = {
+      'NO_REALIZADO': 'SCHEDULED',
+      'EN_VIVO': 'IN_PROGRESS',
+      'FINALIZADO': 'COMPLETED'
+    }
+    const dbStatus = statusMap[status] || status
 
     const match = await prisma.match.update({
       where: { id: matchId },
@@ -51,9 +71,31 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         ...(location !== undefined && { location }),
         ...(referee !== undefined && { referee }),
         ...(matchDate !== undefined && { matchDate: new Date(matchDate) }),
-        ...(status !== undefined && { status }),
+        ...(status !== undefined && { status: dbStatus }),
       },
     })
+
+    if (events && Array.isArray(events)) {
+      await prisma.matchEvent.deleteMany({
+        where: { matchId }
+      })
+
+      if (events.length > 0) {
+        await prisma.matchEvent.createMany({
+          data: events.map((e: any) => ({
+            matchId,
+            teamId: e.teamId,
+            playerId: (e.scorerId || e.playerId) ? (e.scorerId || e.playerId) : null,
+            assistId: e.assistId ? e.assistId : null,
+            type: e.type,
+            timeType: e.timeType || null,
+            minute: (e.minutes || e.minute) !== undefined ? (e.minutes || e.minute) : null,
+            second: (e.seconds || e.second) !== undefined ? (e.seconds || e.second) : null,
+            detail: e.detail || null,
+          }))
+        })
+      }
+    }
 
     return NextResponse.json(match)
   } catch (error) {

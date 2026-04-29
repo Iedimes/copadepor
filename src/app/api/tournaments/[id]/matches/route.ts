@@ -41,7 +41,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       orderBy: { matchDate: 'asc' },
     })
 
-    return NextResponse.json(matches)
+    // Map database status to frontend strings
+    const statusMap: Record<string, string> = {
+      'SCHEDULED': 'NO_REALIZADO',
+      'IN_PROGRESS': 'EN_VIVO',
+      'COMPLETED': 'FINALIZADO'
+    }
+    const mappedMatches = matches.map(m => ({
+      ...m,
+      status: statusMap[m.status] || m.status
+    }))
+
+    return NextResponse.json(mappedMatches)
   } catch (error) {
     console.error('Get matches error:', error)
     return NextResponse.json({ error: 'Error al obtener partidos' }, { status: 500 })

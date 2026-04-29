@@ -70,16 +70,6 @@ enum ClassificationCriterion {
   W_O
 }
 
-enum ClassificationCriterion {
-  PUNTOS
-  GOLES
-  GOLES_A_FAVOR
-  RESULTADOS_ENTRE_SI
-  TARJETAS_AMARILLAS
-  TARJETAS_ROJAS
-  W_O
-}
-
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -173,56 +163,119 @@ model Team {
   awayMatches     Match[]       @relation("AwayTeam")
   tournamentTeams TournamentTeam[]
   standings       Standings[]
-   messages        Message[]
-   events          MatchEvent[] @relation("TeamEvents")
+  messages        Message[]
+  matchEvents     MatchEvent[]
 }
 
-model MatchEvent {
-  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade, name: "MatchEvents")
-  team   Team  @relation(fields: [teamId], references: [id], name: "TeamEvents")
-  player PlayerProfile? @relation(fields: [playerId], references: [id], name: "PlayerEvents")
-  id          String   @id @default(cuid())
-  matchId     String
-  teamId      String
-  playerId    String?
-  eventType   String   // 'goal', 'assist', 'yellow_card', 'red_card', 'minute_marker'
-  minute      Int?
-  description String?
-  createdAt   DateTime @default(now())
+enum MemberRole {
+  PLAYER
+  COACH
+  ASSISTANT
+  TECHNICAL
 }
 
-model Match {
-  events MatchEvent[] @relation("MatchEvents")
+model TeamMember {
+  id        String    @id @default(cuid())
+  teamId    String
+  name      String
+  role      MemberRole
+  number    Int?
+  phone    String?
+  isActive Boolean  @default(true)
+  createdAt DateTime  @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  matchEventsAsPlayer MatchEvent[] @relation("EventPlayer")
+  matchEventsAsAssist MatchEvent[] @relation("EventAssist")
 }
 
 model PlayerProfile {
-  matchEvents MatchEvent[] @relation("PlayerEvents")
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  dni           String    @unique
+  dateOfBirth   DateTime
+  nationality   String?
+  position      String?
+  photo         String?
+  createdAt     DateTime  @default(now())
+
+  teamPlayers TeamPlayer[]
+  goals      Goal[]
+  sanctions  Sanction[]
 }
+
+model TeamPlayer {
+  id        String         @id @default(cuid())
+  teamId    String
+  playerId  String
+  number    Int?
+  isCaptain Boolean        @default(false)
+  isActive  Boolean        @default(true)
+  joinedAt  DateTime       @default(now())
+
+  team   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model Match {
+  id           String       @id @default(cuid())
+  tournamentId String
+  categoryId   String?
+  homeTeamId   String
+  awayTeamId   String
+  homeScore    Int?
+  awayScore    Int?
+  status       MatchStatus  @default(SCHEDULED)
+  matchDate    DateTime
+  roundName    String
+  location     String?
+  referee      String?
+  notes        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tournament Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  category   Category?   @relation(fields: [categoryId], references: [id])
+  homeTeam   Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam   Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  goals      Goal[]
+  events     MatchEvent[]
+  report     MatchReport?
+}
+
+model Goal {
+  id         String   @id @default(cuid())
+  matchId    String
+  playerId   String
+  teamId     String
+  isOwnGoal  Boolean @default(false)
+  minute     Int?
+  createdAt  DateTime @default(now())
+
+  match  Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model MatchEvent {
   id          String   @id @default(cuid())
   matchId     String
   teamId      String
   playerId    String?
-  eventType   String   // 'goal', 'assist', 'yellow_card', 'red_card', 'minute_marker'
+  assistId    String?
+  type        String   // 'GOAL', 'YELLOW_CARD', 'RED_CARD', 'OWN_GOAL', 'SUB_IN', 'SUB_OUT'
+  timeType    String?  // '1°', '2°', '3°', '4°', 'PRORROGA'
   minute      Int?
-  description String?
+  second      Int?
+  detail      String?  @db.Text
   createdAt   DateTime @default(now())
 
-  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade, name: "MatchEvents")
-  team   Team   @relation(fields: [teamId], references: [id], name: "TeamEvents")
-  player PlayerProfile? @relation(fields: [playerId], references: [id], name: "PlayerEvents")
-}
-
-model Goal {
-   id         String   @id @default(cuid())
-   matchId    String
-   playerId   String
-   teamId     String
-   isOwnGoal  Boolean @default(false)
-   minute     Int?
-   createdAt  DateTime @default(now())
-
-   match  Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
-   player PlayerProfile @relation(fields: [playerId], references: [id])
+  match       Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team        Team        @relation(fields: [teamId], references: [id])
+  player      TeamMember? @relation("EventPlayer", fields: [playerId], references: [id])
+  assist      TeamMember? @relation("EventAssist", fields: [assistId], references: [id])
 }
 
 model MatchReport {

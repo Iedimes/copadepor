@@ -7,13 +7,8 @@ function getAuthToken(request: NextRequest): string | null {
   return authHeader?.replace('Bearer ', '') || null
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const token = getAuthToken(request)
-  
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
@@ -23,45 +18,27 @@ export async function GET(
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   }
 
+  const teamId = params.id;
+
+  if (!teamId) {
+    return NextResponse.json({ error: 'teamId requerido' }, { status: 400 })
+  }
+
   try {
-    const team = await prisma.team.findUnique({
-      where: { id },
-      include: {
-        manager: { select: { id: true, name: true } },
-        teamMembers: {
-          include: {
-            player: {
-              include: {
-                user: { select: { id: true, name: true, email: true } }
-              }
-            }
-          }
-        }
-      }
+    const members = await prisma.teamMember.findMany({
+      where: { teamId },
+      orderBy: { number: 'asc' },
     })
 
-    if (!team) {
-      return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
-    }
-
-    if (team.managerId !== payload.userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-    }
-
-    return NextResponse.json(team.teamMembers)
+    return NextResponse.json(members)
   } catch (error) {
-    console.error('Get team members error:', error)
+    console.error('Get members error:', error)
     return NextResponse.json({ error: 'Error al obtener miembros' }, { status: 500 })
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const token = getAuthToken(request)
-  
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
@@ -73,77 +50,26 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { playerId } = body
+    const { name, role, number, phone } = body
+    const teamId = params.id;
 
-    const team = await prisma.team.findUnique({
-      where: { id }
-    })
-
-    if (!team) {
-      return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
-    }
-
-    if (team.managerId !== payload.userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if (!teamId || !name) {
+      return NextResponse.json({ error: 'teamId y name requeridos' }, { status: 400 })
     }
 
     const member = await prisma.teamMember.create({
       data: {
-        teamId: id,
-        playerId,
-        role: 'PLAYER'
+        teamId,
+        name,
+        role: role || 'PLAYER',
+        number: number || null,
+        phone: phone || null,
       },
-      include: {
-        player: {
-          include: {
-            user: { select: { id: true, name: true } }
-          }
-        }
-      }
     })
 
     return NextResponse.json(member, { status: 201 })
   } catch (error) {
-    console.error('Add team member error:', error)
-    return NextResponse.json({ error: 'Error al agregar miembro' }, { status: 500 })
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
-  const token = getAuthToken(request)
-  
-  if (!token) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
-
-  const payload = verifyToken(token)
-  if (!payload) {
-    return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
-  }
-
-  try {
-    const body = await request.json()
-    const { memberId } = body
-
-    const team = await prisma.team.findUnique({
-      where: { id }
-    })
-
-    if (!team) {
-      return NextResponse.json({ error: 'Equipo no encontrado' }, { status: 404 })
-    }
-
-    await prisma.teamMember.delete({
-      where: { id: memberId }
-    })
-
-    return NextResponse.json({ message: 'Miembro eliminado' })
-  } catch (error) {
-    console.error('Delete team member error:', error)
-    return NextResponse.json({ error: 'Error al eliminar miembro' }, { status: 500 })
+    console.error('Create member error:', error)
+    return NextResponse.json({ error: 'Error al crear miembro' }, { status: 500 })
   }
 }
