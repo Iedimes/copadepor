@@ -10,6 +10,8 @@ interface Tournament {
   sportType: string
   status: string
   organizer: { name: string }
+  classificationCriteria: string
+  phaseSystem: string
 }
 
 interface Message {
@@ -28,6 +30,8 @@ interface Match {
   homeScore: number | null
   awayScore: number | null
   status: string
+  phaseName: string
+  events?: any[]
 }
 
 interface TournamentTeam {
@@ -58,6 +62,8 @@ export default function TournamentPage() {
   const [generating, setGenerating] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
   const [showGenType, setShowGenType] = useState(false)
+  const [selectedPhase, setSelectedPhase] = useState('Primera Fase')
+  const [phases, setPhases] = useState<string[]>(['Primera Fase'])
   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
   
   const [editingMatchData, setEditingMatchData] = useState<{ id: string, homeScore: number | null, awayScore: number | null, status: string } | null>(null)
@@ -114,6 +120,8 @@ export default function TournamentPage() {
           if (rounds.length > 0 && (!selectedRound || !rounds.includes(selectedRound))) {
             setSelectedRound(rounds[0])
           }
+          const p = [...new Set(m.map((x: any) => x.phaseName || 'Primera Fase'))] as string[]
+          setPhases(p.length > 0 ? p : ['Primera Fase'])
         }
         if (teamsRes.ok) setTournamentTeams(await teamsRes.json())
         if (allTeamsRes.ok) setAllTeams(await allTeamsRes.json())
@@ -133,7 +141,24 @@ export default function TournamentPage() {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: newMessage }),
     })
-    if (res.ok) { setNewMessage(''); fetchData(); }
+    if (res.ok) {
+      setNewMessage('')
+      fetchData()
+    }
+  }
+
+  const handlePhaseChange = (val: string) => {
+    if (val === 'NEW') {
+      const name = prompt('Nombre de la nueva fase:')
+      if (name) {
+        if (!phases.includes(name)) {
+          setPhases([...phases, name])
+          setSelectedPhase(name)
+        }
+      }
+      return
+    }
+    setSelectedPhase(val)
   }
 
   const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
@@ -142,7 +167,7 @@ export default function TournamentPage() {
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType: type }),
+      body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType: type, phaseName: selectedPhase }),
     })
     if (res.ok) {
       await fetchData();
@@ -188,7 +213,11 @@ export default function TournamentPage() {
   const getStandings = () => {
     const stats: Record<string, any> = {}
     tournamentTeams.forEach(tt => { stats[tt.team.id] = { name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } })
-    matches.forEach(m => {
+    
+    // Filter matches by selected phase
+    const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase)
+    
+    phaseMatches.forEach(m => {
       const isE = editingMatchData?.id === m.id
       const hS = isE ? editingMatchData.homeScore : m.homeScore
       const aS = isE ? editingMatchData.awayScore : m.awayScore
@@ -203,11 +232,21 @@ export default function TournamentPage() {
         }
       }
     })
+
+    const criteria = (tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(',')
+
     return Object.values(stats).map(s => ({
       ...s,
       diff: s.gf - s.ga,
       perc: s.played > 0 ? Math.round((s.points / (s.played * 3)) * 100) : 0
-    })).sort((a, b) => b.points - a.points || b.diff - a.diff || b.gf - a.gf)
+    })).sort((a: any, b: any) => {
+      for (const criterion of criteria) {
+        if (criterion === 'PUNTOS' && b.points !== a.points) return b.points - a.points
+        if (criterion === 'GOLES' && b.diff !== a.diff) return b.diff - a.diff
+        if (criterion === 'GOLES_A_FAVOR' && b.gf !== a.gf) return b.gf - a.gf
+      }
+      return 0
+    })
   }
 
   const getTeamRankings = () => {
@@ -242,6 +281,36 @@ export default function TournamentPage() {
     }
   }
 
+  const getTopScorers = () => {
+    const scorers: Record<string, { name: string; team: string; goals: number }> = {}
+    matches.forEach(m => {
+      (m.events || []).forEach((e: any) => {
+        if (e.type === 'GOAL') {
+          const pName = e.player?.name || 'Desconocido'
+          const tName = e.team?.name || ''
+          if (!scorers[pName]) scorers[pName] = { name: pName, team: tName, goals: 0 }
+          scorers[pName].goals++
+        }
+      })
+    })
+    return Object.values(scorers).sort((a, b) => b.goals - a.goals).slice(0, 10)
+  }
+
+  const getTopDisciplined = () => {
+    const players: Record<string, { name: string; team: string; yellow: number; red: number }> = {}
+    matches.forEach(m => {
+      (m.events || []).forEach((e: any) => {
+        const pName = e.player?.name || 'Desconocido'
+        const tName = e.team?.name || ''
+        if (!players[pName]) players[pName] = { name: pName, team: tName, yellow: 0, red: 0 }
+        if (e.type === 'YELLOW_CARD') players[pName].yellow++
+        if (e.type === 'RED_CARD') players[pName].red++
+        if (e.type === 'DOUBLE_YELLOW_CARD') { players[pName].yellow++; players[pName].red++ }
+      })
+    })
+    return Object.values(players).sort((a, b) => (b.red * 3 + b.yellow) - (a.red * 3 + a.yellow)).slice(0, 10)
+  }
+
   const shareUrl = `https://copafacil.com/${tournamentId}`
   const sportIcon = getSportIcon(tournament?.sportType || '')
 
@@ -263,6 +332,19 @@ export default function TournamentPage() {
             <button onClick={() => setActiveMenu('clasificacion')} className={`w-full text-left px-4 py-3 rounded-2xl font-black text-sm transition-all ${activeMenu === 'clasificacion' ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>📊 Clasificación</button>
             <button onClick={() => setActiveMenu('estadisticas')} className={`w-full text-left px-4 py-3 rounded-2xl font-black text-sm transition-all ${activeMenu === 'estadisticas' ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>🏆 Estadísticas</button>
           </nav>
+
+          {/* Phase Selector */}
+          <div className="mt-8 px-4">
+            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2">Fase Activa</div>
+            <select 
+              value={selectedPhase}
+              onChange={(e) => handlePhaseChange(e.target.value)}
+              className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+            >
+              {phases.map(p => <option key={p} value={p}>{p}</option>)}
+              <option value="NEW">+ Nueva Fase</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -304,56 +386,74 @@ export default function TournamentPage() {
           </div>
         ) : activeMenu === 'clasificacion' ? (
           <div className="flex flex-col xl:flex-row gap-8 max-w-[1600px] mx-auto h-full">
-            {/* Classification */}
+            {/* Classification OR Bracket */}
             <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50 overflow-y-auto">
-              <div className="flex justify-between items-center mb-8">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">📊 CLASIFICACIÓN</h2>
-                  <button onClick={() => setShowConfigMenu(true)} className="bg-slate-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm hover:scale-110 transition-all">+</button>
+                <div className="animate-in fade-in duration-500">
+                  <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">📊 {selectedPhase}</h2>
+                      <button onClick={() => setShowConfigMenu(true)} className="bg-slate-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm hover:scale-110 transition-all">+</button>
+                    </div>
+                    <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all">GESTOR DE EQUIPOS</button>
+                  </div>
+                  
+                  <div className="overflow-x-auto rounded-3xl border border-slate-100 mb-10">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                          <th className="p-4 text-center rounded-tl-3xl">Pos</th>
+                          <th className="p-4 text-left">EQUIPOS</th>
+                          <th className="p-4 text-center">Pts</th>
+                          <th className="p-4 text-center">J</th>
+                          <th className="p-4 text-center">G</th>
+                          <th className="p-4 text-center">E</th>
+                          <th className="p-4 text-center">P</th>
+                          <th className="p-4 text-center">GF</th>
+                          <th className="p-4 text-center">GC</th>
+                          <th className="p-4 text-center">DIF</th>
+                          <th className="p-4 text-center">%</th>
+                          <th className="p-4 text-center rounded-tr-3xl">PE</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {getStandings().map((t, i) => (
+                          <tr key={i} className="hover:bg-slate-50/80 transition-all cursor-default">
+                            <td className="p-4 text-center font-black text-white bg-slate-900">{i+1}</td>
+                            <td className="p-4 font-black text-slate-800 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">🏆</div>
+                              {t.name}
+                            </td>
+                            <td className="p-4 text-center font-black text-blue-600 text-lg">{t.points}</td>
+                            <td className="p-4 text-center text-slate-500 font-bold">{t.played}</td>
+                            <td className="p-4 text-center text-slate-500 font-bold">{t.won}</td>
+                            <td className="p-4 text-center text-slate-500 font-bold">{t.drawn}</td>
+                            <td className="p-4 text-center text-slate-500 font-bold">{t.lost}</td>
+                            <td className="p-4 text-center text-slate-500 font-bold">{t.gf}</td>
+                            <td className="p-4 text-center text-slate-500 font-bold">{t.ga}</td>
+                            <td className="p-4 text-center font-black text-slate-800">{t.diff > 0 ? `+${t.diff}` : t.diff}</td>
+                            <td className="p-4 text-center text-slate-400 font-bold">{t.perc}%</td>
+                            <td className="p-4 text-center text-slate-400 font-bold">0</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {(selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria')) && (
+                    <>
+                      <div className="flex justify-between items-center mb-10 border-t border-slate-100 pt-10">
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">🌳 Cuadro de Llaves</h2>
+                        <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase italic">Esquema Visual</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-10">
+                        <BracketColumn title="Cuartos" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
+                        <BracketColumn title="Semis" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
+                        <BracketColumn title="Final" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('final'))} />
+                      </div>
+                    </>
+                  )}
                 </div>
-                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all">GESTOR DE EQUIPOS</button>
-              </div>
-              <div className="overflow-x-auto rounded-3xl border border-slate-100">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
-                      <th className="p-4 text-center rounded-tl-3xl">Pos</th>
-                      <th className="p-4 text-left">EQUIPOS</th>
-                      <th className="p-4 text-center">Pts</th>
-                      <th className="p-4 text-center">J</th>
-                      <th className="p-4 text-center">G</th>
-                      <th className="p-4 text-center">E</th>
-                      <th className="p-4 text-center">P</th>
-                      <th className="p-4 text-center">GF</th>
-                      <th className="p-4 text-center">GC</th>
-                      <th className="p-4 text-center">DIF</th>
-                      <th className="p-4 text-center">%</th>
-                      <th className="p-4 text-center rounded-tr-3xl">PE</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {getStandings().map((t, i) => (
-                      <tr key={i} className="hover:bg-slate-50/80 transition-all cursor-default">
-                        <td className="p-4 text-center font-black text-white bg-slate-900">{i+1}</td>
-                        <td className="p-4 font-black text-slate-800 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">🏆</div>
-                          {t.name}
-                        </td>
-                        <td className="p-4 text-center font-black text-blue-600 text-lg">{t.points}</td>
-                        <td className="p-4 text-center text-slate-500 font-bold">{t.played}</td>
-                        <td className="p-4 text-center text-slate-500 font-bold">{t.won}</td>
-                        <td className="p-4 text-center text-slate-500 font-bold">{t.drawn}</td>
-                        <td className="p-4 text-center text-slate-500 font-bold">{t.lost}</td>
-                        <td className="p-4 text-center text-slate-500 font-bold">{t.gf}</td>
-                        <td className="p-4 text-center text-slate-500 font-bold">{t.ga}</td>
-                        <td className="p-4 text-center font-black text-slate-800">{t.diff > 0 ? `+${t.diff}` : t.diff}</td>
-                        <td className="p-4 text-center text-slate-400 font-bold">{t.perc}%</td>
-                        <td className="p-4 text-center text-slate-400 font-bold">0</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
 
             {/* Calendar */}
@@ -361,11 +461,16 @@ export default function TournamentPage() {
               <div className="bg-[#0F172A] p-6 flex justify-between items-center">
                 <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
                 <div className="flex gap-2">
-                  <select className="bg-slate-800 text-white text-[10px] font-black rounded-lg px-2 py-1 outline-none border border-slate-700">
-                    <option>1° Fase</option>
+                  <select 
+                    value={selectedPhase} 
+                    onChange={(e) => handlePhaseChange(e.target.value)}
+                    className="bg-slate-800 text-white text-[10px] font-black rounded-lg px-2 py-1 outline-none border border-slate-700"
+                  >
+                    {phases.map(p => <option key={p} value={p}>{p}</option>)}
+                    <option value="NEW" className="text-blue-400 font-bold text-center italic">+ Nueva Fase</option>
                   </select>
                   <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-slate-800 text-white text-[10px] font-black rounded-lg px-2 py-1 outline-none border border-slate-700">
-                    {Array.from(new Set(matches.map(m => m.roundName))).sort((a,b) => parseInt(a)-parseInt(b)).map(r => <option key={r} value={r}>{r}º Fecha</option>)}
+                    {Array.from(new Set(matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase).map(m => m.roundName))).sort((a,b) => parseInt(a)-parseInt(b)).map(r => <option key={r} value={r}>{r}º Fecha</option>)}
                   </select>
                 </div>
               </div>
@@ -382,7 +487,7 @@ export default function TournamentPage() {
                     <div className="flex justify-center mb-4">
                       <button onClick={() => setShowFixtureMenu(true)} className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-black text-xl shadow-lg hover:scale-110 transition-all shadow-blue-100">+</button>
                     </div>
-                    {matches.filter(m => String(m.roundName) === selectedRound).map(m => {
+                    {matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && String(m.roundName) === selectedRound).map(m => {
                       const isE = editingMatchData?.id === m.id; const hS = isE ? editingMatchData.homeScore : m.homeScore; const aS = isE ? editingMatchData.awayScore : m.awayScore; const st = isE ? editingMatchData.status : m.status
                       return (
                         <div key={m.id} onClick={() => handleOpenMatchModal(m)} className={`relative flex items-center justify-between p-4 group cursor-pointer transition-all ${isE ? 'scale-[1.02]' : ''}`}>
@@ -422,31 +527,41 @@ export default function TournamentPage() {
                         </div>
                       )
                     })}
+                    <div className="mt-10 pt-10 border-t border-slate-100">
+                      <h3 className="bg-[#0F172A] text-white p-4 rounded-t-[1.5rem] text-center font-black text-xs uppercase tracking-widest">Estadísticas de la fecha</h3>
+                      <div className="bg-slate-50 rounded-b-[1.5rem] p-6">
+                        <RoundStatistics matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && String(m.roundName) === selectedRound)} />
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
             </div>
           </div>
-        ) : activeMenu === 'estadisticas' ? (
-          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-500">
-            <h2 className="text-3xl font-black text-slate-900 mb-8">Estadísticas del Torneo</h2>
-            
-            <div className="grid grid-cols-1 gap-6">
-              <RankingCard title="Mejor ataque" label="Goles" data={getTeamRankings().bestAttack} field="gf" />
-              <RankingCard title="Mejor defensa" label="Goles" data={getTeamRankings().bestDefense} field="ga" />
-              <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
-              <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
-            </div>
-          </div>
         ) : (
-          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-3xl font-black text-slate-900">🏆 Estadísticas del Torneo</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-2">Resumen General</div>
+                <h2 className="text-4xl font-black text-slate-900 tracking-tight">🏆 Estadísticas del Torneo</h2>
+              </div>
+              <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100 flex gap-8">
+                <div className="text-center">
+                  <div className="text-[9px] font-black text-slate-300 uppercase">Partidos</div>
+                  <div className="text-xl font-black text-slate-800">{matches.length}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[9px] font-black text-slate-300 uppercase">Goles</div>
+                  <div className="text-xl font-black text-slate-800">{matches.reduce((acc, m) => acc + (m.homeScore || 0) + (m.awayScore || 0), 0)}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Top Scorers */}
               <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="text-3xl">🥅</span>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-2xl">🥅</div>
                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Tabla de Goleadores</h3>
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
@@ -460,8 +575,9 @@ export default function TournamentPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {getTopScorers().length === 0 && <tr><td colSpan={4} className="p-8 text-center text-slate-300 font-bold italic">No hay goles registrados aún</td></tr>}
-                      {getTopScorers().map((p: any, i: number) => (
+                      {getTopScorers().length === 0 ? (
+                        <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">No hay goles registrados aún</td></tr>
+                      ) : getTopScorers().map((p: any, i: number) => (
                         <tr key={i} className="hover:bg-slate-50 transition-all">
                           <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
                           <td className="p-4 font-black text-slate-800">{p.name}</td>
@@ -476,8 +592,8 @@ export default function TournamentPage() {
 
               {/* Disciplined Players */}
               <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="text-3xl">🟨</span>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-2xl">🟨</div>
                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Tabla de Sanciones</h3>
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
@@ -492,8 +608,9 @@ export default function TournamentPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {getTopDisciplined().length === 0 && <tr><td colSpan={5} className="p-8 text-center text-slate-300 font-bold italic">Sin tarjetas registradas</td></tr>}
-                      {getTopDisciplined().map((p: any, i: number) => (
+                      {getTopDisciplined().length === 0 ? (
+                        <tr><td colSpan={5} className="p-12 text-center text-slate-300 font-bold italic">Sin tarjetas registradas</td></tr>
+                      ) : getTopDisciplined().map((p: any, i: number) => (
                         <tr key={i} className="hover:bg-slate-50 transition-all">
                           <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
                           <td className="p-4 font-black text-slate-800">{p.name}</td>
@@ -506,6 +623,14 @@ export default function TournamentPage() {
                   </table>
                 </div>
               </div>
+            </div>
+
+            {/* Global Rankings Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-8">
+              <RankingCard title="Mejor ataque" label="Goles" data={getTeamRankings().bestAttack} field="gf" />
+              <RankingCard title="Mejor defensa" label="Goles" data={getTeamRankings().bestDefense} field="ga" />
+              <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
+              <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
             </div>
           </div>
         )}
@@ -594,6 +719,7 @@ export default function TournamentPage() {
         <AddMatchModal 
           teams={tournamentTeams} 
           tournamentId={tournamentId}
+          phaseName={selectedPhase}
           onClose={() => setShowAddMatchModal(false)} 
           onSuccess={() => { setShowAddMatchModal(false); fetchData(); }} 
         />
@@ -631,7 +757,7 @@ export default function TournamentPage() {
   )
 }
 
-function AddMatchModal({ teams, tournamentId, onClose, onSuccess }: any) {
+function AddMatchModal({ teams, tournamentId, onClose, onSuccess, ...props }: any) {
   const [homeId, setHomeId] = useState('')
   const [awayId, setAwayId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -645,7 +771,7 @@ function AddMatchModal({ teams, tournamentId, onClose, onSuccess }: any) {
     const res = await fetch(`/api/tournaments/${tournamentId}/matches`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ homeTeamId: homeId, awayTeamId: awayId, matchDate: date, roundName: round }),
+      body: JSON.stringify({ homeTeamId: homeId, awayTeamId: awayId, matchDate: date, roundName: round, phaseName: props.phaseName }),
     })
     if (res.ok) onSuccess(); else alert('Error al crear')
     setLoading(false)
@@ -1017,4 +1143,129 @@ function RankingCard({ title, label, data, field }: any) {
 function getSportIcon(sportType: string): string {
   const icons: Record<string, string> = { FUTBOL_11: '⚽', FUTSAL: '⚽', FUTBOL_7: '⚽', FUTBOL_SALA: '⚽' }
   return icons[sportType] || '🏆'
+}
+
+function RoundStatistics({ matches }: { matches: any[] }) {
+  const stats = {
+    matches: matches.length,
+    goals: 0,
+    scorers: {} as Record<string, { name: string; team: string; goals: number }>,
+    yellowCards: {} as Record<string, { name: string; team: string; count: number }>,
+    redCards: {} as Record<string, { name: string; team: string; count: number }>,
+  }
+
+  matches.forEach(m => {
+    const hS = m.homeScore
+    const aS = m.awayScore
+    if (hS !== null) stats.goals += hS
+    if (aS !== null) stats.goals += aS
+    
+    m.events?.forEach((e: any) => {
+      const pName = e.player?.name || 'Desconocido'
+      const tName = e.team?.name || ''
+      if (e.type === 'GOAL') {
+        if (!stats.scorers[pName]) stats.scorers[pName] = { name: pName, team: tName, goals: 0 }
+        stats.scorers[pName].goals++
+      } else if (e.type === 'YELLOW_CARD') {
+        if (!stats.yellowCards[pName]) stats.yellowCards[pName] = { name: pName, team: tName, count: 0 }
+        stats.yellowCards[pName].count++
+      } else if (e.type === 'RED_CARD') {
+        if (!stats.redCards[pName]) stats.redCards[pName] = { name: pName, team: tName, count: 0 }
+        stats.redCards[pName].count++
+      }
+    })
+  })
+
+  const topScorers = Object.values(stats.scorers).sort((a, b) => b.goals - a.goals).slice(0, 5)
+  const topYellows = Object.values(stats.yellowCards).sort((a, b) => b.count - a.count).slice(0, 5)
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white p-4 rounded-2xl text-center shadow-sm border border-slate-100">
+          <div className="text-[10px] font-black text-slate-300 uppercase mb-1">Juegos</div>
+          <div className="text-2xl font-black text-slate-800">{stats.matches}</div>
+        </div>
+        <div className="bg-white p-4 rounded-2xl text-center shadow-sm border border-slate-100">
+          <div className="text-[10px] font-black text-slate-300 uppercase mb-1">Goles</div>
+          <div className="text-2xl font-black text-slate-800">{stats.goals}</div>
+        </div>
+      </div>
+
+      <section>
+        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+          <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest">Goles</div>
+          <div className="divide-y divide-slate-50">
+            {topScorers.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topScorers.map(s => (
+              <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px]">👤</div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black text-slate-700 uppercase">{s.name}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{s.team}</span>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-slate-900">{s.goals}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+          <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest">Tarjeta Amarilla</div>
+          <div className="divide-y divide-slate-50">
+            {topYellows.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topYellows.map(s => (
+              <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-yellow-100 flex items-center justify-center text-[10px]">👤</div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black text-slate-700 uppercase">{s.name}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{s.team}</span>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-slate-900">{s.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+
+function BracketColumn({ title, matches }: { title: string, matches: any[] }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="text-center">
+        <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-4">{title}</h4>
+      </div>
+      <div className="flex flex-col gap-10 flex-1 justify-around">
+        {matches.length === 0 ? (
+          <div className="border-2 border-dashed border-slate-50 rounded-3xl p-8 text-center text-[10px] font-black text-slate-200 uppercase tracking-widest">Esperando cruces</div>
+        ) : (
+          matches.map(m => <BracketMatch key={m.id} match={m} />)
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BracketMatch({ match }: { match: any }) {
+  return (
+    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all">
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+          <span className="text-[11px] font-black text-slate-700 truncate w-24 uppercase">{match.homeTeam.name}</span>
+          <span className="bg-white px-2 py-1 rounded-lg font-black text-xs text-slate-900 border border-slate-100">{match.homeScore ?? '-'}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-[11px] font-black text-slate-700 truncate w-24 uppercase">{match.awayTeam.name}</span>
+          <span className="bg-white px-2 py-1 rounded-lg font-black text-xs text-slate-900 border border-slate-100">{match.awayScore ?? '-'}</span>
+        </div>
+      </div>
+    </div>
+  )
 }

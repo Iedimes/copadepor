@@ -8,6 +8,7 @@ const matchSchema = z.object({
   awayTeamId: z.string(),
   matchDate: z.string().transform(s => new Date(s)),
   roundName: z.string().optional(),
+  phaseName: z.string().optional(),
 })
 
 const generateMatchesSchema = z.object({
@@ -52,7 +53,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         events: {
           include: {
             player: { select: { id: true, name: true } },
-            assist: { select: { id: true, name: true } }
+            assist: { select: { id: true, name: true } },
+            team: { select: { id: true, name: true } }
           }
         }
       },
@@ -235,6 +237,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               awayTeamId: m.awayTeamId,
               matchDate: roundDate,
               roundName: String(m.roundName),
+              phaseName: body.phaseName || 'Primera Fase',
               status: 'SCHEDULED',
             },
           })
@@ -257,6 +260,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         awayTeamId: validated.awayTeamId,
         matchDate: validated.matchDate,
         roundName: validated.roundName || '1ª Fecha',
+        phaseName: validated.phaseName || 'Primera Fase',
         status: 'SCHEDULED',
       },
       include: {
