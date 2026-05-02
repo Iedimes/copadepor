@@ -118,7 +118,7 @@ export default function TournamentPage() {
         if (matchesRes.ok) {
           const m = await matchesRes.json()
           setMatches(m)
-          const rounds = [...new Set(m.map((x: any) => String(x.roundName)))].sort((a: any, b: any) => parseInt(a) - parseInt(b))
+          const rounds = [...new Set(m.map((x: any) => String(x.roundName)))].sort((a: any, b: any) => parseInt(a) - parseInt(b)) as string[]
           if (rounds.length > 0 && (!selectedRound || !rounds.includes(selectedRound))) {
             setSelectedRound(rounds[0])
           }
@@ -166,6 +166,42 @@ export default function TournamentPage() {
 
   const handleCreateAdvantagePlayoff = () => {
     setShowPlayoffDraw(true)
+  }
+
+  const handleGenerateSemifinals = async () => {
+    if (!confirm('¿Generar semifinales basándose en los resultados de Cuartos de Final?')) return;
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateSemifinals`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phaseName: selectedPhase }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      alert(data.message)
+      setSelectedRound('Semi Final')
+      fetchData()
+    } else {
+      alert(data.error || 'Error al generar semifinales')
+    }
+  }
+
+  const handleGenerateFinal = async () => {
+    if (!confirm('¿Generar la Final basándose en los resultados de Semifinales?')) return;
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateFinal`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phaseName: selectedPhase }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      alert(data.message)
+      setSelectedRound('Final')
+      fetchData()
+    } else {
+      alert(data.error || 'Error al generar la final')
+    }
   }
 
   const handlePhaseChange = (val: string) => {
@@ -235,8 +271,8 @@ export default function TournamentPage() {
     const stats: Record<string, any> = {}
     tournamentTeams.forEach(tt => { stats[tt.team.id] = { name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } })
     
-    // Filter matches by selected phase
-    const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase)
+    // Filter matches by selected phase AND EXCLUDE playoffs
+    const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && !['Cuartos', 'Semi Final', 'Final'].includes(String(m.roundName)))
     
     phaseMatches.forEach(m => {
       const isE = editingMatchData?.id === m.id
@@ -505,9 +541,8 @@ export default function TournamentPage() {
                     </button>
                     <div className="absolute right-0 top-full mt-2 w-48 bg-orange-600 rounded-xl shadow-2xl overflow-hidden hidden group-hover:block z-50 animate-in fade-in zoom-in duration-200">
                       <button onClick={handleCreateAdvantagePlayoff} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30 flex items-center gap-2">🎲 SORTEO CUARTOS <span className="bg-white/20 px-1.5 py-0.5 rounded text-[8px]">TOP 8</span></button>
-                      <button onClick={() => { setSelectedRound('Cuartos'); handleCreateStage('Cuartos', 4); }} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30">CUARTOS (VACÍO)</button>
-                      <button onClick={() => { setSelectedRound('Semi Final'); handleCreateStage('Semi Final', 2); }} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30">SEMI FINAL</button>
-                      <button onClick={() => { setSelectedRound('Final'); handleCreateStage('Final', 1); }} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500">FINAL</button>
+                      <button onClick={handleGenerateSemifinals} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30 flex items-center gap-2">🏆 GENERAR SEMIFINALES</button>
+                      <button onClick={handleGenerateFinal} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 flex items-center gap-2">🏆 GENERAR FINAL</button>
                     </div>
                   </div>
                 </div>
@@ -530,11 +565,11 @@ export default function TournamentPage() {
                       return (
                         <div key={m.id} onClick={() => handleOpenMatchModal(m)} className={`relative flex items-center justify-between p-4 group cursor-pointer transition-all ${isE ? 'scale-[1.02]' : ''}`}>
                           {/* Home Team */}
-                          <div className="flex flex-col items-center gap-2 w-24">
+                          <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
+                            {m.advantageTeamId === m.homeTeam?.id && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>}
                             <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
                               <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
                               🏆
-                              {m.advantageTeamId === m.homeTeam?.id && <div className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-[10px] shadow-lg" title="Ventaja deportiva">🛡️</div>}
                             </div>
                             <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.homeTeam?.name || 'Por definir'}</span>
                           </div>
@@ -554,11 +589,11 @@ export default function TournamentPage() {
                           </div>
 
                           {/* Away Team */}
-                          <div className="flex flex-col items-center gap-2 w-24">
+                          <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
+                            {m.advantageTeamId === m.awayTeam?.id && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>}
                             <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
                               <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
                               🏆
-                              {m.advantageTeamId === m.awayTeam?.id && <div className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-[10px] shadow-lg" title="Ventaja deportiva">🛡️</div>}
                             </div>
                             <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.awayTeam?.name || 'Por definir'}</span>
                           </div>
@@ -1518,16 +1553,16 @@ function BracketMatch({ match }: { match: any }) {
     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all">
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-[11px] font-black text-slate-700 truncate w-24 uppercase flex items-center gap-1">
+          <span className="text-[11px] font-black text-slate-700 truncate w-32 uppercase flex items-center gap-1">
             {match.homeTeam?.name || 'POR DEFINIR'}
-            {match.advantageTeamId === match.homeTeam?.id && <span title="Ventaja deportiva">🛡️</span>}
+            {match.advantageTeamId === match.homeTeam?.id && <span title="Ventaja deportiva" className="ml-1 bg-blue-100 text-blue-700 text-[8px] px-1.5 py-0.5 rounded uppercase tracking-tighter">🛡️ VENTAJA</span>}
           </span>
           <span className="bg-white px-2 py-1 rounded-lg font-black text-xs text-slate-900 border border-slate-100">{match.homeScore ?? '-'}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-[11px] font-black text-slate-700 truncate w-24 uppercase flex items-center gap-1">
+          <span className="text-[11px] font-black text-slate-700 truncate w-32 uppercase flex items-center gap-1">
             {match.awayTeam?.name || 'POR DEFINIR'}
-            {match.advantageTeamId === match.awayTeam?.id && <span title="Ventaja deportiva">🛡️</span>}
+            {match.advantageTeamId === match.awayTeam?.id && <span title="Ventaja deportiva" className="ml-1 bg-blue-100 text-blue-700 text-[8px] px-1.5 py-0.5 rounded uppercase tracking-tighter">🛡️ VENTAJA</span>}
           </span>
           <span className="bg-white px-2 py-1 rounded-lg font-black text-xs text-slate-900 border border-slate-100">{match.awayScore ?? '-'}</span>
         </div>

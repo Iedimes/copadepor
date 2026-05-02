@@ -9,6 +9,7 @@ const matchSchema = z.object({
   matchDate: z.string().transform(s => new Date(s)),
   roundName: z.string().optional(),
   phaseName: z.string().optional(),
+  advantageTeamId: z.string().nullable().optional(),
 })
 
 const generateMatchesSchema = z.object({
@@ -366,6 +367,131 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         console.error('Generate advantage playoff error:', error)
         return NextResponse.json({ error: 'Error al generar sorteo' }, { status: 500 })
       }
+    } else if (action === 'generateSemifinals') {
+      try {
+        const phaseName = body.phaseName || 'Fase Final'
+        const cuartosMatches = await prisma.match.findMany({
+          where: { tournamentId: params.id, roundName: 'Cuartos', phaseName },
+          orderBy: { createdAt: 'asc' }
+        })
+
+        if (cuartosMatches.length !== 4) {
+          return NextResponse.json({ error: `Se encontraron ${cuartosMatches.length} partidos de Cuartos. Se necesitan exactamente 4.` }, { status: 400 })
+        }
+
+        const winners: string[] = []
+        for (const m of cuartosMatches) {
+          if (m.status !== 'COMPLETED') {
+            return NextResponse.json({ error: 'Todos los partidos de Cuartos deben estar finalizados' }, { status: 400 })
+          }
+          if (m.homeScore === null || m.awayScore === null || !m.homeTeamId || !m.awayTeamId) {
+             return NextResponse.json({ error: 'Faltan resultados o equipos en los partidos de Cuartos' }, { status: 400 })
+          }
+
+          if (m.homeScore > m.awayScore) {
+            winners.push(m.homeTeamId)
+          } else if (m.awayScore > m.homeScore) {
+            winners.push(m.awayTeamId)
+          } else {
+            // Empate
+            if (m.advantageTeamId) {
+              winners.push(m.advantageTeamId)
+            } else {
+              return NextResponse.json({ error: 'Hubo un empate sin ventaja deportiva asignada. Debe definir un ganador editando el resultado.' }, { status: 400 })
+            }
+          }
+        }
+
+        // Eliminar Semifinales existentes si las hubiera
+        await prisma.match.deleteMany({
+          where: { tournamentId: params.id, roundName: 'Semi Final', phaseName }
+        })
+
+        const roundDate = new Date()
+        
+        // Crear 2 partidos de semifinales
+        await prisma.match.create({
+          data: {
+            tournamentId: params.id,
+            homeTeamId: winners[0],
+            awayTeamId: winners[1],
+            matchDate: roundDate,
+            roundName: 'Semi Final',
+            phaseName,
+            status: 'SCHEDULED'
+          }
+        })
+        await prisma.match.create({
+          data: {
+            tournamentId: params.id,
+            homeTeamId: winners[2],
+            awayTeamId: winners[3],
+            matchDate: roundDate,
+            roundName: 'Semi Final',
+            phaseName,
+            status: 'SCHEDULED'
+          }
+        })
+
+        return NextResponse.json({ message: 'Semifinales generadas con éxito' }, { status: 201 })
+      } catch (error) {
+        console.error('Generate semifinals error:', error)
+        return NextResponse.json({ error: 'Error al generar semifinales' }, { status: 500 })
+      }
+    } else if (action === 'generateFinal') {
+      try {
+        const phaseName = body.phaseName || 'Fase Final'
+        const semiMatches = await prisma.match.findMany({
+          where: { tournamentId: params.id, roundName: 'Semi Final', phaseName },
+          orderBy: { createdAt: 'asc' }
+        })
+
+        if (semiMatches.length !== 2) {
+          return NextResponse.json({ error: `Se encontraron ${semiMatches.length} partidos de Semifinales. Se necesitan exactamente 2.` }, { status: 400 })
+        }
+
+        const winners: string[] = []
+        for (const m of semiMatches) {
+          if (m.status !== 'COMPLETED') {
+            return NextResponse.json({ error: 'Todos los partidos de Semifinales deben estar finalizados' }, { status: 400 })
+          }
+          if (m.homeScore === null || m.awayScore === null || !m.homeTeamId || !m.awayTeamId) {
+             return NextResponse.json({ error: 'Faltan resultados o equipos en los partidos de Semifinales' }, { status: 400 })
+          }
+
+          if (m.homeScore > m.awayScore) {
+            winners.push(m.homeTeamId)
+          } else if (m.awayScore > m.homeScore) {
+            winners.push(m.awayTeamId)
+          } else {
+            return NextResponse.json({ error: 'Hubo un empate en semifinales. A partir de esta etapa no hay ventaja deportiva. Debe definir un ganador editando el resultado (ej. sumando goles de penales).' }, { status: 400 })
+          }
+        }
+
+        // Eliminar Final existente si la hubiera
+        await prisma.match.deleteMany({
+          where: { tournamentId: params.id, roundName: 'Final', phaseName }
+        })
+
+        const roundDate = new Date()
+        
+        await prisma.match.create({
+          data: {
+            tournamentId: params.id,
+            homeTeamId: winners[0],
+            awayTeamId: winners[1],
+            matchDate: roundDate,
+            roundName: 'Final',
+            phaseName,
+            status: 'SCHEDULED'
+          }
+        })
+
+        return NextResponse.json({ message: 'Final generada con éxito' }, { status: 201 })
+      } catch (error) {
+        console.error('Generate final error:', error)
+        return NextResponse.json({ error: 'Error al generar la final' }, { status: 500 })
+      }
     }
 
     const validated = matchSchema.parse(body)
@@ -379,6 +505,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         roundName: validated.roundName || '1ª Fecha',
         phaseName: validated.phaseName || 'Primera Fase',
         status: 'SCHEDULED',
+        advantageTeamId: validated.advantageTeamId,
       },
       include: {
         homeTeam: { select: { id: true, name: true } },

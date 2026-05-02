@@ -56,7 +56,7 @@ try {
       })
     } catch (fetchError) {
       console.error('Fetch error:', fetchError)
-      alert('Error de conexión: ' + fetchError.message)
+      alert('Error de conexión: ' + (fetchError as any).message)
       setSaving(false)
       return
     }

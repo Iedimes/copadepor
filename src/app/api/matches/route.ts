@@ -12,6 +12,7 @@ const matchSchema = z.object({
   matchDate: z.string().transform((s) => new Date(s)),
   location: z.string().optional(),
   referee: z.string().optional(),
+  roundName: z.string().optional(),
 })
 
 function getAuthToken(request: NextRequest): string | null {
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     const validated = matchSchema.parse(body)
 
     const match = await prisma.match.create({
-      data: validated,
+      data: { ...validated, roundName: validated.roundName || '1ª Fecha' },
       include: {
         homeTeam: { select: { id: true, name: true } },
         awayTeam: { select: { id: true, name: true } },
