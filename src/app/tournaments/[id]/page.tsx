@@ -31,6 +31,7 @@ interface Match {
   awayScore: number | null
   status: string
   phaseName: string
+  advantageTeamId?: string | null
   events?: any[]
 }
 
@@ -74,6 +75,7 @@ export default function TournamentPage() {
   const [showAddMatchModal, setShowAddMatchModal] = useState(false)
   const [showMatchMenu, setShowMatchMenu] = useState(false)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
+  const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
 
   const tournamentId = params.id as string
 
@@ -145,6 +147,25 @@ export default function TournamentPage() {
       setNewMessage('')
       fetchData()
     }
+  }
+
+  const handleCreateStage = async (stageName: string, numMatches: number) => {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generatePlayoff`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stageName, numMatches, phaseName: selectedPhase }),
+    })
+    if (res.ok) {
+      alert(`${stageName} generados con éxito`)
+      fetchData()
+    } else {
+      alert('Error al generar etapa')
+    }
+  }
+
+  const handleCreateAdvantagePlayoff = () => {
+    setShowPlayoffDraw(true)
   }
 
   const handlePhaseChange = (val: string) => {
@@ -318,6 +339,7 @@ export default function TournamentPage() {
   if (!tournament) return <div className="p-8">No encontrado. <button onClick={fetchData}>Recargar</button></div>
 
   return (
+    <>
     <div className="min-h-screen bg-[#F8FAFC] flex relative overflow-hidden font-sans">
       {/* Sidebar */}
       <div className="w-56 bg-white border-r border-slate-100 flex-shrink-0 z-10">
@@ -470,8 +492,24 @@ export default function TournamentPage() {
                     <option value="NEW" className="text-blue-400 font-bold text-center italic">+ Nueva Fase</option>
                   </select>
                   <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-slate-800 text-white text-[10px] font-black rounded-lg px-2 py-1 outline-none border border-slate-700">
-                    {Array.from(new Set(matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase).map(m => m.roundName))).sort((a,b) => parseInt(a)-parseInt(b)).map(r => <option key={r} value={r}>{r}º Fecha</option>)}
+                    {Array.from(new Set(matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase).map(m => m.roundName))).sort((a,b) => {
+                      const isANum = !isNaN(Number(a));
+                      const isBNum = !isNaN(Number(b));
+                      if (isANum && isBNum) return Number(a) - Number(b);
+                      return a.localeCompare(b);
+                    }).map(r => <option key={r} value={r}>{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
                   </select>
+                  <div className="relative group">
+                    <button className="bg-orange-600 text-white text-[10px] font-black rounded-lg px-3 py-1 hover:bg-orange-500 transition-all shadow-lg shadow-orange-900/20 flex items-center gap-1">
+                      ETAPAS ▾
+                    </button>
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-orange-600 rounded-xl shadow-2xl overflow-hidden hidden group-hover:block z-50 animate-in fade-in zoom-in duration-200">
+                      <button onClick={handleCreateAdvantagePlayoff} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30 flex items-center gap-2">🎲 SORTEO CUARTOS <span className="bg-white/20 px-1.5 py-0.5 rounded text-[8px]">TOP 8</span></button>
+                      <button onClick={() => { setSelectedRound('Cuartos'); handleCreateStage('Cuartos', 4); }} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30">CUARTOS (VACÍO)</button>
+                      <button onClick={() => { setSelectedRound('Semi Final'); handleCreateStage('Semi Final', 2); }} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30">SEMI FINAL</button>
+                      <button onClick={() => { setSelectedRound('Final'); handleCreateStage('Final', 1); }} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500">FINAL</button>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -496,8 +534,9 @@ export default function TournamentPage() {
                             <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
                               <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
                               🏆
+                              {m.advantageTeamId === m.homeTeam?.id && <div className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-[10px] shadow-lg" title="Ventaja deportiva">🛡️</div>}
                             </div>
-                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.homeTeam.name}</span>
+                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.homeTeam?.name || 'Por definir'}</span>
                           </div>
 
                           {/* Score Block */}
@@ -519,8 +558,9 @@ export default function TournamentPage() {
                             <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
                               <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
                               🏆
+                              {m.advantageTeamId === m.awayTeam?.id && <div className="absolute -right-2 -bottom-2 w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-[10px] shadow-lg" title="Ventaja deportiva">🛡️</div>}
                             </div>
-                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.awayTeam.name}</span>
+                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.awayTeam?.name || 'Por definir'}</span>
                           </div>
 
                           {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2rem] pointer-events-none"></div>}
@@ -753,6 +793,226 @@ export default function TournamentPage() {
           </div>
         </div>
       )}
+    </div>
+    {showPlayoffDraw && (
+      <PlayoffDrawModal
+        tournamentId={tournamentId}
+        phaseName={selectedPhase}
+        matches={matches}
+        tournamentTeams={tournamentTeams}
+        onClose={() => setShowPlayoffDraw(false)}
+        onSuccess={() => { setShowPlayoffDraw(false); setSelectedRound('Cuartos'); fetchData(); }}
+      />
+    )}
+    </>
+  )
+}
+
+function PlayoffDrawModal({ tournamentId, phaseName, matches, tournamentTeams, onClose, onSuccess }: any) {
+  const [withAdvantage, setWithAdvantage] = useState(true)
+  const [drawResult, setDrawResult] = useState<{ home: any; away: any; advantage: string | null }[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [step, setStep] = useState<'pots' | 'draw' | 'confirm'>('pots')
+
+  // Calculate standings from completed matches
+  const stats: Record<string, any> = {}
+  tournamentTeams.forEach((tt: any) => {
+    stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, points: 0, gf: 0, ga: 0, played: 0, won: 0, drawn: 0, lost: 0 }
+  })
+  matches.filter((m: any) => m.status === 'FINALIZADO' || m.status === 'COMPLETED').forEach((m: any) => {
+    if (!m.homeTeam || !m.awayTeam) return
+    if (m.homeScore === null || m.awayScore === null) return
+    const h = stats[m.homeTeam.id]
+    const a = stats[m.awayTeam.id]
+    if (!h || !a) return
+    h.played++; a.played++
+    h.gf += m.homeScore; h.ga += m.awayScore
+    a.gf += m.awayScore; a.ga += m.homeScore
+    if (m.homeScore > m.awayScore) { h.points += 3; h.won++; a.lost++ }
+    else if (m.homeScore < m.awayScore) { a.points += 3; a.won++; h.lost++ }
+    else { h.points++; a.points++; h.drawn++; a.drawn++ }
+  })
+
+  const standings = Object.values(stats).sort((a: any, b: any) =>
+    b.points - a.points || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf
+  )
+
+  const pot1 = standings.slice(0, 4)
+  const pot2 = standings.slice(4, 8)
+
+  const handleDraw = () => {
+    const shuffledPot2 = [...pot2].sort(() => Math.random() - 0.5)
+    const result = pot1.map((team: any, i: number) => ({
+      home: team,
+      away: shuffledPot2[i],
+      advantage: withAdvantage ? team.id : null
+    }))
+    setDrawResult(result)
+    setStep('draw')
+  }
+
+  const handleConfirm = async () => {
+    if (!drawResult) return
+    setLoading(true)
+    const token = localStorage.getItem('token')
+
+    // Delete existing Cuartos matches in this phase first
+    await fetch(`/api/tournaments/${tournamentId}/matches?action=deleteStage&stageName=Cuartos&phaseName=${encodeURIComponent(phaseName)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    // Create the 4 quarter-final matches
+    for (const match of drawResult) {
+      await fetch(`/api/tournaments/${tournamentId}/matches`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          homeTeamId: match.home.id,
+          awayTeamId: match.away.id,
+          matchDate: new Date().toISOString(),
+          roundName: 'Cuartos',
+          phaseName,
+          advantageTeamId: match.advantage,
+        }),
+      })
+    }
+    setLoading(false)
+    onSuccess()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[200] p-4" onClick={onClose}>
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in fade-in duration-300" onClick={e => e.stopPropagation()}>
+        
+        {/* Header */}
+        <div className="bg-slate-900 p-6 flex items-center justify-between">
+          <div>
+            <div className="text-orange-400 text-[10px] font-black uppercase tracking-[0.3em] mb-1">Fase Final</div>
+            <h2 className="text-2xl font-black text-white">🎲 Sorteo de Cuartos de Final</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white font-black text-2xl transition-all">✕</button>
+        </div>
+
+        <div className="p-8">
+          {step === 'pots' && (
+            <>
+              {standings.length < 8 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">⚠️</div>
+                  <p className="font-black text-slate-700">Se necesitan al menos 8 equipos con resultados</p>
+                  <p className="text-slate-400 text-sm mt-2">Actualmente hay {standings.length} equipos con partidos jugados</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-6 mb-8">
+                    {/* Pot 1 */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-[10px] font-black">1</div>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Bombo 1 — Cabezas de Serie</span>
+                      </div>
+                      <div className="space-y-2">
+                        {pot1.map((t: any, i: number) => (
+                          <div key={t.id} className="flex items-center gap-3 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3">
+                            <div className="w-7 h-7 bg-orange-500 text-white rounded-full flex items-center justify-center text-[11px] font-black">{i + 1}</div>
+                            <span className="font-black text-slate-800 text-sm flex-1">{t.name}</span>
+                            <span className="text-orange-600 font-black text-sm">{t.points}pts</span>
+                            {withAdvantage && <span title="Tiene ventaja deportiva" className="text-blue-500">🛡️</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Pot 2 */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 bg-slate-600 rounded-full flex items-center justify-center text-white text-[10px] font-black">2</div>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Bombo 2</span>
+                      </div>
+                      <div className="space-y-2">
+                        {pot2.map((t: any, i: number) => (
+                          <div key={t.id} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
+                            <div className="w-7 h-7 bg-slate-600 text-white rounded-full flex items-center justify-center text-[11px] font-black">{i + 5}</div>
+                            <span className="font-black text-slate-800 text-sm flex-1">{t.name}</span>
+                            <span className="text-slate-500 font-black text-sm">{t.points}pts</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Advantage toggle */}
+                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between mb-6">
+                    <div>
+                      <div className="font-black text-slate-800 text-sm flex items-center gap-2">🛡️ Ventaja Deportiva</div>
+                      <div className="text-slate-500 text-xs mt-0.5">Los equipos del Bombo 1 clasifican con empate</div>
+                    </div>
+                    <button
+                      onClick={() => setWithAdvantage(!withAdvantage)}
+                      className={`w-12 h-6 rounded-full transition-all duration-300 relative ${withAdvantage ? 'bg-blue-600' : 'bg-slate-300'}`}
+                    >
+                      <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all duration-300 shadow ${withAdvantage ? 'left-6' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={handleDraw}
+                    className="w-full py-4 bg-orange-500 hover:bg-orange-400 text-white font-black rounded-2xl text-sm uppercase tracking-[0.2em] transition-all shadow-lg shadow-orange-200 flex items-center justify-center gap-3"
+                  >
+                    🎲 REALIZAR SORTEO ALEATORIO
+                  </button>
+                </>
+              )}
+            </>
+          )}
+
+          {step === 'draw' && drawResult && (
+            <>
+              <div className="text-center mb-6">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Resultado del Sorteo</div>
+                <h3 className="text-xl font-black text-slate-900 mt-1">Cuartos de Final</h3>
+              </div>
+              <div className="space-y-3 mb-8">
+                {drawResult.map((match, i) => (
+                  <div key={i} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest text-center mb-3">Partido {i + 1}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 text-right">
+                        <span className="font-black text-slate-800 text-sm">{match.home.name}</span>
+                        {match.advantage === match.home.id && <span className="ml-1" title="Ventaja deportiva">🛡️</span>}
+                        <div className="text-[9px] text-orange-500 font-black uppercase">Bombo 1 · {match.home.points}pts</div>
+                      </div>
+                      <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0">VS</div>
+                      <div className="flex-1">
+                        <span className="font-black text-slate-800 text-sm">{match.away.name}</span>
+                        <div className="text-[9px] text-slate-400 font-black uppercase">Bombo 2 · {match.away.points}pts</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {withAdvantage && (
+                <div className="bg-blue-50 rounded-2xl p-3 text-center text-xs text-blue-700 font-bold mb-6">
+                  🛡️ Los equipos del Bombo 1 tienen <b>Ventaja Deportiva</b> — clasifican con empate
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => setStep('pots')} className="py-3 bg-slate-100 text-slate-700 font-black rounded-2xl text-xs hover:bg-slate-200 transition-all">
+                  ↩ Volver a sortear
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={loading}
+                  className="py-3 bg-slate-900 text-white font-black rounded-2xl text-xs hover:bg-blue-600 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Guardando...' : '✅ CONFIRMAR CUADRO'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1258,11 +1518,17 @@ function BracketMatch({ match }: { match: any }) {
     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all">
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-[11px] font-black text-slate-700 truncate w-24 uppercase">{match.homeTeam.name}</span>
+          <span className="text-[11px] font-black text-slate-700 truncate w-24 uppercase flex items-center gap-1">
+            {match.homeTeam?.name || 'POR DEFINIR'}
+            {match.advantageTeamId === match.homeTeam?.id && <span title="Ventaja deportiva">🛡️</span>}
+          </span>
           <span className="bg-white px-2 py-1 rounded-lg font-black text-xs text-slate-900 border border-slate-100">{match.homeScore ?? '-'}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-[11px] font-black text-slate-700 truncate w-24 uppercase">{match.awayTeam.name}</span>
+          <span className="text-[11px] font-black text-slate-700 truncate w-24 uppercase flex items-center gap-1">
+            {match.awayTeam?.name || 'POR DEFINIR'}
+            {match.advantageTeamId === match.awayTeam?.id && <span title="Ventaja deportiva">🛡️</span>}
+          </span>
           <span className="bg-white px-2 py-1 rounded-lg font-black text-xs text-slate-900 border border-slate-100">{match.awayScore ?? '-'}</span>
         </div>
       </div>

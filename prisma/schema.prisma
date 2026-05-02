@@ -224,8 +224,8 @@ model Match {
   id           String       @id @default(cuid())
   tournamentId String
   categoryId   String?
-  homeTeamId   String
-  awayTeamId   String
+  homeTeamId   String?
+  awayTeamId   String?
   homeScore    Int?
   awayScore    Int?
   status       MatchStatus  @default(SCHEDULED)
@@ -233,6 +233,7 @@ model Match {
   roundName    String
   phaseName    String?      @default("Primera Fase")
   groupName    String?      
+  advantageTeamId String?
   location     String?
   referee      String?
   notes        String?
@@ -241,8 +242,8 @@ model Match {
 
   tournament Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   category   Category?   @relation(fields: [categoryId], references: [id])
-  homeTeam   Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam   Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeam   Team?        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam   Team?        @relation("AwayTeam", fields: [awayTeamId], references: [id])
 
   goals      Goal[]
   events     MatchEvent[]

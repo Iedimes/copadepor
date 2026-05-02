@@ -4,8 +4,8 @@ import { verifyToken } from '@/lib/auth'
 import { z } from 'zod'
 
 const matchSchema = z.object({
-  homeTeamId: z.string(),
-  awayTeamId: z.string(),
+  homeTeamId: z.string().optional(),
+  awayTeamId: z.string().optional(),
   matchDate: z.string().transform(s => new Date(s)),
   roundName: z.string().optional(),
   phaseName: z.string().optional(),
@@ -107,6 +107,20 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         where: { tournamentId: params.id },
       })
       return NextResponse.json({ message: 'Todos los partidos eliminados' })
+    }
+
+    if (action === 'deleteStage') {
+      const stageName = url.searchParams.get('stageName')
+      const phaseName = url.searchParams.get('phaseName')
+      if (!stageName) return NextResponse.json({ error: 'stageName requerido' }, { status: 400 })
+      await prisma.match.deleteMany({
+        where: {
+          tournamentId: params.id,
+          roundName: stageName,
+          ...(phaseName ? { phaseName } : {}),
+        },
+      })
+      return NextResponse.json({ message: `Partidos de ${stageName} eliminados` })
     }
 
     return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
@@ -248,6 +262,109 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       } catch (error) {
         console.error('Generate matches error:', error)
         return NextResponse.json({ error: 'Error al generar partidos: ' + (error as Error).message }, { status: 500 })
+      }
+    } else if (action === 'generatePlayoff') {
+      const { stageName, numMatches, phaseName } = body
+      if (!stageName || !numMatches) {
+        return NextResponse.json({ error: 'Faltan parámetros (stageName, numMatches)' }, { status: 400 })
+      }
+
+      try {
+        const roundDateStr = body.roundDate || new Date().toISOString()
+        const roundDate = new Date(roundDateStr)
+        
+        let createdCount = 0
+        for (let i = 0; i < numMatches; i++) {
+          await prisma.match.create({
+            data: {
+              tournamentId: params.id,
+              homeTeamId: '', // Placeholder or empty
+              awayTeamId: '', // Placeholder or empty
+              matchDate: roundDate,
+              roundName: stageName,
+              phaseName: phaseName || 'Fase Final',
+              status: 'SCHEDULED',
+            },
+          })
+          createdCount++
+        }
+        return NextResponse.json({ count: createdCount }, { status: 201 })
+      } catch (error) {
+        console.error('Generate playoff error:', error)
+        return NextResponse.json({ error: 'Error al generar eliminatoria' }, { status: 500 })
+      }
+    } else if (action === 'generateAdvantagePlayoff') {
+      try {
+        const matches = await prisma.match.findMany({
+          where: { tournamentId: params.id, status: 'COMPLETED' },
+        })
+
+        const tournamentTeams = await prisma.tournamentTeam.findMany({
+          where: { tournamentId: params.id },
+          include: { team: true }
+        })
+
+        const stats: Record<string, any> = {}
+        tournamentTeams.forEach(tt => {
+          stats[tt.teamId] = { teamId: tt.teamId, name: tt.team.name, points: 0, gf: 0, ga: 0, played: 0 }
+        })
+
+        matches.forEach(m => {
+          if (m.homeTeamId && m.awayTeamId && m.homeScore !== null && m.awayScore !== null) {
+            stats[m.homeTeamId].played++
+            stats[m.awayTeamId].played++
+            stats[m.homeTeamId].gf += m.homeScore
+            stats[m.homeTeamId].ga += m.awayScore
+            stats[m.awayTeamId].gf += m.awayScore
+            stats[m.awayTeamId].ga += m.homeScore
+
+            if (m.homeScore > m.awayScore) stats[m.homeTeamId].points += 3
+            else if (m.homeScore < m.awayScore) stats[m.awayTeamId].points += 3
+            else {
+              stats[m.homeTeamId].points += 1
+              stats[m.awayTeamId].points += 1
+            }
+          }
+        })
+
+        const standings = Object.values(stats).sort((a: any, b: any) => 
+          b.points - a.points || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf
+        )
+
+        if (standings.length < 8) {
+          return NextResponse.json({ error: 'Se necesitan al menos 8 equipos con estadísticas' }, { status: 400 })
+        }
+
+        const top4 = standings.slice(0, 4)
+        const next4 = standings.slice(4, 8)
+
+        // Shuffle next4 for random draw
+        const shuffledNext4 = [...next4].sort(() => Math.random() - 0.5)
+
+        const roundDate = new Date()
+        let createdCount = 0
+
+        for (let i = 0; i < 4; i++) {
+          await prisma.match.create({
+            data: {
+              tournamentId: params.id,
+              homeTeamId: top4[i].teamId,
+              awayTeamId: shuffledNext4[i].teamId,
+              matchDate: roundDate,
+              roundName: 'Cuartos',
+              phaseName: body.phaseName || 'Fase Final',
+              status: 'SCHEDULED',
+              advantageTeamId: top4[i].teamId,
+              notes: 'Ventaja deportiva para ' + top4[i].name
+            },
+          })
+          createdCount++
+        }
+
+        return NextResponse.json({ count: createdCount, message: 'Sorteo de Cuartos realizado con éxito' }, { status: 201 })
+      } catch (error) {
+        console.error('Generate advantage playoff error:', error)
+        return NextResponse.json({ error: 'Error al generar sorteo' }, { status: 500 })
       }
     }
 
