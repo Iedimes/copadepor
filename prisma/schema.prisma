@@ -121,6 +121,22 @@ model Tournament {
   sponsors    Sponsor[]
   news        News[]
   messages    Message[]
+  phases      Phase[]
+}
+
+model Phase {
+  id              String   @id @default(cuid())
+  tournamentId    String
+  name            String
+  type            String   @default("LIGA") // LIGA, ELIMINATORIA
+  isClassification Boolean @default(true)
+  continueFromId  String?  
+  teams           String?  @db.Text // JSON list of team ids participating, optional
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matches         Match[]
 }
 
 model Category {
@@ -232,8 +248,11 @@ model Match {
   matchDate    DateTime
   roundName    String
   phaseName    String?      @default("Primera Fase")
+  phaseId      String?
   groupName    String?      
   advantageTeamId String?
+  homePlaceholder String?
+  awayPlaceholder String?
   location     String?
   referee      String?
   notes        String?
@@ -244,6 +263,7 @@ model Match {
   category   Category?   @relation(fields: [categoryId], references: [id])
   homeTeam   Team?        @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam   Team?        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  phase      Phase?      @relation(fields: [phaseId], references: [id])
 
   goals      Goal[]
   events     MatchEvent[]

@@ -438,6 +438,91 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         console.error('Generate semifinals error:', error)
         return NextResponse.json({ error: 'Error al generar semifinales' }, { status: 500 })
       }
+    } else if (action === 'generateKnockoutTree') {
+      try {
+        const { teamIds, phaseName } = body
+        if (!teamIds || teamIds.length !== 8) {
+          return NextResponse.json({ error: 'Se requieren exactamente 8 equipos para generar el árbol' }, { status: 400 })
+        }
+
+        // Delete any existing matches in this phase for knockout
+        await prisma.match.deleteMany({
+          where: { tournamentId: params.id, phaseName, roundName: { in: ['Cuartos de final', 'Semifinal', 'Final'] } }
+        })
+
+        const roundDate = new Date()
+
+        // 1. Cuartos de final
+        const qMatches = [
+          { home: teamIds[0], away: teamIds[7], group: '#1', note: '1° Puesto x 8° Puesto' },
+          { home: teamIds[3], away: teamIds[4], group: '#2', note: '4° Puesto x 5° Puesto' },
+          { home: teamIds[1], away: teamIds[6], group: '#3', note: '2° Puesto x 7° Puesto' },
+          { home: teamIds[2], away: teamIds[5], group: '#4', note: '3° Puesto x 6° Puesto' }
+        ]
+
+        for (const q of qMatches) {
+          await prisma.match.create({
+            data: {
+              tournamentId: params.id,
+              homeTeamId: q.home,
+              awayTeamId: q.away,
+              matchDate: roundDate,
+              roundName: 'Cuartos de final',
+              groupName: q.group,
+              notes: q.note,
+              phaseName,
+              status: 'SCHEDULED',
+              advantageTeamId: q.home, // Higher seed has advantage
+            }
+          })
+        }
+
+        // 2. Semifinal
+        const sMatches = [
+          { group: '#1', hP: 'Cuartos de final #1', aP: 'Cuartos de final #2', note: 'Cuartos de final #1 x Cuartos de final #2' },
+          { group: '#2', hP: 'Cuartos de final #3', aP: 'Cuartos de final #4', note: 'Cuartos de final #3 x Cuartos de final #4' }
+        ]
+        
+        for (const s of sMatches) {
+          await prisma.match.create({
+            data: {
+              tournamentId: params.id,
+              homeTeamId: null,
+              awayTeamId: null,
+              matchDate: roundDate,
+              roundName: 'Semifinal',
+              groupName: s.group,
+              homePlaceholder: s.hP,
+              awayPlaceholder: s.aP,
+              notes: s.note,
+              phaseName,
+              status: 'SCHEDULED'
+            }
+          })
+        }
+
+        // 3. Final
+        await prisma.match.create({
+          data: {
+            tournamentId: params.id,
+            homeTeamId: null,
+            awayTeamId: null,
+            matchDate: roundDate,
+            roundName: 'Final',
+            groupName: '#1',
+            homePlaceholder: 'Semifinal #1',
+            awayPlaceholder: 'Semifinal #2',
+            notes: 'Semifinal #1 x Semifinal #2',
+            phaseName,
+            status: 'SCHEDULED'
+          }
+        })
+
+        return NextResponse.json({ message: 'Árbol eliminatorio generado con éxito' }, { status: 201 })
+      } catch (error) {
+        console.error('Generate knockout tree error:', error)
+        return NextResponse.json({ error: 'Error al generar el árbol' }, { status: 500 })
+      }
     } else if (action === 'generateFinal') {
       try {
         const phaseName = body.phaseName || 'Fase Final'

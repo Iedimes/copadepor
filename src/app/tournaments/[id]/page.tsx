@@ -33,6 +33,10 @@ interface Match {
   phaseName: string
   advantageTeamId?: string | null
   events?: any[]
+  homePlaceholder?: string | null
+  awayPlaceholder?: string | null
+  groupName?: string | null
+  notes?: string | null
 }
 
 interface TournamentTeam {
@@ -64,8 +68,23 @@ export default function TournamentPage() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
   const [showGenType, setShowGenType] = useState(false)
   const [selectedPhase, setSelectedPhase] = useState('Primera Fase')
-  const [phases, setPhases] = useState<string[]>(['Primera Fase'])
+  const [phases, setPhases] = useState<any[]>([])
   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
+
+  // Fases Modals State
+  const [showPhasesList, setShowPhasesList] = useState(false)
+  const [showPhaseType, setShowPhaseType] = useState(false)
+  const [showEditPhase, setShowEditPhase] = useState(false)
+  const [editPhaseData, setEditPhaseData] = useState<{ name: string, type: string, isClassification: boolean, continueFromId: string | null }>({ name: '', type: 'LIGA', isClassification: true, continueFromId: null })
+  const [showPhaseTeams, setShowPhaseTeams] = useState(false)
+  const [showPhaseContinue, setShowPhaseContinue] = useState(false)
+
+  // Knockout Modals State
+  const [showKnockoutSource, setShowKnockoutSource] = useState(false)
+  const [showKnockoutTeamCount, setShowKnockoutTeamCount] = useState(false)
+  const [showKnockoutTeamSelection, setShowKnockoutTeamSelection] = useState(false)
+  const [knockoutTeamCount, setKnockoutTeamCount] = useState(8)
+  const [selectedKnockoutTeams, setSelectedKnockoutTeams] = useState<any[]>([])
   
   const [editingMatchData, setEditingMatchData] = useState<{ id: string, homeScore: number | null, awayScore: number | null, status: string } | null>(null)
   const [showEditResult, setShowEditResult] = useState(false)
@@ -109,12 +128,21 @@ export default function TournamentPage() {
         const mRes = await fetch(`/api/tournaments/${tournamentId}/messages`, { headers: { Authorization: `Bearer ${token}` } })
         if (mRes.ok) setMessages(await mRes.json())
       } else if (activeMenu === 'clasificacion' || activeMenu === 'estadisticas') {
-        const [matchesRes, teamsRes, allTeamsRes] = await Promise.all([
+        const [matchesRes, teamsRes, allTeamsRes, phasesRes] = await Promise.all([
           fetch(`/api/tournaments/${tournamentId}/matches`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`/api/tournaments/${tournamentId}/teams`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/teams', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/tournaments/${tournamentId}/phases`, { headers: { Authorization: `Bearer ${token}` } }),
         ])
         
+        if (phasesRes && phasesRes.ok) {
+          const pData = await phasesRes.json()
+          setPhases(pData)
+          if (pData.length > 0 && !pData.some((p: any) => p.name === selectedPhase)) {
+            setSelectedPhase(pData[0].name)
+          }
+        }
+
         if (matchesRes.ok) {
           const m = await matchesRes.json()
           setMatches(m)
@@ -122,8 +150,6 @@ export default function TournamentPage() {
           if (rounds.length > 0 && (!selectedRound || !rounds.includes(selectedRound))) {
             setSelectedRound(rounds[0])
           }
-          const p = [...new Set(m.map((x: any) => x.phaseName || 'Primera Fase'))] as string[]
-          setPhases(p.length > 0 ? p : ['Primera Fase'])
         }
         if (teamsRes.ok) setTournamentTeams(await teamsRes.json())
         if (allTeamsRes.ok) setAllTeams(await allTeamsRes.json())
@@ -205,21 +231,50 @@ export default function TournamentPage() {
   }
 
   const handlePhaseChange = (val: string) => {
-    if (val === 'NEW') {
-      const name = prompt('Nombre de la nueva fase:')
-      if (name) {
-        if (!phases.includes(name)) {
-          setPhases([...phases, name])
-          setSelectedPhase(name)
-        }
-      }
-      return
-    }
     setSelectedPhase(val)
   }
 
+  const handleSavePhase = async () => {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/phases`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(editPhaseData),
+    })
+    if (res.ok) {
+      await fetchData()
+      setSelectedPhase(editPhaseData.name)
+      setShowEditPhase(false)
+    } else {
+      alert('Error al guardar fase')
+    }
+  }
+
+  const handleDeletePhase = async (phaseId: string) => {
+    if (!confirm('¿Estás seguro de eliminar esta fase? Se eliminarán todos los partidos asociados.')) return;
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/phases/${phaseId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (res.ok) {
+      await fetchData()
+      setSelectedPhase('Primera Fase')
+    } else {
+      alert('Error al eliminar fase')
+    }
+  }
+
   const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
-    setShowGenType(false); setGenerating(true)
+    setShowGenType(false);
+    const activePhaseObj = phases.find(p => p.name === selectedPhase);
+    
+    if (activePhaseObj?.type === 'ELIMINATORIA') {
+      setShowKnockoutSource(true);
+      return;
+    }
+    
+    setGenerating(true)
     const token = localStorage.getItem('token')
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
       method: 'POST',
@@ -231,6 +286,26 @@ export default function TournamentPage() {
       setSelectedRound('1');
     } else {
       alert('Error al generar');
+    }
+    setGenerating(false)
+  }
+
+  const handleGenerateKnockoutTree = async () => {
+    setShowKnockoutTeamSelection(false);
+    setGenerating(true)
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateKnockoutTree`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamIds: selectedKnockoutTeams.map(t => t.id), phaseName: selectedPhase }),
+    })
+    if (res.ok) {
+      alert('Árbol generado con éxito');
+      await fetchData();
+      setSelectedRound('Cuartos de final');
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Error al generar eliminatoria');
     }
     setGenerating(false)
   }
@@ -272,7 +347,7 @@ export default function TournamentPage() {
     tournamentTeams.forEach(tt => { stats[tt.team.id] = { name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } })
     
     // Filter matches by selected phase AND EXCLUDE playoffs
-    const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && !['Cuartos', 'Semi Final', 'Final'].includes(String(m.roundName)))
+    const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && !['Cuartos de final', 'Semifinal', 'Final', 'Cuartos', 'Semi Final'].includes(String(m.roundName)))
     
     phaseMatches.forEach(m => {
       const isE = editingMatchData?.id === m.id
@@ -399,8 +474,7 @@ export default function TournamentPage() {
               onChange={(e) => handlePhaseChange(e.target.value)}
               className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
             >
-              {phases.map(p => <option key={p} value={p}>{p}</option>)}
-              <option value="NEW">+ Nueva Fase</option>
+              {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
             </select>
           </div>
         </div>
@@ -516,50 +590,41 @@ export default function TournamentPage() {
 
             {/* Calendar */}
             <div className="w-full xl:w-[450px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 flex flex-col flex-shrink-0 overflow-hidden">
-              <div className="bg-[#0F172A] p-6 flex justify-between items-center">
+              <div className="bg-[#0F172A] p-6 flex justify-between items-center relative z-10">
                 <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
-                <div className="flex gap-2">
+                <div className="flex border border-white rounded-full overflow-hidden">
                   <select 
                     value={selectedPhase} 
                     onChange={(e) => handlePhaseChange(e.target.value)}
-                    className="bg-slate-800 text-white text-[10px] font-black rounded-lg px-2 py-1 outline-none border border-slate-700"
+                    className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none border-r border-white appearance-none cursor-pointer text-center"
+                    style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                   >
-                    {phases.map(p => <option key={p} value={p}>{p}</option>)}
-                    <option value="NEW" className="text-blue-400 font-bold text-center italic">+ Nueva Fase</option>
+                    {phases.map(p => <option key={p.id || p.name} value={p.name} className="text-black">{p.name}</option>)}
                   </select>
-                  <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-slate-800 text-white text-[10px] font-black rounded-lg px-2 py-1 outline-none border border-slate-700">
+                  <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
                     {Array.from(new Set(matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase).map(m => m.roundName))).sort((a,b) => {
                       const isANum = !isNaN(Number(a));
                       const isBNum = !isNaN(Number(b));
                       if (isANum && isBNum) return Number(a) - Number(b);
                       return a.localeCompare(b);
-                    }).map(r => <option key={r} value={r}>{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
+                    }).map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
                   </select>
-                  <div className="relative group">
-                    <button className="bg-orange-600 text-white text-[10px] font-black rounded-lg px-3 py-1 hover:bg-orange-500 transition-all shadow-lg shadow-orange-900/20 flex items-center gap-1">
-                      ETAPAS ▾
-                    </button>
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-orange-600 rounded-xl shadow-2xl overflow-hidden hidden group-hover:block z-50 animate-in fade-in zoom-in duration-200">
-                      <button onClick={handleCreateAdvantagePlayoff} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30 flex items-center gap-2">🎲 SORTEO CUARTOS <span className="bg-white/20 px-1.5 py-0.5 rounded text-[8px]">TOP 8</span></button>
-                      <button onClick={handleGenerateSemifinals} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 border-b border-orange-500/30 flex items-center gap-2">🏆 GENERAR SEMIFINALES</button>
-                      <button onClick={handleGenerateFinal} className="w-full text-left px-4 py-3 text-white text-[10px] font-black hover:bg-orange-500 flex items-center gap-2">🏆 GENERAR FINAL</button>
-                    </div>
-                  </div>
+                </div>
+                {/* Plus button at the bottom of header */}
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
+                  <button onClick={() => setShowFixtureMenu(true)} className="bg-[#3B405A] text-white w-16 h-6 rounded-b-2xl flex items-center justify-center font-black text-xl hover:bg-[#2A2E44] transition-all">+</button>
                 </div>
               </div>
               
-              <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar flex-1 flex flex-col">
-                {matches.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center py-10 space-y-4">
-                    <button onClick={() => setShowGenType(true)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl">Generar Partidos</button>
-                    <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">0</div>
-                    <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl">Agregar Fecha</button>
+              <div className="p-6 pt-10 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar flex-1 flex flex-col relative">
+                {matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase).length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center space-y-6 pt-4">
+                    <button onClick={() => setShowGenType(true)} className="px-8 py-3.5 bg-[#0F172A] text-white rounded-xl font-medium text-sm hover:bg-[#1E293B] transition-all shadow-md">GENERAR PARTIDOS</button>
+                    <div className="text-lg text-slate-800 font-normal">o</div>
+                    <button onClick={() => setShowAddMatchModal(true)} className="px-8 py-3.5 bg-[#0F172A] text-white rounded-xl font-medium text-sm hover:bg-[#1E293B] transition-all shadow-md">AGREGAR FECHA</button>
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-center mb-4">
-                      <button onClick={() => setShowFixtureMenu(true)} className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-black text-xl shadow-lg hover:scale-110 transition-all shadow-blue-100">+</button>
-                    </div>
                     {matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && String(m.roundName) === selectedRound).map(m => {
                       const isE = editingMatchData?.id === m.id; const hS = isE ? editingMatchData.homeScore : m.homeScore; const aS = isE ? editingMatchData.awayScore : m.awayScore; const st = isE ? editingMatchData.status : m.status
                       return (
@@ -567,19 +632,24 @@ export default function TournamentPage() {
                           {/* Home Team */}
                           <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
                             {m.advantageTeamId === m.homeTeam?.id && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>}
-                            <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
-                              <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
-                              🏆
+                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative ${m.homeTeam ? 'bg-green-500 text-white' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`}>
+                              {m.homeTeam ? <>
+                                <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
+                                🏆
+                              </> : <span className="text-slate-300 text-sm">?</span>}
                             </div>
-                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.homeTeam?.name || 'Por definir'}</span>
+                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.homeTeam?.name || m.homePlaceholder || 'Por definir'}</span>
                           </div>
 
                           {/* Score Block */}
                           <div className="flex flex-col items-center">
                             <div className="bg-white border border-slate-100 rounded-xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px]">
-                              <div className="text-2xl font-black text-slate-800 tracking-tighter">
-                                {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : ':'}
-                              </div>
+                              <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
+                              {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : ':'}
+                              {st === 'NO_REALIZADO' && m.roundName !== '1' && (
+                                <span className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest max-w-[120px] text-center">{m.notes || ''}</span>
+                              )}
+                            </div>
                               {st !== 'NO_REALIZADO' && (
                                 <div className={`text-[8px] font-black px-3 py-0.5 rounded-md mt-1 uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
                                   {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
@@ -591,11 +661,13 @@ export default function TournamentPage() {
                           {/* Away Team */}
                           <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
                             {m.advantageTeamId === m.awayTeam?.id && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>}
-                            <div className="w-14 h-14 rounded-xl bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg relative">
-                              <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
-                              🏆
+                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative ${m.awayTeam ? 'bg-green-500 text-white' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`}>
+                              {m.awayTeam ? <>
+                                <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
+                                🏆
+                              </> : <span className="text-slate-300 text-sm">?</span>}
                             </div>
-                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.awayTeam?.name || 'Por definir'}</span>
+                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}</span>
                           </div>
 
                           {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2rem] pointer-events-none"></div>}
@@ -758,7 +830,7 @@ export default function TournamentPage() {
               <MenuOption icon="⚽" label="Generar Fixture" onClick={() => { setShowConfigMenu(false); setShowGenType(true); }} />
               <MenuOption icon="👥" label="Equipos" onClick={() => { setShowConfigMenu(false); router.push(`/tournaments/${tournamentId}/add-teams`); }} />
               <MenuOption icon="💠" label="Grupos" onClick={() => { setShowConfigMenu(false); }} />
-              <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); setShowPhasesList(true); }} />
               <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); }} />
               <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); }} />
               <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { setShowConfigMenu(false); }} />
@@ -777,9 +849,10 @@ export default function TournamentPage() {
           <div className="bg-[#0F172A] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="p-4 space-y-1">
               <MenuOption icon="➕" label="Agregar fecha" onClick={() => setShowFixtureMenu(false)} />
-              <MenuOption icon="⚽" label="Agregar partido" onClick={() => { setShowFixtureMenu(false); setShowAddMatchModal(true); }} />
-              <MenuOption icon="📝" label="Editar Fecha" onClick={() => setShowFixtureMenu(false)} />
+              <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowFixtureMenu(false); setShowAddMatchModal(true); }} />
+              <MenuOption icon="✏️" label="Editar Fecha" onClick={() => setShowFixtureMenu(false)} />
               <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => setShowFixtureMenu(false)} />
+              <MenuOption icon="⇅" label="Reordenar partidos" onClick={() => setShowFixtureMenu(false)} />
               <MenuOption icon="📥" label="Exportar" onClick={() => setShowFixtureMenu(false)} />
             </div>
             <div className="p-4 bg-slate-800/50">
@@ -790,6 +863,179 @@ export default function TournamentPage() {
       )}
 
       {/* MANUAL ADD MATCH MODAL */}
+      {showAddMatchModal && (
+        <AddMatchModal 
+          teams={tournamentTeams} 
+          tournamentId={tournamentId}
+          phaseName={selectedPhase}
+          onClose={() => setShowAddMatchModal(false)} 
+          onSuccess={() => { setShowAddMatchModal(false); fetchData(); }} 
+        />
+      )}
+
+      {/* FASES LIST MODAL */}
+      {showPhasesList && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[110] p-4 backdrop-blur-sm" onClick={() => setShowPhasesList(false)}>
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-center mb-6 text-slate-900">Fases</h3>
+            <div className="space-y-2 mb-6 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+              {phases.map(p => (
+                <div key={p.id || p.name} className="p-4 bg-slate-50 text-slate-800 rounded-2xl font-black border border-slate-100 flex justify-between items-center hover:border-slate-300 transition-colors">
+                  <div className="cursor-pointer flex-1" onClick={() => { handlePhaseChange(p.name); setShowPhasesList(false); }}>
+                    <span>{p.name}</span>
+                    <span className="ml-2 text-[9px] text-slate-400 uppercase tracking-widest">{p.type === 'ELIMINATORIA' ? 'Eliminatoria' : 'Todos contra todos'}</span>
+                  </div>
+                  {p.name !== 'Primera Fase' && p.id && (
+                    <button onClick={(e) => { e.stopPropagation(); handleDeletePhase(p.id); }} className="text-red-400 hover:text-red-600 p-2">🗑️</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button onClick={() => { setShowPhasesList(false); setShowPhaseType(true); }} className="w-full py-4 bg-[#0F172A] text-white rounded-[1.5rem] font-black text-sm hover:bg-blue-600 transition-all shadow-xl active:scale-95">Nueva fase</button>
+            <button onClick={() => setShowPhasesList(false)} className="w-full mt-2 py-4 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      {/* PHASE TYPE MODAL */}
+      {showPhaseType && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[110] p-4 backdrop-blur-sm" onClick={() => setShowPhaseType(false)}>
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-center mb-8 text-slate-900">Fases</h3>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">1° Fase</div>
+            <div className="space-y-3">
+              <button onClick={() => { setEditPhaseData({ ...editPhaseData, type: 'LIGA' }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
+              <button onClick={() => { setEditPhaseData({ ...editPhaseData, type: 'ELIMINATORIA' }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Eliminatoria</button>
+            </div>
+            <button onClick={() => setShowPhaseType(false)} className="w-full mt-6 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PHASE MODAL */}
+      {showEditPhase && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[110] p-4 backdrop-blur-sm" onClick={() => setShowEditPhase(false)}>
+          <div className="bg-slate-200 rounded-[2.5rem] p-1 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#F3F0F7] rounded-[2.4rem] p-8">
+              <h3 className="text-xl font-black text-center mb-6 text-slate-900">Editar fase</h3>
+              <div className="space-y-5 mb-8">
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título</label>
+                  <input type="text" value={editPhaseData.name} onChange={e => setEditPhaseData({...editPhaseData, name: e.target.value})} className="w-full py-2 bg-transparent font-bold text-slate-800 outline-none border-b border-slate-400 focus:border-blue-600 transition-colors" placeholder="Ej: FASE FINAL" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-slate-700">Clasificación</span>
+                  <div className="w-6 h-6 border-2 border-slate-400 rounded bg-transparent flex items-center justify-center cursor-pointer" onClick={() => setEditPhaseData({...editPhaseData, isClassification: !editPhaseData.isClassification})}>
+                    {editPhaseData.isClassification && <div className="w-3 h-3 bg-slate-800 rounded-sm"></div>}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <div className="flex items-center gap-3"><span className="text-slate-500 text-lg">≡</span> <span className="text-sm font-bold text-slate-700">Seleccionar equipos</span></div>
+                  <button onClick={() => setShowPhaseTeams(!showPhaseTeams)} className="text-blue-500 font-bold text-sm hover:text-blue-700">Editar</button>
+                </div>
+                {showPhaseTeams && (
+                  <div className="bg-white rounded-xl p-3 border border-slate-200 max-h-40 overflow-y-auto">
+                    {tournamentTeams.map(t => (
+                      <div key={t.id} className="flex items-center gap-2 mb-2">
+                        <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-blue-600" />
+                        <span className="text-sm font-bold text-slate-700">{t.team.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center py-2">
+                  <div className="flex items-center gap-3"><span className="text-slate-500 text-lg">📄</span> <span className="text-sm font-bold text-slate-700">Continuar tabla</span></div>
+                  <button onClick={() => setShowPhaseContinue(!showPhaseContinue)} className="text-blue-500 font-bold text-sm hover:text-blue-700">Editar</button>
+                </div>
+                {showPhaseContinue && (
+                  <div className="bg-white rounded-xl p-2 border border-slate-200">
+                    <select 
+                      className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none"
+                      value={editPhaseData.continueFromId || ''}
+                      onChange={e => setEditPhaseData({...editPhaseData, continueFromId: e.target.value === '' ? null : e.target.value})}
+                    >
+                      <option value="">Ninguno</option>
+                      {phases.map(p => (
+                        <option key={p.id || p.name} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-4 px-4">
+                <button onClick={() => setShowEditPhase(false)} className="flex-1 py-3 text-red-500 font-black text-sm transition-all hover:bg-red-50 rounded-xl">Quitar</button>
+                <button onClick={handleSavePhase} className="flex-1 py-3 text-blue-500 font-black text-sm transition-all hover:bg-blue-50 rounded-xl">Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KNOCKOUT SOURCE MODAL */}
+      {showKnockoutSource && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[110] p-4 backdrop-blur-sm" onClick={() => setShowKnockoutSource(false)}>
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-center mb-8 text-slate-900">Equipos</h3>
+            <div className="space-y-3">
+              <button onClick={() => { setShowKnockoutSource(false); setShowKnockoutTeamCount(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Clasificación general</button>
+              <button onClick={() => { setShowKnockoutSource(false); setShowKnockoutTeamCount(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Aleatoriamente</button>
+            </div>
+            <button onClick={() => setShowKnockoutSource(false)} className="w-full mt-6 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* KNOCKOUT TEAM COUNT MODAL */}
+      {showKnockoutTeamCount && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[110] p-4 backdrop-blur-sm" onClick={() => setShowKnockoutTeamCount(false)}>
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-center mb-8 text-slate-900">Cantidad de Equipos</h3>
+            <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-2">
+              {[4, 8, 16, 32, 64, 128].map(num => (
+                <button key={num} onClick={() => { 
+                  setKnockoutTeamCount(num); 
+                  const teams = getStandings().slice(0, num);
+                  setSelectedKnockoutTeams(teams.map((t: any) => ({ id: t.name, name: t.name }))); 
+                  setShowKnockoutTeamCount(false); 
+                  setShowKnockoutTeamSelection(true); 
+                }} className="w-full p-4 bg-slate-50 text-slate-800 rounded-xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left">
+                  {num} equipos
+                </button>
+              ))}
+              <button className="w-full p-4 bg-slate-50 text-slate-800 rounded-xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left">Indefinido</button>
+            </div>
+            <button onClick={() => setShowKnockoutTeamCount(false)} className="w-full mt-6 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* KNOCKOUT TEAM SELECTION MODAL */}
+      {showKnockoutTeamSelection && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[110] p-4 backdrop-blur-sm" onClick={() => setShowKnockoutTeamSelection(false)}>
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl flex flex-col h-[80vh] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-center mb-6 text-slate-900">Seleccionar equipos</h3>
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 mb-6 pr-2">
+              {getStandings().slice(0, knockoutTeamCount).map((t: any, idx) => (
+                <div key={t.name} className="flex items-center gap-3 p-3 bg-slate-50 rounded-[1rem] border border-slate-100">
+                  <span className="text-slate-400 font-bold text-xs w-4 text-center">{idx + 1}</span>
+                  <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-blue-600" />
+                  <span className="font-black text-sm text-slate-800 flex-1">{t.name}</span>
+                  <div className="flex flex-col text-slate-400 text-[10px] bg-white rounded-lg shadow-sm overflow-hidden">
+                    <button className="px-2 py-1 hover:bg-slate-100 hover:text-slate-800 transition-colors">▲</button>
+                    <div className="h-px bg-slate-100"></div>
+                    <button className="px-2 py-1 hover:bg-slate-100 hover:text-slate-800 transition-colors">▼</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-4 shrink-0">
+              <button onClick={() => setShowKnockoutTeamSelection(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-[1.5rem] font-black text-sm transition-all hover:bg-slate-200">Cancelar</button>
+              <button onClick={() => handleGenerateKnockoutTree()} className="flex-1 py-4 bg-blue-600 text-white rounded-[1.5rem] font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95">Completar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showAddMatchModal && (
         <AddMatchModal 
           teams={tournamentTeams} 
@@ -1549,24 +1795,39 @@ function BracketColumn({ title, matches }: { title: string, matches: any[] }) {
 }
 
 function BracketMatch({ match }: { match: any }) {
+  const hTeamName = match.homeTeam?.name || match.homePlaceholder;
+  const aTeamName = match.awayTeam?.name || match.awayPlaceholder;
+  const hMissing = !match.homeTeam;
+  const aMissing = !match.awayTeam;
+
   return (
-    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all">
-      <div className="space-y-3">
-        <div className="flex justify-between items-center">
-          <span className="text-[11px] font-black text-slate-700 truncate w-32 uppercase flex items-center gap-1">
-            {match.homeTeam?.name || 'POR DEFINIR'}
-            {match.advantageTeamId === match.homeTeam?.id && <span title="Ventaja deportiva" className="ml-1 bg-blue-100 text-blue-700 text-[8px] px-1.5 py-0.5 rounded uppercase tracking-tighter">🛡️ VENTAJA</span>}
-          </span>
-          <span className="bg-white px-2 py-1 rounded-lg font-black text-xs text-slate-900 border border-slate-100">{match.homeScore ?? '-'}</span>
+    <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all">
+      <div className="text-center mb-3">
+        {match.groupName && <span className="text-[10px] font-black text-slate-400 uppercase">{match.roundName} {match.groupName}</span>}
+      </div>
+      <div className="flex items-center justify-between">
+        {/* Home */}
+        <div className="flex flex-col items-center gap-2 w-16">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${hMissing ? 'bg-slate-100 border-2 border-dashed border-slate-200' : 'bg-[#10B981] text-white shadow-md'}`}>
+            {hMissing ? <span className="text-slate-400 text-xs font-bold text-center leading-tight">{hTeamName}</span> : '🏆'}
+          </div>
+          <span className="text-[9px] font-black text-slate-700 text-center truncate w-full uppercase">{hMissing ? '' : hTeamName}</span>
         </div>
-        <div className="flex justify-between items-center">
-          <span className="text-[11px] font-black text-slate-700 truncate w-32 uppercase flex items-center gap-1">
-            {match.awayTeam?.name || 'POR DEFINIR'}
-            {match.advantageTeamId === match.awayTeam?.id && <span title="Ventaja deportiva" className="ml-1 bg-blue-100 text-blue-700 text-[8px] px-1.5 py-0.5 rounded uppercase tracking-tighter">🛡️ VENTAJA</span>}
-          </span>
-          <span className="bg-white px-2 py-1 rounded-lg font-black text-xs text-slate-900 border border-slate-100">{match.awayScore ?? '-'}</span>
+        
+        {/* Score box */}
+        <div className="w-10 h-12 bg-white border border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-800 font-black text-lg">
+          {match.status === 'NO_REALIZADO' ? ':' : `${match.homeScore ?? '-'} - ${match.awayScore ?? '-'}`}
+        </div>
+        
+        {/* Away */}
+        <div className="flex flex-col items-center gap-2 w-16">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${aMissing ? 'bg-slate-100 border-2 border-dashed border-slate-200' : 'bg-[#10B981] text-white shadow-md'}`}>
+             {aMissing ? <span className="text-slate-400 text-xs font-bold text-center leading-tight">{aTeamName}</span> : '🏆'}
+          </div>
+          <span className="text-[9px] font-black text-slate-700 text-center truncate w-full uppercase">{aMissing ? '' : aTeamName}</span>
         </div>
       </div>
+      {match.notes && <div className="mt-4 text-center border-t border-slate-100 pt-3 text-[9px] font-black text-slate-800 uppercase tracking-tight">{match.roundName} {match.groupName} - {match.notes}</div>}
     </div>
   )
 }
