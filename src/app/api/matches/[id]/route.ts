@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   try {
     const body = await request.json()
-    const { homeScore, awayScore, location, referee, matchDate, status, events } = body
+    const { homeScore, awayScore, homePenaltyScore, awayPenaltyScore, advancingTeamId, location, referee, matchDate, status, events } = body
 
     // Map frontend status to database enum
     const statusMap: Record<string, string> = {
@@ -68,12 +68,32 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       data: {
         ...(homeScore !== undefined && { homeScore: homeScore === null ? null : homeScore }),
         ...(awayScore !== undefined && { awayScore: awayScore === null ? null : awayScore }),
+        ...(homePenaltyScore !== undefined && { homePenaltyScore: homePenaltyScore === null ? null : homePenaltyScore }),
+        ...(awayPenaltyScore !== undefined && { awayPenaltyScore: awayPenaltyScore === null ? null : awayPenaltyScore }),
         ...(location !== undefined && { location }),
         ...(referee !== undefined && { referee }),
         ...(matchDate !== undefined && { matchDate: new Date(matchDate) }),
         ...(status !== undefined && { status: dbStatus }),
       },
     })
+
+    if (dbStatus === 'COMPLETED' && advancingTeamId) {
+      const matchLabel = `${match.roundName} ${match.groupName}`
+      
+      const nextMatchHome = await prisma.match.findFirst({
+         where: { tournamentId: match.tournamentId, phaseName: match.phaseName, homePlaceholder: matchLabel }
+      })
+      if (nextMatchHome) {
+         await prisma.match.update({ where: { id: nextMatchHome.id }, data: { homeTeamId: advancingTeamId } })
+      }
+      
+      const nextMatchAway = await prisma.match.findFirst({
+         where: { tournamentId: match.tournamentId, phaseName: match.phaseName, awayPlaceholder: matchLabel }
+      })
+      if (nextMatchAway) {
+         await prisma.match.update({ where: { id: nextMatchAway.id }, data: { awayTeamId: advancingTeamId } })
+      }
+    }
 
     if (events && Array.isArray(events)) {
       await prisma.matchEvent.deleteMany({

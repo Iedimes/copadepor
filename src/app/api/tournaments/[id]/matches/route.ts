@@ -440,7 +440,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     } else if (action === 'generateKnockoutTree') {
       try {
-        const { teamIds, phaseName } = body
+        const { teamIds, phaseName, isRandom } = body
         if (!teamIds || teamIds.length !== 8) {
           return NextResponse.json({ error: 'Se requieren exactamente 8 equipos para generar el árbol' }, { status: 400 })
         }
@@ -453,12 +453,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         const roundDate = new Date()
 
         // 1. Cuartos de final
-        const qMatches = [
-          { home: teamIds[0], away: teamIds[7], group: '#1', note: '1° Puesto x 8° Puesto' },
-          { home: teamIds[3], away: teamIds[4], group: '#2', note: '4° Puesto x 5° Puesto' },
-          { home: teamIds[1], away: teamIds[6], group: '#3', note: '2° Puesto x 7° Puesto' },
-          { home: teamIds[2], away: teamIds[5], group: '#4', note: '3° Puesto x 6° Puesto' }
-        ]
+        let qMatches = []
+        if (isRandom) {
+          const top4 = teamIds.slice(0, 4)
+          const bottom4 = teamIds.slice(4, 8).sort(() => Math.random() - 0.5)
+          qMatches = [
+            { home: top4[0], away: bottom4[0], group: '#1', note: 'Sorteo: Top 4 vs Bottom 4' },
+            { home: top4[1], away: bottom4[1], group: '#2', note: 'Sorteo: Top 4 vs Bottom 4' },
+            { home: top4[2], away: bottom4[2], group: '#3', note: 'Sorteo: Top 4 vs Bottom 4' },
+            { home: top4[3], away: bottom4[3], group: '#4', note: 'Sorteo: Top 4 vs Bottom 4' }
+          ]
+        } else {
+          qMatches = [
+            { home: teamIds[0], away: teamIds[7], group: '#1', note: '1° Puesto x 8° Puesto' },
+            { home: teamIds[3], away: teamIds[4], group: '#2', note: '4° Puesto x 5° Puesto' },
+            { home: teamIds[1], away: teamIds[6], group: '#3', note: '2° Puesto x 7° Puesto' },
+            { home: teamIds[2], away: teamIds[5], group: '#4', note: '3° Puesto x 6° Puesto' }
+          ]
+        }
 
         for (const q of qMatches) {
           await prisma.match.create({

@@ -344,7 +344,7 @@ export default function TournamentPage() {
 
   const getStandings = () => {
     const stats: Record<string, any> = {}
-    tournamentTeams.forEach(tt => { stats[tt.team.id] = { name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } })
+    tournamentTeams.forEach(tt => { stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } })
     
     // Filter matches by selected phase AND EXCLUDE playoffs
     const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && !['Cuartos de final', 'Semifinal', 'Final', 'Cuartos', 'Semi Final'].includes(String(m.roundName)))
@@ -606,6 +606,10 @@ export default function TournamentPage() {
                       const isANum = !isNaN(Number(a));
                       const isBNum = !isNaN(Number(b));
                       if (isANum && isBNum) return Number(a) - Number(b);
+                      const order: any = { 'cuartos de final': 1, 'semifinal': 2, 'final': 3 };
+                      const aO = order[a.toLowerCase()] || 99;
+                      const bO = order[b.toLowerCase()] || 99;
+                      if (aO !== bO) return aO - bO;
                       return a.localeCompare(b);
                     }).map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
                   </select>
@@ -646,6 +650,9 @@ export default function TournamentPage() {
                             <div className="bg-white border border-slate-100 rounded-xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px]">
                               <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
                               {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : ':'}
+                              {st === 'FINALIZADO' && m.homePenaltyScore !== null && m.awayPenaltyScore !== null && (
+                                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest text-center mt-1">Penales: {m.homePenaltyScore} - {m.awayPenaltyScore}</span>
+                              )}
                               {st === 'NO_REALIZADO' && m.roundName !== '1' && (
                                 <span className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest max-w-[120px] text-center">{m.notes || ''}</span>
                               )}
@@ -996,7 +1003,7 @@ export default function TournamentPage() {
                 <button key={num} onClick={() => { 
                   setKnockoutTeamCount(num); 
                   const teams = getStandings().slice(0, num);
-                  setSelectedKnockoutTeams(teams.map((t: any) => ({ id: t.name, name: t.name }))); 
+                  setSelectedKnockoutTeams(teams.map((t: any) => ({ id: t.id, name: t.name }))); 
                   setShowKnockoutTeamCount(false); 
                   setShowKnockoutTeamSelection(true); 
                 }} className="w-full p-4 bg-slate-50 text-slate-800 rounded-xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left">
@@ -1385,14 +1392,48 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
   const [hHi, setHHi] = useState<any[]>([]); const [aHi, setAHi] = useState<any[]>([])
   const [hL, setHL] = useState<any[]>([]); const [aL, setAL] = useState<any[]>([])
 
+  const [homePenalties, setHomePenalties] = useState<number | ''>('')
+  const [awayPenalties, setAwayPenalties] = useState<number | ''>('')
+  const [useAdvantage, setUseAdvantage] = useState<boolean>(true)
+  const [advancingTeamId, setAdvancingTeamId] = useState<string>('')
+
   useEffect(() => { fetchMatch() }, [matchId])
   useEffect(() => { if (match) onUpdate({ homeScore: hG.length, awayScore: aG.length, status: st }) }, [hG.length, aG.length, st])
+
+  // Calculate advancing team
+  useEffect(() => {
+    if (!match || !match.homeTeam || !match.awayTeam) return
+    if (!['Cuartos de final', 'Cuartos', 'Semifinal', 'Final'].includes(match.roundName)) return
+
+    const hS = hG.length; const aS = aG.length;
+    if (hS > aS) setAdvancingTeamId(match.homeTeam.id)
+    else if (aS > hS) setAdvancingTeamId(match.awayTeam.id)
+    else { // Tie
+      if (['Cuartos de final', 'Cuartos'].includes(match.roundName)) {
+         if (useAdvantage && match.advantageTeamId) {
+            setAdvancingTeamId(match.advantageTeamId)
+         } else {
+            const hP = Number(homePenalties); const aP = Number(awayPenalties);
+            if (hP > aP) setAdvancingTeamId(match.homeTeam.id)
+            else if (aP > hP) setAdvancingTeamId(match.awayTeam.id)
+            else setAdvancingTeamId('')
+         }
+      } else {
+         const hP = Number(homePenalties); const aP = Number(awayPenalties);
+         if (hP > aP) setAdvancingTeamId(match.homeTeam.id)
+         else if (aP > hP) setAdvancingTeamId(match.awayTeam.id)
+         else setAdvancingTeamId('')
+      }
+    }
+  }, [hG.length, aG.length, homePenalties, awayPenalties, useAdvantage, match])
 
   const fetchMatch = async () => {
     const token = localStorage.getItem('token')
     const res = await fetch(`/api/matches/${matchId}`, { headers: { Authorization: `Bearer ${token}` } })
     const data = await res.json()
     setMatch(data); setSt(data.status || 'NO_REALIZADO')
+    setHomePenalties(data.homePenaltyScore ?? '')
+    setAwayPenalties(data.awayPenaltyScore ?? '')
     const parse = (tId: string, type: any) => (data.events || []).filter((e: any) => e.teamId === tId && (Array.isArray(type) ? type.includes(e.type) : e.type === type)).map((e: any) => ({ ...e, minutes: e.minute || 0, timeType: e.timeType || '1°', detail: e.detail || '', x: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).x : 0, y: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).y : 0 }))
     const [hM, aM] = await Promise.all([fetch(`/api/teams/${data.homeTeam.id}/members`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()), fetch(`/api/teams/${data.awayTeam.id}/members`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())])
     setHG(parse(data.homeTeam.id, 'GOAL')); setHC(parse(data.homeTeam.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'])); setHF(parse(data.homeTeam.id, 'FOUL')); setHS(parse(data.homeTeam.id, 'SUBSTITUTION')); setHO(parse(data.homeTeam.id, 'OWN_GOAL')); setHK(parse(data.homeTeam.id, 'GOALKEEPER')); setHHi(parse(data.homeTeam.id, 'HIGHLIGHT')); setHL(parse(data.homeTeam.id, 'LINEUP'))
@@ -1423,7 +1464,15 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
     const res = await fetch(`/api/matches/${matchId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ status: st, homeScore: isNR ? null : hG.length, awayScore: isNR ? null : aG.length, events: all })
+      body: JSON.stringify({ 
+        status: st, 
+        homeScore: isNR ? null : hG.length, 
+        awayScore: isNR ? null : aG.length, 
+        homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
+        awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
+        advancingTeamId: advancingTeamId || null,
+        events: all 
+      })
     })
     if (res.ok) onClose(); else alert('Error al guardar')
   }
@@ -1458,6 +1507,44 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
         </div>
         <TeamRowSection team={match.awayTeam} goals={aG} setGoals={setAG} cards={aC} setCards={setAC} fouls={aF} setFouls={setAF} subs={aS} setSubs={setAS} own={aO} setOwn={setAO} gk={aK} setGk={setAK} hi={aHi} setHi={setAHi} lin={aL} setLin={setAL} color="red" />
       </div>
+
+      {/* DESEMPATE / PASE DE RONDA */}
+      {match && ['Cuartos de final', 'Cuartos', 'Semifinal', 'Final'].includes(match.roundName) && (
+        <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🏆</span>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Definición</h3>
+          </div>
+          <div className="flex flex-wrap gap-8 items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            {['Cuartos de final', 'Cuartos'].includes(match.roundName) && (
+              <div className="flex items-center gap-3 bg-blue-50 px-4 py-2 rounded-xl">
+                <input type="checkbox" id="advCheck" checked={useAdvantage} onChange={e => setUseAdvantage(e.target.checked)} className="w-5 h-5 rounded accent-blue-600 cursor-pointer" />
+                <label htmlFor="advCheck" className="text-xs font-black text-blue-900 cursor-pointer uppercase tracking-wider">Aplicar Ventaja Deportiva</label>
+              </div>
+            )}
+            
+            {(!['Cuartos de final', 'Cuartos'].includes(match.roundName) || !useAdvantage) && (
+              <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Penales:</span>
+                <div className="flex items-center gap-2">
+                  <input type="number" placeholder="0" value={homePenalties} onChange={e => setHomePenalties(e.target.value ? Number(e.target.value) : '')} className="w-14 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
+                  <span className="text-slate-400 font-bold">-</span>
+                  <input type="number" placeholder="0" value={awayPenalties} onChange={e => setAwayPenalties(e.target.value ? Number(e.target.value) : '')} className="w-14 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 flex items-center justify-end gap-3 min-w-[250px]">
+               <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Avanza:</span>
+               <select value={advancingTeamId} onChange={e => setAdvancingTeamId(e.target.value)} className="bg-slate-900 text-white font-black text-xs px-4 py-3 rounded-xl outline-none shadow-md flex-1">
+                 <option value="">- SELECCIONAR GANADOR -</option>
+                 <option value={match.homeTeam.id}>{match.homeTeam.name} {match.advantageTeamId === match.homeTeam.id && '(V)'}</option>
+                 <option value={match.awayTeam.id}>{match.awayTeam.name} {match.advantageTeamId === match.awayTeam.id && '(V)'}</option>
+               </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Action Footer */}
       <div className="px-10 py-6 border-t border-slate-50 bg-white flex gap-4 shadow-[0_-20px_40px_rgba(0,0,0,0.02)]">

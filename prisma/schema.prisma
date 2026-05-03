@@ -244,6 +244,8 @@ model Match {
   awayTeamId   String?
   homeScore    Int?
   awayScore    Int?
+  homePenaltyScore Int?
+  awayPenaltyScore Int?
   status       MatchStatus  @default(SCHEDULED)
   matchDate    DateTime
   roundName    String
