@@ -102,17 +102,23 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
       if (events.length > 0) {
         await prisma.matchEvent.createMany({
-          data: events.map((e: any) => ({
-            matchId,
-            teamId: e.teamId,
-            playerId: (e.scorerId || e.playerId) ? (e.scorerId || e.playerId) : null,
-            assistId: e.assistId ? e.assistId : null,
-            type: e.type,
-            timeType: e.timeType || null,
-            minute: (e.minutes || e.minute) !== undefined ? (e.minutes || e.minute) : null,
-            second: (e.seconds || e.second) !== undefined ? (e.seconds || e.second) : null,
-            detail: e.detail || null,
-          }))
+          data: events.map((e: any) => {
+            // Handle minutes correctly even if it's 0
+            const eventMinute = e.minute !== undefined ? e.minute : (e.minutes !== undefined ? e.minutes : null);
+            const eventSecond = e.second !== undefined ? e.second : (e.seconds !== undefined ? e.seconds : null);
+            
+            return {
+              matchId,
+              teamId: e.teamId,
+              playerId: (e.playerId || e.scorerId) ? (e.playerId || e.scorerId) : null,
+              assistId: e.assistId ? e.assistId : null,
+              type: e.type,
+              timeType: e.timeType || null,
+              minute: eventMinute !== null ? Number(eventMinute) : null,
+              second: eventSecond !== null ? Number(eventSecond) : null,
+              detail: e.detail || null,
+            };
+          })
         })
       }
     }

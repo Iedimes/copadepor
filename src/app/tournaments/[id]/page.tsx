@@ -75,7 +75,7 @@ export default function TournamentPage() {
   const [showPhasesList, setShowPhasesList] = useState(false)
   const [showPhaseType, setShowPhaseType] = useState(false)
   const [showEditPhase, setShowEditPhase] = useState(false)
-  const [editPhaseData, setEditPhaseData] = useState<{ name: string, type: string, isClassification: boolean, continueFromId: string | null }>({ name: '', type: 'LIGA', isClassification: true, continueFromId: null })
+  const [editPhaseData, setEditPhaseData] = useState<{ name: string, type: string, order: number, isClassification: boolean, continueFromId: string | null }>({ name: '', type: 'LIGA', order: 0, isClassification: true, continueFromId: null })
   const [showPhaseTeams, setShowPhaseTeams] = useState(false)
   const [showPhaseContinue, setShowPhaseContinue] = useState(false)
 
@@ -1453,13 +1453,20 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
 
   const handleSave = async () => {
     const token = localStorage.getItem('token')
-    const serialize = (evs: any[], tId: string) => evs.map(e => ({
-      teamId: tId, playerId: e.playerId || null, assistId: e.assistId || null,
-      type: e.type, minute: parseInt(e.minutes as any) || 0, second: 0,
-      timeType: e.timeType || '1°', detail: e.type === 'LINEUP' ? JSON.stringify({ x: e.x, y: e.y }) : (e.detail || '')
-    }))
-    const isNR = st === 'NO_REALIZADO'
-    const all = isNR ? [] : [
+    const serialize = (evs: any[], tId: string) => evs.map(e => {
+      const m = parseInt(e.minutes as any);
+      return {
+        teamId: tId, 
+        playerId: e.playerId || null, 
+        assistId: e.assistId || null,
+        type: e.type, 
+        minute: isNaN(m) ? null : m, 
+        second: 0,
+        timeType: e.timeType || '1°', 
+        detail: e.type === 'LINEUP' ? JSON.stringify({ x: e.x, y: e.y }) : (e.detail || '')
+      }
+    })
+    const all = [
       ...serialize(hG, match.homeTeam.id), ...serialize(aG, match.awayTeam.id),
       ...serialize(hC, match.homeTeam.id), ...serialize(aC, match.awayTeam.id),
       ...serialize(hF, match.homeTeam.id), ...serialize(aF, match.awayTeam.id),
@@ -1470,13 +1477,14 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
       ...serialize(hL, match.homeTeam.id), ...serialize(aL, match.awayTeam.id),
     ].filter(e => e.type)
 
+    const isNR = st === 'NO_REALIZADO'
     const res = await fetch(`/api/matches/${matchId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ 
         status: st, 
-        homeScore: isNR ? null : hG.length, 
-        awayScore: isNR ? null : aG.length, 
+        homeScore: isNR ? null : (hG.length + aO.length), 
+        awayScore: isNR ? null : (aG.length + hO.length), 
         homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
         awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
         advancingTeamId: advancingTeamId || null,
@@ -1493,7 +1501,7 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
       {/* Slim Header */}
       <div className="bg-slate-900 px-8 py-5 text-white flex justify-between items-center shrink-0">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-black tracking-tight">{match.homeTeam.name} <span className="text-blue-400 mx-2">{hG.length} : {aG.length}</span> {match.awayTeam.name}</h2>
+          <h2 className="text-xl font-black tracking-tight">{match.homeTeam.name} <span className="text-blue-400 mx-2">{hG.length + aO.length} : {aG.length + hO.length}</span> {match.awayTeam.name}</h2>
         </div>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
