@@ -89,10 +89,21 @@ export async function POST(request: NextRequest) {
         categories: categories ? {
           create: categories
         } : undefined,
+        phases: {
+          create: validated.format === 'liga_eliminacion' ? [
+            { name: '1° Fase', type: 'LIGA', order: 1 },
+            { name: '2° Fase', type: 'ELIMINATORIA', order: 2 }
+          ] : (validated.format === 'eliminacion' ? [
+            { name: '1° Fase', type: 'ELIMINATORIA', order: 1 }
+          ] : [
+            { name: '1° Fase', type: 'LIGA', order: 1 }
+          ])
+        }
       },
       include: {
         organizer: { select: { id: true, name: true } },
         categories: true,
+        phases: true,
       },
     })
 

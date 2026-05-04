@@ -440,95 +440,76 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     } else if (action === 'generateKnockoutTree') {
       try {
-        const { teamIds, phaseName, isRandom } = body
-        if (!teamIds || teamIds.length !== 8) {
-          return NextResponse.json({ error: 'Se requieren exactamente 8 equipos para generar el árbol' }, { status: 400 })
-        }
+        const { teamIds, phaseName, matchType, selectionMode, generationMode } = body
+        const count = teamIds ? teamIds.length : 0
+        
+        // Determinar ronda inicial
+        let startRound = ''
+        let roundsToCreate: string[] = []
+        if (count <= 2) { startRound = 'Final'; roundsToCreate = ['Final'] }
+        else if (count <= 4) { startRound = 'Semifinal'; roundsToCreate = ['Semifinal', 'Final'] }
+        else if (count <= 8) { startRound = 'Cuartos de final'; roundsToCreate = ['Cuartos de final', 'Semifinal', 'Final'] }
+        else if (count <= 16) { startRound = 'Octavos de final'; roundsToCreate = ['Octavos de final', 'Cuartos de final', 'Semifinal', 'Final'] }
+        else { startRound = 'Eliminatoria'; roundsToCreate = ['Eliminatoria', 'Octavos de final', 'Cuartos de final', 'Semifinal', 'Final'] }
 
-        // Delete any existing matches in this phase for knockout
+        // Limpiar partidos existentes en esta fase
         await prisma.match.deleteMany({
-          where: { tournamentId: params.id, phaseName, roundName: { in: ['Cuartos de final', 'Semifinal', 'Final'] } }
+          where: { tournamentId: params.id, phaseName }
         })
 
         const roundDate = new Date()
+        const isIdaVuelta = matchType === 'idayvuelta'
 
-        // 1. Cuartos de final
-        let qMatches = []
-        if (isRandom) {
-          const top4 = teamIds.slice(0, 4)
-          const bottom4 = teamIds.slice(4, 8).sort(() => Math.random() - 0.5)
-          qMatches = [
-            { home: top4[0], away: bottom4[0], group: '#1', note: 'Sorteo: Top 4 vs Bottom 4' },
-            { home: top4[1], away: bottom4[1], group: '#2', note: 'Sorteo: Top 4 vs Bottom 4' },
-            { home: top4[2], away: bottom4[2], group: '#3', note: 'Sorteo: Top 4 vs Bottom 4' },
-            { home: top4[3], away: bottom4[3], group: '#4', note: 'Sorteo: Top 4 vs Bottom 4' }
-          ]
-        } else {
-          qMatches = [
-            { home: teamIds[0], away: teamIds[7], group: '#1', note: '1° Puesto x 8° Puesto' },
-            { home: teamIds[3], away: teamIds[4], group: '#2', note: '4° Puesto x 5° Puesto' },
-            { home: teamIds[1], away: teamIds[6], group: '#3', note: '2° Puesto x 7° Puesto' },
-            { home: teamIds[2], away: teamIds[5], group: '#4', note: '3° Puesto x 6° Puesto' }
-          ]
-        }
-
-        for (const q of qMatches) {
-          await prisma.match.create({
-            data: {
-              tournamentId: params.id,
-              homeTeamId: q.home,
-              awayTeamId: q.away,
-              matchDate: roundDate,
-              roundName: 'Cuartos de final',
-              groupName: q.group,
-              notes: q.note,
-              phaseName,
-              status: 'SCHEDULED',
-              advantageTeamId: q.home, // Higher seed has advantage
-            }
-          })
-        }
-
-        // 2. Semifinal
-        const sMatches = [
-          { group: '#1', hP: 'Cuartos de final #1', aP: 'Cuartos de final #2', note: 'Cuartos de final #1 x Cuartos de final #2' },
-          { group: '#2', hP: 'Cuartos de final #3', aP: 'Cuartos de final #4', note: 'Cuartos de final #3 x Cuartos de final #4' }
-        ]
-        
-        for (const s of sMatches) {
-          await prisma.match.create({
-            data: {
-              tournamentId: params.id,
-              homeTeamId: null,
-              awayTeamId: null,
-              matchDate: roundDate,
-              roundName: 'Semifinal',
-              groupName: s.group,
-              homePlaceholder: s.hP,
-              awayPlaceholder: s.aP,
-              notes: s.note,
-              phaseName,
-              status: 'SCHEDULED'
-            }
-          })
-        }
-
-        // 3. Final
-        await prisma.match.create({
-          data: {
+        // 1. Generar Primera Ronda (con equipos o vacía)
+        const numMatches = Math.floor(count / 2)
+        for (let i = 0; i < numMatches; i++) {
+          const homeId = teamIds ? teamIds[i * 2] : null
+          const awayId = teamIds ? teamIds[i * 2 + 1] : null
+          
+          const matchData = {
             tournamentId: params.id,
-            homeTeamId: null,
-            awayTeamId: null,
+            homeTeamId: homeId,
+            awayTeamId: awayId,
             matchDate: roundDate,
-            roundName: 'Final',
-            groupName: '#1',
-            homePlaceholder: 'Semifinal #1',
-            awayPlaceholder: 'Semifinal #2',
-            notes: 'Semifinal #1 x Semifinal #2',
+            roundName: startRound,
+            groupName: `#${i + 1}`,
             phaseName,
-            status: 'SCHEDULED'
+            status: 'SCHEDULED',
+            advantageTeamId: (selectionMode === 'clasificacion' && homeId) ? homeId : null,
           }
-        })
+
+          await prisma.match.create({ data: matchData })
+          if (isIdaVuelta) {
+            await prisma.match.create({ 
+              data: { ...matchData, homeTeamId: awayId, awayTeamId: homeId, advantageTeamId: null, notes: 'Partido de vuelta' } 
+            })
+          }
+        }
+
+        // 2. Generar rondas subsiguientes (vacías)
+        let currentLevelMatches = numMatches
+        for (let r = 1; r < roundsToCreate.length; r++) {
+          const rName = roundsToCreate[r]
+          const prevRoundName = roundsToCreate[r-1]
+          currentLevelMatches = Math.floor(currentLevelMatches / 2)
+          
+          for (let i = 0; i < currentLevelMatches; i++) {
+            await prisma.match.create({
+              data: {
+                tournamentId: params.id,
+                homeTeamId: null,
+                awayTeamId: null,
+                matchDate: roundDate,
+                roundName: rName,
+                groupName: `#${i + 1}`,
+                homePlaceholder: `Ganador ${prevRoundName} #${i * 2 + 1}`,
+                awayPlaceholder: `Ganador ${prevRoundName} #${i * 2 + 2}`,
+                phaseName,
+                status: 'SCHEDULED'
+              }
+            })
+          }
+        }
 
         return NextResponse.json({ message: 'Árbol eliminatorio generado con éxito' }, { status: 201 })
       } catch (error) {

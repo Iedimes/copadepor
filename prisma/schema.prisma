@@ -129,6 +129,7 @@ model Phase {
   tournamentId    String
   name            String
   type            String   @default("LIGA") // LIGA, ELIMINATORIA
+  order           Int      @default(0)
   isClassification Boolean @default(true)
   continueFromId  String?  
   teams           String?  @db.Text // JSON list of team ids participating, optional
