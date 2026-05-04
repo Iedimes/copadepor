@@ -146,9 +146,18 @@ export default function TournamentPage() {
         if (matchesRes.ok) {
           const m = await matchesRes.json()
           setMatches(m)
-          const rounds = [...new Set(m.map((x: any) => String(x.roundName)))].sort((a: any, b: any) => parseInt(a) - parseInt(b)) as string[]
-          if (rounds.length > 0 && (!selectedRound || !rounds.includes(selectedRound))) {
-            setSelectedRound(rounds[0])
+          const phaseRounds = [...new Set(m.filter((x: any) => (x.phaseName || 'Primera Fase') === selectedPhase).map((x: any) => String(x.roundName)))].sort((a: any, b: any) => {
+            const isANum = !isNaN(Number(a));
+            const isBNum = !isNaN(Number(b));
+            if (isANum && isBNum) return Number(a) - Number(b);
+            const order: any = { 'cuartos de final': 1, 'semifinal': 2, 'final': 3 };
+            const aO = order[a.toLowerCase()] || 99;
+            const bO = order[b.toLowerCase()] || 99;
+            if (aO !== bO) return aO - bO;
+            return a.localeCompare(b);
+          }) as string[]
+          if (phaseRounds.length > 0 && (!selectedRound || !phaseRounds.includes(selectedRound))) {
+            setSelectedRound(phaseRounds[0])
           }
         }
         if (teamsRes.ok) setTournamentTeams(await teamsRes.json())
@@ -232,6 +241,22 @@ export default function TournamentPage() {
 
   const handlePhaseChange = (val: string) => {
     setSelectedPhase(val)
+    const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === val)
+    if (phaseMatches.length > 0) {
+      const rounds = [...new Set(phaseMatches.map((x: any) => String(x.roundName)))].sort((a: any, b: any) => {
+        const isANum = !isNaN(Number(a));
+        const isBNum = !isNaN(Number(b));
+        if (isANum && isBNum) return Number(a) - Number(b);
+        const order: any = { 'cuartos de final': 1, 'semifinal': 2, 'final': 3 };
+        const aO = order[a.toLowerCase()] || 99;
+        const bO = order[b.toLowerCase()] || 99;
+        if (aO !== bO) return aO - bO;
+        return a.localeCompare(b);
+      })
+      if (rounds.length > 0) {
+        setSelectedRound(rounds[0])
+      }
+    }
   }
 
   const handleSavePhase = async () => {
