@@ -558,12 +558,6 @@ export default function TournamentPage() {
       </div>
 
       <div className="flex-1 p-8 overflow-y-auto">
-        {/* TOP NAVIGATION SELECTOR */}
-        <div className="max-w-[1600px] mx-auto mb-8 flex items-center justify-end bg-white rounded-3xl p-2 shadow-sm border border-slate-100">
-          <div className="pr-4 flex gap-3">
-             <button onClick={() => setShowQR(!showQR)} className="text-slate-400 hover:text-slate-600 transition-all text-sm">📤</button>
-          </div>
-        </div>
         {activeMenu === 'inicio' ? (
           <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
             <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-10 relative overflow-hidden">
@@ -605,19 +599,57 @@ export default function TournamentPage() {
             {/* Classification OR Bracket */}
             <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50 overflow-y-auto">
                 <div className="animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center mb-8">
+                  <div className="flex justify-between items-center mb-12 relative">
                     <div className="flex items-center gap-4">
-                      <select 
-                        value={activeMenu === 'estadisticas' ? 'estadisticas' : selectedPhase}
-                        onChange={(e) => handlePhaseChange(e.target.value)}
-                        className="bg-white border border-slate-200 rounded-2xl px-6 py-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer shadow-sm"
-                      >
-                        {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
-                        {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase}>{selectedPhase}</option>}
-                        <option value="estadisticas" className="text-blue-600 font-black">🏆 Estadísticas Generales</option>
-                      </select>
+                      <div className="relative">
+                        <select 
+                          value={activeMenu === 'estadisticas' ? 'estadisticas' : selectedPhase}
+                          onChange={(e) => handlePhaseChange(e.target.value)}
+                          className="bg-transparent border border-slate-300 rounded-full pl-4 pr-8 py-1.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                        >
+                          {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
+                          {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase}>{selectedPhase}</option>}
+                          <option value="estadisticas" className="text-blue-600 font-black">🏆 Estadísticas Generales</option>
+                        </select>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 text-xs">⌄</span>
+                      </div>
                     </div>
-                    <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all">AGREGAR EQUIPOS</button>
+
+                    {/* Centered Tab Button */}
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50">
+                      <div className="relative group">
+                         <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
+                           <span className="text-lg font-light leading-none mb-1">+</span>
+                         </button>
+                         
+                         {/* Dropdown Menu */}
+                         <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
+                           <div className="py-2">
+                             <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                               <span className="text-lg">📋</span> Equipos
+                             </button>
+                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <span className="text-lg">⛖</span> Grupos
+                             </button>
+                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <span className="text-lg">📚</span> Fases
+                             </button>
+                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <span className="text-lg">⬇</span> Exportar
+                             </button>
+                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <span className="text-lg">☰</span> Tabla
+                             </button>
+                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <span className="text-lg">☑</span> Criterios de clasificación
+                             </button>
+                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <span className="text-lg">⇅</span> Reordenar
+                             </button>
+                           </div>
+                         </div>
+                      </div>
+                    </div>
                   </div>
                   
                   {activeMenu === 'estadisticas' ? (
@@ -696,9 +728,11 @@ export default function TournamentPage() {
                   ) : (
                     <>
                       {!selectedPhase.toLowerCase().includes('final') && !selectedPhase.toLowerCase().includes('eliminatoria') ? (
-                        <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
-                          <table className="w-full text-sm">
-                            <thead>
+                        <div className="space-y-4 mt-2">
+                          <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] text-center w-full">Clasificación</h2>
+                          <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
+                            <table className="w-full text-sm">
+                              <thead>
                               <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
                                 <th className="p-4 text-center">Pos</th>
                                 <th className="p-4 text-left">EQUIPOS</th>
@@ -743,6 +777,7 @@ export default function TournamentPage() {
                             </tbody>
                           </table>
                         </div>
+                      </div>
                       ) : (
                         <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
                           <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Tabla de clasificación no disponible en esta fase</p>
@@ -769,7 +804,7 @@ export default function TournamentPage() {
             </div>
 
             {/* Calendar */}
-            <div className="w-full xl:w-[450px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 flex flex-col flex-shrink-0 overflow-hidden">
+            <div className="w-full xl:w-[450px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 flex flex-col flex-shrink-0 overflow-hidden xl:mt-[112px]">
               <div className="bg-[#0F172A] p-6 flex justify-between items-center relative z-10">
                 <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
                 <div className="flex border border-white rounded-full overflow-hidden">
