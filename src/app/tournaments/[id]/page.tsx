@@ -536,6 +536,12 @@ export default function TournamentPage() {
               <span className="text-lg">⚙️</span> Configuración
             </button>
           </nav>
+
+          <div className="mt-12">
+            <button onClick={() => router.push('/dashboard')} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-blue-400 bg-blue-900/30 hover:bg-blue-600 hover:text-white transition-all border border-blue-900/50">
+              <span>⬅</span> Mis Torneos
+            </button>
+          </div>
         </div>
 
         <div className="mt-auto p-6 border-t border-white/5">
