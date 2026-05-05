@@ -406,22 +406,26 @@ export default function TournamentPage() {
   }
 
   const getTopScorers = () => {
-    const scorers: Record<string, { name: string; team: string; goals: number }> = {}
+    const scorers: Record<string, { name: string; team: string; goals: number; penalties: number }> = {}
     matches.forEach(m => {
       (m.events || []).forEach((e: any) => {
         if (e.type === 'GOAL' || e.type === 'OWN_GOAL') {
           const pName = e.player?.name;
           const tName = e.team?.name || ''
-          const goalType = e.detail === 'PENAL' ? ' (P)' : ''
+          const isPenal = e.detail === 'PENAL'
           const displayName = pName ? (e.type === 'OWN_GOAL' ? `${pName} (A.G.)` : pName) : (e.type === 'OWN_GOAL' ? 'Autogol' : 'Desconocido')
-          const label = `${displayName}${goalType}`
           const key = e.type === 'OWN_GOAL' ? `AG_${pName || 'anon'}_${e.id}` : (pName || 'Desconocido')
-          if (!scorers[key]) scorers[key] = { name: label, team: tName, goals: 0 }
+          
+          if (!scorers[key]) scorers[key] = { name: displayName, team: tName, goals: 0, penalties: 0 }
           scorers[key].goals++
+          if (isPenal) scorers[key].penalties++
         }
       })
     })
-    return Object.values(scorers).sort((a, b) => b.goals - a.goals).slice(0, 10)
+    return Object.values(scorers).map(s => ({
+      ...s,
+      name: `${s.name}${s.penalties > 0 ? ` (${s.penalties} P)` : ''}`
+    })).sort((a, b) => b.goals - a.goals).slice(0, 10)
   }
 
   const getTopDisciplined = () => {
@@ -1856,12 +1860,13 @@ function RoundStatistics({ matches }: { matches: any[] }) {
       const pName = e.player?.name;
       const tName = e.team?.name || ''
       if (e.type === 'GOAL' || e.type === 'OWN_GOAL') {
-        const goalType = e.detail === 'PENAL' ? ' (P)' : ''
+        const isPenal = e.detail === 'PENAL'
         const displayName = pName ? (e.type === 'OWN_GOAL' ? `${pName} (A.G.)` : pName) : (e.type === 'OWN_GOAL' ? 'Autogol' : 'Desconocido')
-        const label = `${displayName}${goalType}`
         const key = e.type === 'OWN_GOAL' ? `AG_${pName || 'anon'}_${e.id}` : (pName || 'Desconocido')
-        if (!stats.scorers[key]) stats.scorers[key] = { name: label, team: tName, goals: 0 }
+        
+        if (!stats.scorers[key]) stats.scorers[key] = { name: displayName, team: tName, goals: 0, penalties: 0 }
         stats.scorers[key].goals++
+        if (isPenal) stats.scorers[key].penalties++
       } else if (e.type === 'YELLOW_CARD') {
         if (!stats.yellowCards[pName]) stats.yellowCards[pName] = { name: pName, team: tName, count: 0 }
         stats.yellowCards[pName].count++
@@ -1898,7 +1903,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px]">👤</div>
                   <div className="flex flex-col">
-                    <span className="text-[11px] font-black text-slate-700 uppercase">{s.name}</span>
+                    <span className="text-[11px] font-black text-slate-700 uppercase">{s.name} {s.penalties > 0 ? `(${s.penalties} P)` : ''}</span>
                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{s.team}</span>
                   </div>
                 </div>
