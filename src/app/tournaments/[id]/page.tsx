@@ -37,6 +37,8 @@ interface Match {
   awayPlaceholder?: string | null
   groupName?: string | null
   notes?: string | null
+  homePenaltyScore?: number | null
+  awayPenaltyScore?: number | null
 }
 
 interface TournamentTeam {
@@ -184,19 +186,44 @@ export default function TournamentPage() {
     }
   }
 
-  const handleCreateStage = async (stageName: string, numMatches: number) => {
+  const handleDeletePhase = async (phaseId: string | undefined) => {
+    if (!phaseId) return alert('No se pudo encontrar el ID de la fase.')
+    if (!confirm('¿Estás seguro de eliminar esta fase? Se eliminarán todos los partidos asociados.')) return
+    
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generatePlayoff`, {
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/phases/${phaseId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        await fetchData()
+        setSelectedPhase('Primera Fase')
+        alert('Fase eliminada correctamente.')
+      } else {
+        alert('Error al eliminar la fase.')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Error de conexión al eliminar la fase.')
+    }
+  }
+
+  const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
+    if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
+    setGenerating(true)
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stageName, numMatches, phaseName: selectedPhase }),
+      body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType: type, phaseName: selectedPhase }),
     })
     if (res.ok) {
-      alert(`${stageName} generados con éxito`)
-      fetchData()
-    } else {
-      alert('Error al generar etapa')
+      await fetchData()
+      setSelectedRound('1')
+      setShowGenType(false)
     }
+    setGenerating(false)
   }
 
   const handleCreateAdvantagePlayoff = () => {
@@ -275,81 +302,6 @@ export default function TournamentPage() {
     }
   }
 
-  const handleDeletePhase = async (phaseId: string) => {
-    if (!confirm('¿Estás seguro de eliminar esta fase? Se eliminarán todos los partidos asociados.')) return;
-    const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}/phases/${phaseId}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (res.ok) {
-      await fetchData()
-      setSelectedPhase('Primera Fase')
-    } else {
-      alert('Error al eliminar fase')
-    }
-  }
-
-  const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
-    if (tournamentTeams.length === 0) {
-      alert('Debes agregar equipos al torneo antes de generar los partidos.');
-      return;
-    }
-    setShowGenType(false);
-    const activePhaseObj = phases.find(p => p.name === selectedPhase);
-    
-    if (activePhaseObj?.type === 'ELIMINATORIA') {
-      // Check if previous phase (if any) is completed
-      const prevPhase = phases.find(p => p.order === (activePhaseObj.order || 1) - 1);
-      if (prevPhase) {
-        const prevMatches = matches.filter(m => m.phaseName === prevPhase.name);
-        const allCompleted = prevMatches.length > 0 && prevMatches.every(m => m.status === 'FINALIZADO');
-        if (!allCompleted) {
-          alert(`Debes finalizar todos los partidos de la "${prevPhase.name}" antes de generar la "${selectedPhase}".`);
-          return;
-        }
-      }
-
-      setShowPlayoffDraw(true);
-      setShowGenType(false);
-      return;
-    }
-    
-    setGenerating(true)
-    const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType: type, phaseName: selectedPhase }),
-    })
-    if (res.ok) {
-      await fetchData();
-      setSelectedRound('1');
-    } else {
-      alert('Error al generar');
-    }
-    setGenerating(false)
-  }
-
-  const handleGenerateKnockoutTree = async () => {
-    setShowKnockoutTeamSelection(false);
-    setGenerating(true)
-    const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateKnockoutTree`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teamIds: selectedKnockoutTeams.map(t => t.id), phaseName: selectedPhase }),
-    })
-    if (res.ok) {
-      alert('Árbol generado con éxito');
-      await fetchData();
-      setSelectedRound('Cuartos de final');
-    } else {
-      const data = await res.json();
-      alert(data.error || 'Error al generar eliminatoria');
-    }
-    setGenerating(false)
-  }
 
   const handleOpenMatchModal = (m: any) => {
     const homePlayers = m.homeTeam._count?.teamMembers || 0
@@ -522,6 +474,41 @@ export default function TournamentPage() {
       </div>
 
       <div className="flex-1 p-8 overflow-y-auto">
+        {/* TOP NAVIGATION SELECTOR */}
+        <div className="max-w-[1600px] mx-auto mb-8 flex items-center justify-between bg-white rounded-3xl p-2 shadow-sm border border-slate-100">
+          <div className="flex gap-1">
+            <button 
+              onClick={() => { setActiveMenu('clasificacion'); setSelectedPhase('Primera Fase'); }}
+              className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedPhase === 'Primera Fase' && activeMenu === 'clasificacion' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            >
+              1° Fase
+            </button>
+            <button 
+              onClick={() => { setActiveMenu('clasificacion'); setSelectedPhase('Segunda Fase'); }}
+              className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedPhase === 'Segunda Fase' && activeMenu === 'clasificacion' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            >
+              2° Fase
+            </button>
+            <button 
+              onClick={() => setActiveMenu('estadisticas')}
+              className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeMenu === 'estadisticas' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            >
+              Estadísticas
+            </button>
+          </div>
+          
+          <div className="pr-4 flex gap-3">
+             {selectedPhase !== 'Primera Fase' && (
+               <button 
+                 onClick={() => handleDeletePhase(phases.find(p => p.name === selectedPhase)?.id)}
+                 className="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-red-100 transition-all"
+               >
+                 Eliminar Fase
+               </button>
+             )}
+             <button onClick={() => setShowQR(!showQR)} className="text-slate-400 hover:text-slate-600 transition-all text-sm">📤</button>
+          </div>
+        </div>
         {activeMenu === 'inicio' ? (
           <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
             <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-10 relative overflow-hidden">
@@ -565,52 +552,52 @@ export default function TournamentPage() {
                   <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
                       <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">📊 {selectedPhase}</h2>
-                      <button onClick={() => setShowConfigMenu(true)} className="bg-slate-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-sm hover:scale-110 transition-all">+</button>
                     </div>
                     <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all">GESTOR DE EQUIPOS</button>
                   </div>
                   
-                  <div className="overflow-x-auto rounded-3xl border border-slate-100 mb-10">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
-                          <th className="p-4 text-center rounded-tl-3xl">Pos</th>
-                          <th className="p-4 text-left">EQUIPOS</th>
-                          <th className="p-4 text-center">Pts</th>
-                          <th className="p-4 text-center">J</th>
-                          <th className="p-4 text-center">G</th>
-                          <th className="p-4 text-center">E</th>
-                          <th className="p-4 text-center">P</th>
-                          <th className="p-4 text-center">GF</th>
-                          <th className="p-4 text-center">GC</th>
-                          <th className="p-4 text-center">DIF</th>
-                          <th className="p-4 text-center">%</th>
-                          <th className="p-4 text-center rounded-tr-3xl">PE</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {getStandings().map((t, i) => (
-                          <tr key={i} className="hover:bg-slate-50/80 transition-all cursor-default">
-                            <td className="p-4 text-center font-black text-white bg-slate-900">{i+1}</td>
-                            <td className="p-4 font-black text-slate-800 flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">🏆</div>
-                              {t.name}
-                            </td>
-                            <td className="p-4 text-center font-black text-blue-600 text-lg">{t.points}</td>
-                            <td className="p-4 text-center text-slate-500 font-bold">{t.played}</td>
-                            <td className="p-4 text-center text-slate-500 font-bold">{t.won}</td>
-                            <td className="p-4 text-center text-slate-500 font-bold">{t.drawn}</td>
-                            <td className="p-4 text-center text-slate-500 font-bold">{t.lost}</td>
-                            <td className="p-4 text-center text-slate-500 font-bold">{t.gf}</td>
-                            <td className="p-4 text-center text-slate-500 font-bold">{t.ga}</td>
-                            <td className="p-4 text-center font-black text-slate-800">{t.diff > 0 ? `+${t.diff}` : t.diff}</td>
-                            <td className="p-4 text-center text-slate-400 font-bold">{t.perc}%</td>
-                            <td className="p-4 text-center text-slate-400 font-bold">0</td>
+                  {selectedPhase === 'Primera Fase' ? (
+                    <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                            <th className="p-4 text-center">Pos</th>
+                            <th className="p-4 text-left">Equipo</th>
+                            <th className="p-4 text-center">PJ</th>
+                            <th className="p-4 text-center">G</th>
+                            <th className="p-4 text-center">E</th>
+                            <th className="p-4 text-center">P</th>
+                            <th className="p-4 text-center">GF</th>
+                            <th className="p-4 text-center">GC</th>
+                            <th className="p-4 text-center">DG</th>
+                            <th className="p-4 text-center">Pts</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {getStandings().length === 0 ? (
+                            <tr><td colSpan={10} className="p-12 text-center text-slate-300 font-bold italic">No hay partidos registrados aún</td></tr>
+                          ) : getStandings().map((row: any, i: number) => (
+                            <tr key={row.id} className="hover:bg-slate-50 transition-all group">
+                              <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                              <td className="p-4 font-black text-slate-800">{row.name}</td>
+                              <td className="p-4 text-center font-bold text-slate-600">{row.played}</td>
+                              <td className="p-4 text-center text-green-600 font-black">{row.won}</td>
+                              <td className="p-4 text-center text-slate-400 font-black">{row.drawn}</td>
+                              <td className="p-4 text-center text-red-500 font-black">{row.lost}</td>
+                              <td className="p-4 text-center text-slate-500 font-bold">{row.gf}</td>
+                              <td className="p-4 text-center text-slate-500 font-bold">{row.ga}</td>
+                              <td className="p-4 text-center font-black text-slate-800">{(row.gf - row.ga) > 0 ? `+${row.gf - row.ga}` : row.gf - row.ga}</td>
+                              <td className="p-4 text-center font-black text-blue-600 text-lg">{row.points}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                      <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Tabla de clasificación no disponible en esta fase</p>
+                    </div>
+                  )}
 
                   {(selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria')) && (
                     <>
@@ -1038,15 +1025,6 @@ export default function TournamentPage() {
         </div>
       )}
 
-      {showAddMatchModal && (
-        <AddMatchModal 
-          teams={tournamentTeams} 
-          tournamentId={tournamentId}
-          phaseName={selectedPhase}
-          onClose={() => setShowAddMatchModal(false)} 
-          onSuccess={() => { setShowAddMatchModal(false); fetchData(); }} 
-        />
-      )}
       {/* MATCH ACTIONS MENU */}
       {showMatchMenu && (
         <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setShowMatchMenu(false)}>
