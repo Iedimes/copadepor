@@ -1,13 +1,15 @@
-import { PrismaClient } from '@prisma/client'
+const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 async function main() {
   const deleted = await prisma.match.deleteMany({
     where: {
-      phaseName: '2° Fase'
+      phaseName: {
+        in: ['2° Fase', 'Segunda Fase']
+      }
     }
   })
-  console.log(`Eliminados ${deleted.count} partidos de la 2° Fase.`)
+  console.log(`Eliminados ${deleted.count} partidos de la segunda fase.`)
 }
 
 main()

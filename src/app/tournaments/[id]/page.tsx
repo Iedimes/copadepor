@@ -210,6 +210,9 @@ export default function TournamentPage() {
   }
 
   const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
+    const pending = matches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
+    if (pending.length > 0) return alert('No se puede generar partidos de la segunda fase porque aún no se han jugado todos los partidos de la primera fase.')
+    
     if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
     setGenerating(true)
     const token = localStorage.getItem('token')
@@ -227,6 +230,8 @@ export default function TournamentPage() {
   }
 
   const handleCreateAdvantagePlayoff = () => {
+    const pending = matches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
+    if (pending.length > 0) return alert('No se puede generar partidos de la segunda fase porque aún no se han jugado todos los partidos de la primera fase.')
     setShowPlayoffDraw(true)
   }
 
@@ -267,6 +272,11 @@ export default function TournamentPage() {
   }
 
   const handlePhaseChange = (val: string) => {
+    if (val === 'estadisticas') {
+      setActiveMenu('estadisticas')
+      return
+    }
+    setActiveMenu('clasificacion')
     setSelectedPhase(val)
     const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === val)
     if (phaseMatches.length > 0) {
@@ -283,6 +293,8 @@ export default function TournamentPage() {
       if (rounds.length > 0) {
         setSelectedRound(rounds[0])
       }
+    } else {
+      setSelectedRound('')
     }
   }
 
@@ -442,67 +454,93 @@ export default function TournamentPage() {
     return Object.values(players).sort((a, b) => (b.red * 3 + b.yellow) - (a.red * 3 + a.yellow)).slice(0, 10)
   }
 
+  const BracketColumn = ({ title, matches }: { title: string, matches: any[] }) => (
+    <div className="flex flex-col gap-6">
+      <div className="bg-slate-900 text-white p-3 rounded-xl text-center font-black text-[10px] uppercase tracking-widest">{title}</div>
+      <div className="space-y-4">
+        {matches.map((m: any) => <MatchCard key={m.id} match={m} />)}
+        {matches.length === 0 && <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-2xl text-[9px] font-black text-slate-300 uppercase tracking-widest">Sin partidos</div>}
+      </div>
+    </div>
+  )
+
+  const MatchCard = ({ match }: { match: any }) => {
+    const hTeamName = match.homeTeam?.name || match.homePlaceholder || 'Por definir'
+    const aTeamName = match.awayTeam?.name || match.awayPlaceholder || 'Por definir'
+    return (
+      <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={() => handleOpenMatchModal(match)}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm">🏆</div>
+            <span className="text-[11px] font-black text-slate-800 uppercase truncate w-24">{hTeamName}</span>
+          </div>
+          <div className="font-black text-slate-900 text-lg">{match.status === 'NO_REALIZADO' ? '-' : match.homeScore}</div>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm">🏆</div>
+            <span className="text-[11px] font-black text-slate-800 uppercase truncate w-24">{aTeamName}</span>
+          </div>
+          <div className="font-black text-slate-900 text-lg">{match.status === 'NO_REALIZADO' ? '-' : match.awayScore}</div>
+        </div>
+        {match.status === 'EN_VIVO' && <div className="mt-4 text-center"><span className="bg-yellow-400 text-slate-900 px-3 py-1 rounded-full text-[8px] font-black uppercase animate-pulse">En Vivo</span></div>}
+      </div>
+    )
+  }
+
+
   const shareUrl = `https://copafacil.com/${tournamentId}`
   const sportIcon = getSportIcon(tournament?.sportType || '')
 
-  if (loading && !tournament) return <div className="p-8">Cargando...</div>
-  if (!tournament) return <div className="p-8">No encontrado. <button onClick={fetchData}>Recargar</button></div>
+  if (loading && !tournament) return <div className="p-8 text-center font-black text-slate-400 uppercase tracking-widest">Cargando Torneo...</div>
+  if (!tournament) return <div className="p-8 text-center text-slate-400 font-bold italic">No se encontró el torneo.</div>
 
   return (
     <>
     <div className="min-h-screen bg-[#F8FAFC] flex relative overflow-hidden font-sans">
       {/* Sidebar */}
-      <div className="w-56 bg-white border-r border-slate-100 flex-shrink-0 z-10">
-        <div className="p-6">
-          <button onClick={() => router.push('/dashboard')} className="text-slate-400 text-xs font-black uppercase tracking-widest mb-8 hover:text-blue-600 transition flex items-center gap-2">← Dashboard</button>
-          <div className="mb-8">
-            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Torneo</div>
-            <h2 className="font-black text-xl text-slate-800 leading-tight">{tournament.name}</h2>
+      <div className="w-64 bg-[#0A1128] text-slate-400 flex flex-col h-full z-10 border-r border-white/5">
+        <div className="p-8">
+          <div className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-500/20">🏆</div>
+            <h1 className="text-xl font-black text-white tracking-tighter uppercase">{tournament?.name || 'Copa Depor'}</h1>
           </div>
-          <nav className="space-y-1">
-            <button onClick={() => setActiveMenu('inicio')} className={`w-full text-left px-4 py-3 rounded-2xl font-black text-sm transition-all ${activeMenu === 'inicio' ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>🏠 Inicio</button>
-            <button onClick={() => setActiveMenu('clasificacion')} className={`w-full text-left px-4 py-3 rounded-2xl font-black text-sm transition-all ${activeMenu === 'clasificacion' ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>📊 Clasificación</button>
-            <button onClick={() => setActiveMenu('estadisticas')} className={`w-full text-left px-4 py-3 rounded-2xl font-black text-sm transition-all ${activeMenu === 'estadisticas' ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}>🏆 Estadísticas</button>
-          </nav>
 
-          {/* Phase Selector */}
-          <div className="mt-8 px-4">
-            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2">Fase Activa</div>
-            <select 
-              value={selectedPhase}
-              onChange={(e) => handlePhaseChange(e.target.value)}
-              className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
-            >
-              {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
-            </select>
+          <nav className="space-y-2">
+            <button onClick={() => setActiveMenu('inicio')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'inicio' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
+              <span className="text-lg">🏠</span> Inicio
+            </button>
+            <button onClick={() => setActiveMenu('clasificacion')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'clasificacion' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
+              <span className="text-lg">📊</span> Clasificación
+            </button>
+            <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
+              <span className="text-lg">📈</span> Rankings y encuestas
+            </button>
+            <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
+              <span className="text-lg">📸</span> Fotos, vídeos y noticias
+            </button>
+            <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed mt-8">
+              <span className="text-lg">⚙️</span> Configuración
+            </button>
+          </nav>
+        </div>
+
+        <div className="mt-auto p-6 border-t border-white/5">
+          <div className="flex items-center justify-between gap-3 px-2">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-9 h-9 rounded-full bg-slate-800 flex-shrink-0 flex items-center justify-center font-black text-white text-sm">O</div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[11px] font-black text-white truncate">Orlando Semidei</span>
+              </div>
+            </div>
+            <button onClick={() => { localStorage.clear(); window.location.href = '/login'; }} className="text-[9px] font-black text-slate-500 uppercase hover:text-white transition-colors">Salir</button>
           </div>
         </div>
       </div>
 
       <div className="flex-1 p-8 overflow-y-auto">
         {/* TOP NAVIGATION SELECTOR */}
-        <div className="max-w-[1600px] mx-auto mb-8 flex items-center justify-between bg-white rounded-3xl p-2 shadow-sm border border-slate-100">
-          <div className="flex gap-1">
-            <button 
-              onClick={() => { setActiveMenu('clasificacion'); setSelectedPhase('Primera Fase'); }}
-              className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedPhase === 'Primera Fase' && activeMenu === 'clasificacion' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
-            >
-              1° Fase
-            </button>
-            <button 
-              onClick={() => { setActiveMenu('clasificacion'); setSelectedPhase('Segunda Fase'); }}
-              className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedPhase === 'Segunda Fase' && activeMenu === 'clasificacion' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
-            >
-              2° Fase
-            </button>
-            <button 
-              onClick={() => setActiveMenu('estadisticas')}
-              className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeMenu === 'estadisticas' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
-            >
-              Estadísticas
-            </button>
-          </div>
-          
+        <div className="max-w-[1600px] mx-auto mb-8 flex items-center justify-end bg-white rounded-3xl p-2 shadow-sm border border-slate-100">
           <div className="pr-4 flex gap-3">
              {selectedPhase !== 'Primera Fase' && (
                <button 
@@ -550,73 +588,169 @@ export default function TournamentPage() {
               </div>
             </div>
           </div>
-        ) : activeMenu === 'clasificacion' ? (
+        ) : (activeMenu === 'clasificacion' || activeMenu === 'estadisticas') ? (
           <div className="flex flex-col xl:flex-row gap-8 max-w-[1600px] mx-auto h-full">
             {/* Classification OR Bracket */}
             <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50 overflow-y-auto">
                 <div className="animate-in fade-in duration-500">
                   <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-4">
-                      <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">📊 {selectedPhase}</h2>
+                      <select 
+                        value={activeMenu === 'estadisticas' ? 'estadisticas' : selectedPhase}
+                        onChange={(e) => handlePhaseChange(e.target.value)}
+                        className="bg-white border border-slate-200 rounded-2xl px-6 py-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer shadow-sm"
+                      >
+                        {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
+                        {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase}>{selectedPhase}</option>}
+                        <option value="estadisticas" className="text-blue-600 font-black">🏆 Estadísticas Generales</option>
+                      </select>
                     </div>
                     <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all">GESTOR DE EQUIPOS</button>
                   </div>
                   
-                  {selectedPhase === 'Primera Fase' ? (
-                    <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
-                            <th className="p-4 text-center">Pos</th>
-                            <th className="p-4 text-left">Equipo</th>
-                            <th className="p-4 text-center">PJ</th>
-                            <th className="p-4 text-center">G</th>
-                            <th className="p-4 text-center">E</th>
-                            <th className="p-4 text-center">P</th>
-                            <th className="p-4 text-center">GF</th>
-                            <th className="p-4 text-center">GC</th>
-                            <th className="p-4 text-center">DG</th>
-                            <th className="p-4 text-center">Pts</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {getStandings().length === 0 ? (
-                            <tr><td colSpan={10} className="p-12 text-center text-slate-300 font-bold italic">No hay partidos registrados aún</td></tr>
-                          ) : getStandings().map((row: any, i: number) => (
-                            <tr key={row.id} className="hover:bg-slate-50 transition-all group">
-                              <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
-                              <td className="p-4 font-black text-slate-800">{row.name}</td>
-                              <td className="p-4 text-center font-bold text-slate-600">{row.played}</td>
-                              <td className="p-4 text-center text-green-600 font-black">{row.won}</td>
-                              <td className="p-4 text-center text-slate-400 font-black">{row.drawn}</td>
-                              <td className="p-4 text-center text-red-500 font-black">{row.lost}</td>
-                              <td className="p-4 text-center text-slate-500 font-bold">{row.gf}</td>
-                              <td className="p-4 text-center text-slate-500 font-bold">{row.ga}</td>
-                              <td className="p-4 text-center font-black text-slate-800">{(row.gf - row.ga) > 0 ? `+${row.gf - row.ga}` : row.gf - row.ga}</td>
-                              <td className="p-4 text-center font-black text-blue-600 text-lg">{row.points}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  {activeMenu === 'estadisticas' ? (
+                    <div className="space-y-12 animate-in fade-in duration-500">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Top Scorers */}
+                        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🥅 Goleadores</h3>
+                          <div className="overflow-hidden rounded-2xl border border-slate-50">
+                            <table className="w-full text-xs">
+                              <thead className="bg-slate-900 text-white">
+                                <tr>
+                                  <th className="p-3 text-center">Pos</th>
+                                  <th className="p-3 text-left">Jugador</th>
+                                  <th className="p-3 text-center">Goles</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-50">
+                                {getTopScorers().map((p: any, i: number) => (
+                                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-3 text-center font-black text-slate-400">{i+1}</td>
+                                    <td className="p-3 font-black text-slate-800">
+                                      <div className="flex flex-col">
+                                        <span>{p.name}</span>
+                                        <span className="text-[8px] text-slate-400 uppercase">{p.team}</span>
+                                      </div>
+                                    </td>
+                                    <td className="p-3 text-center font-black text-blue-600">{p.goals}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Disciplined */}
+                        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🟨 Sanciones</h3>
+                          <div className="overflow-hidden rounded-2xl border border-slate-50">
+                            <table className="w-full text-xs">
+                              <thead className="bg-slate-900 text-white">
+                                <tr>
+                                  <th className="p-3 text-center">Pos</th>
+                                  <th className="p-3 text-left">Jugador</th>
+                                  <th className="p-3 text-center">🟨</th>
+                                  <th className="p-3 text-center">🟥</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-50">
+                                {getTopDisciplined().map((p: any, i: number) => (
+                                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-3 text-center font-black text-slate-400">{i+1}</td>
+                                    <td className="p-3 font-black text-slate-800">
+                                      <div className="flex flex-col">
+                                        <span>{p.name}</span>
+                                        <span className="text-[8px] text-slate-400 uppercase">{p.team}</span>
+                                      </div>
+                                    </td>
+                                    <td className="p-3 text-center font-black text-yellow-500">{p.yellow}</td>
+                                    <td className="p-3 text-center font-black text-red-500">{p.red}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <RankingCard title="Mejor ataque" label="Goles" data={getTeamRankings().bestAttack} field="gf" />
+                        <RankingCard title="Mejor defensa" label="Goles" data={getTeamRankings().bestDefense} field="ga" />
+                        <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
+                        <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
+                      </div>
                     </div>
                   ) : (
-                    <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
-                      <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Tabla de clasificación no disponible en esta fase</p>
-                    </div>
-                  )}
-
-                  {(selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria')) && (
                     <>
-                      <div className="flex justify-between items-center mb-10 border-t border-slate-100 pt-10">
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">🌳 Cuadro de Llaves</h2>
-                        <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase italic">Esquema Visual</span>
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-10">
-                        <BracketColumn title="Cuartos" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
-                        <BracketColumn title="Semis" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
-                        <BracketColumn title="Final" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('final'))} />
-                      </div>
+                      {!selectedPhase.toLowerCase().includes('final') && !selectedPhase.toLowerCase().includes('eliminatoria') ? (
+                        <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                                <th className="p-4 text-center">Pos</th>
+                                <th className="p-4 text-left">EQUIPOS</th>
+                                <th className="p-4 text-center">Pts</th>
+                                <th className="p-4 text-center">J</th>
+                                <th className="p-4 text-center">G</th>
+                                <th className="p-4 text-center">E</th>
+                                <th className="p-4 text-center">P</th>
+                                <th className="p-4 text-center">GF</th>
+                                <th className="p-4 text-center">GC</th>
+                                <th className="p-4 text-center">DIF</th>
+                                <th className="p-4 text-center">%</th>
+                                <th className="p-4 text-center">PE</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {getStandings().length === 0 ? (
+                                <tr><td colSpan={12} className="p-12 text-center text-slate-300 font-bold italic">No hay partidos registrados aún</td></tr>
+                              ) : getStandings().map((row: any, i: number) => (
+                                <tr key={row.id} className="hover:bg-slate-50 transition-all group">
+                                  <td className="p-4 text-center">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-sm mx-auto">{i+1}</div>
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xl shadow-inner">⚽</div>
+                                      <span className="font-black text-slate-800">{row.name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="p-4 text-center font-black text-blue-600 text-lg bg-blue-50/30">{row.points}</td>
+                                  <td className="p-4 text-center font-bold text-slate-600">{row.played}</td>
+                                  <td className="p-4 text-center text-slate-500 font-bold bg-slate-50/30">{row.won}</td>
+                                  <td className="p-4 text-center text-slate-400 font-bold">{row.drawn}</td>
+                                  <td className="p-4 text-center text-slate-400 font-bold bg-slate-50/30">{row.lost}</td>
+                                  <td className="p-4 text-center text-slate-500 font-bold">{row.gf}</td>
+                                  <td className="p-4 text-center text-slate-500 font-bold bg-slate-50/30">{row.ga}</td>
+                                  <td className="p-4 text-center font-black text-slate-800">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
+                                  <td className="p-4 text-center font-bold text-slate-500 bg-slate-50/30">{row.perc}</td>
+                                  <td className="p-4 text-center font-bold text-slate-400">0</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                          <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Tabla de clasificación no disponible en esta fase</p>
+                        </div>
+                      )}
+
+                      {(selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria')) && (
+                        <>
+                          <div className="flex justify-between items-center mb-10 border-t border-slate-100 pt-10">
+                            <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">🌳 Cuadro de Llaves</h2>
+                            <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase italic">Esquema Visual</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-10">
+                            <BracketColumn title="Cuartos" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
+                            <BracketColumn title="Semis" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
+                            <BracketColumn title="Final" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('final'))} />
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -634,6 +768,7 @@ export default function TournamentPage() {
                     style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                   >
                     {phases.map(p => <option key={p.id || p.name} value={p.name} className="text-black">{p.name}</option>)}
+                    {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase} className="text-black">{selectedPhase}</option>}
                   </select>
                   <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
                     {Array.from(new Set(matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase).map(m => m.roundName))).sort((a,b) => {
@@ -676,6 +811,8 @@ export default function TournamentPage() {
                         alert('Debes agregar equipos al torneo antes de agregar una fecha.');
                         return;
                       }
+                      const pending = matches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
+                      if (pending.length > 0) return alert('No se puede generar partidos de la segunda fase porque aún no se han jugado todos los partidos de la primera fase.')
                       setShowAddMatchModal(true)
                     }} className="px-8 py-3.5 bg-[#0F172A] text-white rounded-xl font-medium text-sm hover:bg-[#1E293B] transition-all shadow-md">AGREGAR FECHA</button>
                   </div>
@@ -1845,7 +1982,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
   const stats = {
     matches: matches.length,
     goals: 0,
-    scorers: {} as Record<string, { name: string; team: string; goals: number }>,
+    scorers: {} as Record<string, { name: string; team: string; goals: number; penalties: number }>,
     yellowCards: {} as Record<string, { name: string; team: string; count: number }>,
     redCards: {} as Record<string, { name: string; team: string; count: number }>,
   }
@@ -1864,7 +2001,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
         const displayName = pName ? (e.type === 'OWN_GOAL' ? `${pName} (A.G.)` : pName) : (e.type === 'OWN_GOAL' ? 'Autogol' : 'Desconocido')
         const key = e.type === 'OWN_GOAL' ? `AG_${pName || 'anon'}_${e.id}` : (pName || 'Desconocido')
         
-        if (!stats.scorers[key]) stats.scorers[key] = { name: displayName, team: tName, goals: 0, penalties: 0 }
+        if (!stats.scorers[key]) (stats.scorers as any)[key] = { name: displayName, team: tName, goals: 0, penalties: 0 }
         stats.scorers[key].goals++
         if (isPenal) stats.scorers[key].penalties++
       } else if (e.type === 'YELLOW_CARD') {
@@ -1955,62 +2092,6 @@ function RoundStatistics({ matches }: { matches: any[] }) {
           </div>
         </section>
       </div>
-    </div>
-  )
-}
-
-
-function BracketColumn({ title, matches }: { title: string, matches: any[] }) {
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-4">{title}</h4>
-      </div>
-      <div className="flex flex-col gap-10 flex-1 justify-around">
-        {matches.length === 0 ? (
-          <div className="border-2 border-dashed border-slate-50 rounded-3xl p-8 text-center text-[10px] font-black text-slate-200 uppercase tracking-widest">Esperando cruces</div>
-        ) : (
-          matches.map(m => <BracketMatch key={m.id} match={m} />)
-        )}
-      </div>
-    </div>
-  )
-}
-
-function BracketMatch({ match }: { match: any }) {
-  const hTeamName = match.homeTeam?.name || match.homePlaceholder;
-  const aTeamName = match.awayTeam?.name || match.awayPlaceholder;
-  const hMissing = !match.homeTeam;
-  const aMissing = !match.awayTeam;
-
-  return (
-    <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all">
-      <div className="text-center mb-3">
-        {match.groupName && <span className="text-[10px] font-black text-slate-400 uppercase">{match.roundName} {match.groupName}</span>}
-      </div>
-      <div className="flex items-center justify-between">
-        {/* Home */}
-        <div className="flex flex-col items-center gap-2 w-16">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${hMissing ? 'bg-slate-100 border-2 border-dashed border-slate-200' : 'bg-[#10B981] text-white shadow-md'}`}>
-            {hMissing ? <span className="text-slate-400 text-xs font-bold text-center leading-tight">{hTeamName}</span> : '🏆'}
-          </div>
-          <span className="text-[9px] font-black text-slate-700 text-center truncate w-full uppercase">{hMissing ? '' : hTeamName}</span>
-        </div>
-        
-        {/* Score box */}
-        <div className="w-10 h-12 bg-white border border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-800 font-black text-lg">
-          {match.status === 'NO_REALIZADO' ? ':' : `${match.homeScore ?? '-'} - ${match.awayScore ?? '-'}`}
-        </div>
-        
-        {/* Away */}
-        <div className="flex flex-col items-center gap-2 w-16">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${aMissing ? 'bg-slate-100 border-2 border-dashed border-slate-200' : 'bg-[#10B981] text-white shadow-md'}`}>
-             {aMissing ? <span className="text-slate-400 text-xs font-bold text-center leading-tight">{aTeamName}</span> : '🏆'}
-          </div>
-          <span className="text-[9px] font-black text-slate-700 text-center truncate w-full uppercase">{aMissing ? '' : aTeamName}</span>
-        </div>
-      </div>
-      {match.notes && <div className="mt-4 text-center border-t border-slate-100 pt-3 text-[9px] font-black text-slate-800 uppercase tracking-tight">{match.roundName} {match.groupName} - {match.notes}</div>}
     </div>
   )
 }
