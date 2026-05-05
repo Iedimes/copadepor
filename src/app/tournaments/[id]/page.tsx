@@ -78,7 +78,7 @@ export default function TournamentPage() {
   const [showPhasesList, setShowPhasesList] = useState(false)
   const [showPhaseType, setShowPhaseType] = useState(false)
   const [showEditPhase, setShowEditPhase] = useState(false)
-  const [editPhaseData, setEditPhaseData] = useState<{ name: string, type: string, order: number, isClassification: boolean, continueFromId: string | null }>({ name: '', type: 'LIGA', order: 0, isClassification: true, continueFromId: null })
+  const [editPhaseData, setEditPhaseData] = useState<{ id?: string, name: string, type: string, order: number, isClassification: boolean, continueFromId: string | null, teams?: any[] }>({ name: '', type: 'LIGA', order: 0, isClassification: true, continueFromId: null })
   const [showPhaseTeams, setShowPhaseTeams] = useState(false)
   const [showPhaseContinue, setShowPhaseContinue] = useState(false)
 
@@ -266,7 +266,6 @@ export default function TournamentPage() {
   const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
     if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
 
-    const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
     if (selectedPhase !== firstPhaseName) {
       const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
       const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
@@ -293,7 +292,6 @@ export default function TournamentPage() {
   const handleCreateAdvantagePlayoff = () => {
     if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
 
-    const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
     if (selectedPhase !== firstPhaseName) {
       const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
       const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
@@ -306,7 +304,6 @@ export default function TournamentPage() {
 
   const handleGenerateSemifinals = async () => {
     if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
-    const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
     if (selectedPhase !== firstPhaseName) {
       const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
       const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
@@ -333,7 +330,6 @@ export default function TournamentPage() {
 
   const handleGenerateFinal = async () => {
     if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
-    const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
     if (selectedPhase !== firstPhaseName) {
       const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
       const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
@@ -385,16 +381,52 @@ export default function TournamentPage() {
     }
   }
 
+  const handleEditPhase = (p: any) => {
+    let teams = p.teams;
+    if (typeof teams === 'string') {
+      try { teams = JSON.parse(teams); } catch (e) { teams = []; }
+    }
+    setEditPhaseData({
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      order: p.order,
+      isClassification: p.isClassification !== undefined ? p.isClassification : true,
+      continueFromId: p.continueFromId || null,
+      teams: Array.isArray(teams) ? teams : []
+    })
+    setShowPhasesList(false)
+    setShowEditPhase(true)
+  }
+
+  const handleDeletePhase = async (phaseId: string) => {
+    if (!confirm('¿Estás seguro de eliminar esta fase? Se perderán todos los partidos asociados.')) return
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/phases/${phaseId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (res.ok) {
+      await fetchData()
+      setShowEditPhase(false)
+    } else {
+      alert('Error al eliminar fase')
+    }
+  }
+
   const handleSavePhase = async () => {
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}/phases`, {
-      method: 'POST',
+    const isUpdate = !!editPhaseData.id
+    const url = `/api/tournaments/${tournamentId}/phases${isUpdate ? `/${editPhaseData.id}` : ''}`
+    const res = await fetch(url, {
+      method: isUpdate ? 'PUT' : 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(editPhaseData),
     })
     if (res.ok) {
+      const savedPhase = await res.json()
       await fetchData()
-      setSelectedPhase(editPhaseData.name)
+      setSelectedPhase(savedPhase.name)
       setShowEditPhase(false)
     } else {
       alert('Error al guardar fase')
@@ -436,7 +468,25 @@ export default function TournamentPage() {
 
   const getStandings = () => {
     const stats: Record<string, any> = {}
-    tournamentTeams.forEach(tt => { stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } })
+    
+    // Find current phase object to get its specific teams
+    const currentPhaseObj = phases.find(p => p.name === selectedPhase)
+    let phaseTeamIds: string[] | null = null
+    if (currentPhaseObj?.teams) {
+      try {
+        const teamsParsed = typeof currentPhaseObj.teams === 'string' ? JSON.parse(currentPhaseObj.teams) : currentPhaseObj.teams
+        if (Array.isArray(teamsParsed) && teamsParsed.length > 0) {
+          phaseTeamIds = teamsParsed
+        }
+      } catch (e) { console.error('Error parsing phase teams:', e) }
+    }
+
+    tournamentTeams.forEach(tt => { 
+      // If phase has specific teams, only include those. Otherwise, include all.
+      if (!phaseTeamIds || phaseTeamIds.includes(tt.team.id)) {
+        stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } 
+      }
+    })
     
     // Filter matches by selected phase AND EXCLUDE playoffs
     const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && !['Cuartos de final', 'Semifinal', 'Final', 'Cuartos', 'Semi Final'].includes(String(m.roundName)))
@@ -683,13 +733,16 @@ export default function TournamentPage() {
                      {/* Dropdown Menu */}
                      <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
                        <div className="py-2">
+                         <button onClick={() => setShowGenType(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                           <span className="text-lg">⚽</span> Generar Fixture
+                         </button>
                          <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                            <span className="text-lg">📋</span> Equipos
                          </button>
                          <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
                            <span className="text-lg">⛖</span> Grupos
                          </button>
-                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                         <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                            <span className="text-lg">📚</span> Fases
                          </button>
                          <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
@@ -750,13 +803,16 @@ export default function TournamentPage() {
                            {/* Dropdown Menu */}
                            <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
                              <div className="py-2">
+                               <button onClick={() => setShowGenType(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                 <span className="text-lg">⚽</span> Generar Fixture
+                               </button>
                                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">📋</span> Equipos
                                </button>
                                <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
                                  <span className="text-lg">⛖</span> Grupos
                                </button>
-                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">📚</span> Fases
                                </button>
                                <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
@@ -1197,14 +1253,12 @@ export default function TournamentPage() {
             <h3 className="text-xl font-black text-center mb-6 text-slate-900">Fases</h3>
             <div className="space-y-2 mb-6 max-h-64 overflow-y-auto custom-scrollbar pr-2">
               {phases.map(p => (
-                <div key={p.id || p.name} className="p-4 bg-slate-50 text-slate-800 rounded-2xl font-black border border-slate-100 flex justify-between items-center hover:border-slate-300 transition-colors">
-                  <div className="cursor-pointer flex-1" onClick={() => { handlePhaseChange(p.name); setShowPhasesList(false); }}>
+                <div key={p.id || p.name} className="p-4 bg-slate-50 text-slate-800 rounded-2xl font-black border border-slate-100 flex justify-between items-center hover:border-slate-300 transition-colors group cursor-pointer" onClick={() => handleEditPhase(p)}>
+                  <div className="flex-1">
                     <span>{p.name}</span>
                     <span className="ml-2 text-[9px] text-slate-400 uppercase tracking-widest">{p.type === 'ELIMINATORIA' ? 'Eliminatoria' : 'Todos contra todos'}</span>
                   </div>
-                  {p.name !== 'Primera Fase' && p.id && (
-                    <button onClick={(e) => { e.stopPropagation(); handleDeletePhase(p.id); }} className="text-red-400 hover:text-red-600 p-2">🗑️</button>
-                  )}
+                  <span className="text-slate-300 group-hover:text-blue-500 transition-colors">✏️</span>
                 </div>
               ))}
             </div>
@@ -1221,8 +1275,8 @@ export default function TournamentPage() {
             <h3 className="text-xl font-black text-center mb-8 text-slate-900">Fases</h3>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">1° Fase</div>
             <div className="space-y-3">
-              <button onClick={() => { setEditPhaseData({ ...editPhaseData, type: 'LIGA' }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
-              <button onClick={() => { setEditPhaseData({ ...editPhaseData, type: 'ELIMINATORIA' }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Eliminatoria</button>
+              <button onClick={() => { setEditPhaseData({ name: '', type: 'LIGA', order: phases.length, isClassification: true, continueFromId: null, teams: [] }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
+              <button onClick={() => { setEditPhaseData({ name: '', type: 'ELIMINATORIA', order: phases.length, isClassification: true, continueFromId: null, teams: [] }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Eliminatoria</button>
             </div>
             <button onClick={() => setShowPhaseType(false)} className="w-full mt-6 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
           </div>
@@ -1252,12 +1306,27 @@ export default function TournamentPage() {
                 </div>
                 {showPhaseTeams && (
                   <div className="bg-white rounded-xl p-3 border border-slate-200 max-h-40 overflow-y-auto">
-                    {tournamentTeams.map(t => (
-                      <div key={t.id} className="flex items-center gap-2 mb-2">
-                        <input type="checkbox" defaultChecked className="w-4 h-4 rounded text-blue-600" />
-                        <span className="text-sm font-bold text-slate-700">{t.team.name}</span>
-                      </div>
-                    ))}
+                    {tournamentTeams.map(t => {
+                      const isSelected = (editPhaseData.teams || []).includes(t.team.id);
+                      return (
+                        <div key={t.id} className="flex items-center gap-2 mb-2">
+                          <input 
+                            type="checkbox" 
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const currentTeams = editPhaseData.teams || [];
+                              if (e.target.checked) {
+                                setEditPhaseData({ ...editPhaseData, teams: [...currentTeams, t.team.id] });
+                              } else {
+                                setEditPhaseData({ ...editPhaseData, teams: currentTeams.filter(id => id !== t.team.id) });
+                              }
+                            }}
+                            className="w-4 h-4 rounded text-blue-600 cursor-pointer" 
+                          />
+                          <span className="text-sm font-bold text-slate-700">{t.team.name}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 
@@ -1281,7 +1350,7 @@ export default function TournamentPage() {
                 )}
               </div>
               <div className="flex gap-4 px-4">
-                <button onClick={() => setShowEditPhase(false)} className="flex-1 py-3 text-red-500 font-black text-sm transition-all hover:bg-red-50 rounded-xl">Quitar</button>
+                <button onClick={() => { if (editPhaseData.id) handleDeletePhase(editPhaseData.id); else setShowEditPhase(false); }} className="flex-1 py-3 text-red-500 font-black text-sm transition-all hover:bg-red-50 rounded-xl">Quitar</button>
                 <button onClick={handleSavePhase} className="flex-1 py-3 text-blue-500 font-black text-sm transition-all hover:bg-blue-50 rounded-xl">Guardar</button>
               </div>
             </div>
