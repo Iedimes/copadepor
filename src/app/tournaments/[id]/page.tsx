@@ -105,6 +105,80 @@ export default function TournamentPage() {
     fetchData()
   }, [tournamentId, activeMenu])
 
+  const RankingCard = ({ title, label, data, field }: any) => (
+    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{title}</h4>
+      <div className="space-y-2">
+        {data.slice(0, 3).map((item: any, i: number) => (
+          <div key={i} className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-700 truncate max-w-[100px]">{item.name}</span>
+            <span className="text-xs font-black text-blue-600">{field === 'totalCards' ? item.totalCards : item[field]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderMatchCard = (m: any) => {
+    const isE = editingMatchData?.id === m.id;
+    const hS = isE ? editingMatchData.homeScore : m.homeScore;
+    const aS = isE ? editingMatchData.awayScore : m.awayScore;
+    const st = isE ? editingMatchData.status : m.status;
+
+    return (
+      <div 
+        key={m.id} 
+        onClick={() => handleOpenMatchModal(m)} 
+        className={`relative flex items-center justify-between p-4 group cursor-pointer transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 rounded-[2rem] border border-transparent hover:border-slate-100 ${isE ? 'scale-[1.02] bg-white shadow-2xl border-blue-100' : ''}`}
+      >
+        {/* Home Team */}
+        <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
+          {m.advantageTeamId === m.homeTeam?.id && (
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+          )}
+          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative ${m.homeTeam ? 'bg-gradient-to-br from-slate-800 to-slate-900 text-white' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`}>
+            {m.homeTeam ? '🏆' : <span className="text-slate-300 text-sm">?</span>}
+          </div>
+          <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
+            {m.homeTeam?.name || m.homePlaceholder || 'Por definir'}
+          </span>
+        </div>
+
+        {/* Score Block */}
+        <div className="flex flex-col items-center">
+          <div className="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px] group-hover:bg-white transition-colors">
+            <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
+              {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : <span className="text-slate-300">VS</span>}
+              {st === 'FINALIZADO' && m.homePenaltyScore !== null && m.awayPenaltyScore !== null && (
+                <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest text-center">Pen: {m.homePenaltyScore}-{m.awayPenaltyScore}</span>
+              )}
+            </div>
+            {st !== 'NO_REALIZADO' && (
+              <div className={`text-[8px] font-black px-3 py-0.5 rounded-md mt-1 uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
+                {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Away Team */}
+        <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
+          {m.advantageTeamId === m.awayTeam?.id && (
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+          )}
+          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative ${m.awayTeam ? 'bg-gradient-to-br from-slate-800 to-slate-900 text-white' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`}>
+            {m.awayTeam ? '🏆' : <span className="text-slate-300 text-sm">?</span>}
+          </div>
+          <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
+            {m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}
+          </span>
+        </div>
+
+        {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2.5rem] pointer-events-none animate-pulse"></div>}
+      </div>
+    );
+  };
+
   useEffect(() => {
     const view = searchParams.get('view')
     if (view === 'clasificacion' && activeMenu === 'inicio') {
@@ -597,340 +671,337 @@ export default function TournamentPage() {
         ) : (activeMenu === 'clasificacion' || activeMenu === 'estadisticas') ? (
           <div className="flex flex-col h-full max-w-[1600px] mx-auto w-full">
             <h1 className="text-3xl font-black text-[#0A1128] mb-8 tracking-tight">{tournament?.name}</h1>
-            <div className="flex flex-col xl:flex-row gap-8 w-full h-full">
-              {/* Classification OR Bracket */}
-              <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-200/60 overflow-y-auto relative">
-                <div className="animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center mb-12 relative">
-                    <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <select 
-                          value={activeMenu === 'estadisticas' ? 'estadisticas' : selectedPhase}
-                          onChange={(e) => handlePhaseChange(e.target.value)}
-                          className="bg-transparent border border-slate-300 rounded-full pl-4 pr-8 py-1.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
-                        >
-                          {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
-                          {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase}>{selectedPhase}</option>}
-                          <option value="estadisticas" className="text-blue-600 font-black">🏆 Estadísticas Generales</option>
-                        </select>
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 text-xs">⌄</span>
+            {tournamentTeams.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-20 relative bg-white/40 rounded-[3rem] border border-dashed border-slate-200 min-h-[500px] animate-in fade-in zoom-in-95 duration-500">
+                {/* Centered Tab Button - Floating */}
+                <div className="absolute left-1/2 -translate-x-1/2 top-0 z-50">
+                  <div className="relative group">
+                     <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
+                       <span className="text-lg font-light leading-none mb-1">+</span>
+                     </button>
+                     
+                     {/* Dropdown Menu */}
+                     <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
+                       <div className="py-2">
+                         <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                           <span className="text-lg">📋</span> Equipos
+                         </button>
+                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                           <span className="text-lg">⛖</span> Grupos
+                         </button>
+                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                           <span className="text-lg">📚</span> Fases
+                         </button>
+                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                           <span className="text-lg">⬇</span> Exportar
+                         </button>
+                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                           <span className="text-lg">☰</span> Tabla
+                         </button>
+                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                           <span className="text-lg">☑</span> Criterios de clasificación
+                         </button>
+                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                           <span className="text-lg">⇅</span> Reordenar
+                         </button>
+                       </div>
+                     </div>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-slate-500 font-bold mb-6 italic">Aún no hay equipos</p>
+                  <button 
+                    onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)}
+                    className="bg-[#0A1128] text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:scale-105 transition-all shadow-xl shadow-slate-200"
+                  >
+                    AGREGAR EQUIPOS
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col xl:flex-row gap-8 w-full h-full">
+                {/* Classification OR Bracket */}
+                <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-200/60 overflow-y-auto relative">
+                  <div className="animate-in fade-in duration-500">
+                    <div className="flex justify-between items-center mb-12 relative">
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <select 
+                            value={activeMenu === 'estadisticas' ? 'estadisticas' : selectedPhase}
+                            onChange={(e) => handlePhaseChange(e.target.value)}
+                            className="bg-transparent border border-slate-300 rounded-full pl-4 pr-8 py-1.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                          >
+                            {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
+                            {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase}>{selectedPhase}</option>}
+                            <option value="estadisticas" className="text-blue-600 font-black">🏆 Estadísticas Generales</option>
+                          </select>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 text-xs">⌄</span>
+                        </div>
+                      </div>
+
+                      {/* Centered Tab Button */}
+                      <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50">
+                        <div className="relative group">
+                           <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
+                             <span className="text-lg font-light leading-none mb-1">+</span>
+                           </button>
+                           
+                           {/* Dropdown Menu */}
+                           <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
+                             <div className="py-2">
+                               <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                 <span className="text-lg">📋</span> Equipos
+                               </button>
+                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                                 <span className="text-lg">⛖</span> Grupos
+                               </button>
+                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                                 <span className="text-lg">📚</span> Fases
+                               </button>
+                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                                 <span className="text-lg">⬇</span> Exportar
+                               </button>
+                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                                 <span className="text-lg">☰</span> Tabla
+                               </button>
+                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                                 <span className="text-lg">☑</span> Criterios de clasificación
+                               </button>
+                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                                 <span className="text-lg">⇅</span> Reordenar
+                               </button>
+                             </div>
+                           </div>
+                        </div>
                       </div>
                     </div>
+                    
+                    {activeMenu === 'estadisticas' ? (
+                      <div className="space-y-12 animate-in fade-in duration-500">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                          {/* Top Scorers */}
+                          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🥅 Goleadores</h3>
+                            <div className="overflow-hidden rounded-2xl border border-slate-50">
+                              <table className="w-full text-xs">
+                                <thead className="bg-slate-900 text-white">
+                                  <tr className="uppercase tracking-widest font-black">
+                                    <th className="p-4 text-center w-12">Pos</th>
+                                    <th className="p-4 text-left">Jugador</th>
+                                    <th className="p-4 text-left">Equipo</th>
+                                    <th className="p-4 text-center">Goles</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {getTopScorers().length === 0 ? (
+                                    <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">No hay goles registrados aún</td></tr>
+                                  ) : getTopScorers().map((p: any, i: number) => (
+                                    <tr key={i} className="hover:bg-slate-50 transition-all">
+                                      <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                                      <td className="p-4 font-black text-slate-800">{p.name}</td>
+                                      <td className="p-4 text-slate-500 font-bold text-xs uppercase">{p.team}</td>
+                                      <td className="p-4 text-center font-black text-blue-600 text-lg">{p.goals}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
 
-                    {/* Centered Tab Button */}
-                    <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50">
-                      <div className="relative group">
-                         <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
-                           <span className="text-lg font-light leading-none mb-1">+</span>
-                         </button>
-                         
-                         {/* Dropdown Menu */}
-                         <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
-                           <div className="py-2">
-                             <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                               <span className="text-lg">📋</span> Equipos
-                             </button>
-                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                               <span className="text-lg">⛖</span> Grupos
-                             </button>
-                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                               <span className="text-lg">📚</span> Fases
-                             </button>
-                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                               <span className="text-lg">⬇</span> Exportar
-                             </button>
-                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                               <span className="text-lg">☰</span> Tabla
-                             </button>
-                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                               <span className="text-lg">☑</span> Criterios de clasificación
-                             </button>
-                             <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                               <span className="text-lg">⇅</span> Reordenar
-                             </button>
-                           </div>
-                         </div>
+                          {/* Disciplined Players */}
+                          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🟨 Sanciones</h3>
+                            <div className="overflow-hidden rounded-2xl border border-slate-50">
+                              <table className="w-full text-xs">
+                                <thead className="bg-slate-900 text-white">
+                                  <tr className="uppercase tracking-widest font-black">
+                                    <th className="p-4 text-center w-12">Pos</th>
+                                    <th className="p-4 text-left">Jugador</th>
+                                    <th className="p-4 text-center">🟨</th>
+                                    <th className="p-4 text-center">🟥</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {getTeamRankings().redCards.length === 0 && getTeamRankings().totalCards.length === 0 ? (
+                                    <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">Sin sanciones registradas</td></tr>
+                                  ) : getTeamRankings().totalCards.slice(0, 5).map((p: any, i: number) => (
+                                    <tr key={i} className="hover:bg-slate-50 transition-all">
+                                      <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                                      <td className="p-4 font-black text-slate-800">{p.name}</td>
+                                      <td className="p-4 text-center font-black text-yellow-500">{p.yellow}</td>
+                                      <td className="p-4 text-center font-black text-red-500">{p.red}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <RankingCard title="Mejor ataque" label="Goles" data={getTeamRankings().bestAttack} field="gf" />
+                          <RankingCard title="Mejor defensa" label="Goles" data={getTeamRankings().bestDefense} field="ga" />
+                          <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
+                          <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
+                        </div>
                       </div>
+                    ) : (
+                      <>
+                        {!selectedPhase.toLowerCase().includes('final') && !selectedPhase.toLowerCase().includes('eliminatoria') ? (
+                          <div className="space-y-4 mt-2">
+                            <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] text-center w-full">Clasificación</h2>
+                            <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
+                              <table className="w-full text-sm">
+                                <thead>
+                                <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                                  <th className="p-4 text-center">Pos</th>
+                                  <th className="p-4 text-left">EQUIPOS</th>
+                                  <th className="p-4 text-center">Pts</th>
+                                  <th className="p-4 text-center">J</th>
+                                  <th className="p-4 text-center">G</th>
+                                  <th className="p-4 text-center">E</th>
+                                  <th className="p-4 text-center">P</th>
+                                  <th className="p-4 text-center">GF</th>
+                                  <th className="p-4 text-center">GC</th>
+                                  <th className="p-4 text-center">DIF</th>
+                                  <th className="p-4 text-center">%</th>
+                                  <th className="p-4 text-center">PE</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {getStandings().map((row: any, index: number) => (
+                                  <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
+                                    <td className="p-4 text-center">
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                        {index + 1}
+                                      </div>
+                                    </td>
+                                    <td className="p-4">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg shadow-sm border border-slate-100">🏆</div>
+                                        <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
+                                      </div>
+                                    </td>
+                                    <td className="p-4 text-center font-black text-blue-600 bg-blue-50/30">{row.points}</td>
+                                    <td className="p-4 text-center font-black text-slate-500">{row.played}</td>
+                                    <td className="p-4 text-center font-bold text-slate-400">{row.won}</td>
+                                    <td className="p-4 text-center font-bold text-slate-400">{row.drawn}</td>
+                                    <td className="p-4 text-center font-bold text-slate-400">{row.lost}</td>
+                                    <td className="p-4 text-center font-bold text-slate-400">{row.gf}</td>
+                                    <td className="p-4 text-center font-bold text-slate-400">{row.ga}</td>
+                                    <td className="p-4 text-center font-black text-slate-700">{row.diff}</td>
+                                    <td className="p-4 text-center font-bold text-slate-500 bg-slate-50/30">{row.perc}</td>
+                                    <td className="p-4 text-center font-bold text-slate-400">0</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                        ) : (
+                          <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                            <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Tabla de clasificación no disponible en esta fase</p>
+                          </div>
+                        )}
+
+                        {(selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria')) && (
+                          <>
+                            <div className="flex justify-between items-center mb-10 border-t border-slate-100 pt-10">
+                              <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">🌳 Cuadro de Llaves</h2>
+                              <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase italic">Esquema Visual</span>
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-10">
+                              <BracketColumn title="Cuartos" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
+                              <BracketColumn title="Semis" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
+                              <BracketColumn title="Final" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('final'))} />
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Calendar */}
+                <div className="w-full xl:w-[450px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 flex flex-col flex-shrink-0 overflow-hidden xl:mt-[112px]">
+                  <div className="bg-[#0F172A] p-6 flex justify-between items-center relative z-10">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
+                    <div className="flex border border-white rounded-full overflow-hidden">
+                      <select 
+                        value={selectedPhase} 
+                        onChange={(e) => handlePhaseChange(e.target.value)}
+                        className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none border-r border-white appearance-none cursor-pointer text-center"
+                        style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                      >
+                        {phases.map(p => <option key={p.id || p.name} value={p.name} className="text-black">{p.name}</option>)}
+                        {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase} className="text-black">{selectedPhase}</option>}
+                      </select>
+                      <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
+                        {Array.from(new Set(matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => m.roundName))).sort((a,b) => {
+                          const isANum = !isNaN(Number(a));
+                          const isBNum = !isNaN(Number(b));
+                          if (isANum && isBNum) return Number(a) - Number(b);
+                          const order: any = { 'cuartos de final': 1, 'semifinal': 2, 'final': 3 };
+                          const aO = order[a.toLowerCase()] || 99;
+                          const bO = order[b.toLowerCase()] || 99;
+                          if (aO !== bO) return aO - bO;
+                          return a.localeCompare(b);
+                        }).map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
+                      </select>
                     </div>
                   </div>
                   
-                  {activeMenu === 'estadisticas' ? (
-                    <div className="space-y-12 animate-in fade-in duration-500">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Top Scorers */}
-                        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-                          <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🥅 Goleadores</h3>
-                          <div className="overflow-hidden rounded-2xl border border-slate-50">
-                            <table className="w-full text-xs">
-                              <thead className="bg-slate-900 text-white">
-                                <tr>
-                                  <th className="p-3 text-center">Pos</th>
-                                  <th className="p-3 text-left">Jugador</th>
-                                  <th className="p-3 text-center">Goles</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-50">
-                                {getTopScorers().map((p: any, i: number) => (
-                                  <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                    <td className="p-3 text-center font-black text-slate-400">{i+1}</td>
-                                    <td className="p-3 font-black text-slate-800">
-                                      <div className="flex flex-col">
-                                        <span>{p.name}</span>
-                                        <span className="text-[8px] text-slate-400 uppercase">{p.team}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-3 text-center font-black text-blue-600">{p.goals}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-
-                        {/* Disciplined */}
-                        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-                          <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🟨 Sanciones</h3>
-                          <div className="overflow-hidden rounded-2xl border border-slate-50">
-                            <table className="w-full text-xs">
-                              <thead className="bg-slate-900 text-white">
-                                <tr>
-                                  <th className="p-3 text-center">Pos</th>
-                                  <th className="p-3 text-left">Jugador</th>
-                                  <th className="p-3 text-center">🟨</th>
-                                  <th className="p-3 text-center">🟥</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-50">
-                                {getTopDisciplined().map((p: any, i: number) => (
-                                  <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                    <td className="p-3 text-center font-black text-slate-400">{i+1}</td>
-                                    <td className="p-3 font-black text-slate-800">
-                                      <div className="flex flex-col">
-                                        <span>{p.name}</span>
-                                        <span className="text-[8px] text-slate-400 uppercase">{p.team}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-3 text-center font-black text-yellow-500">{p.yellow}</td>
-                                    <td className="p-3 text-center font-black text-red-500">{p.red}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
+                  {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                      <div className="w-24 h-24 bg-slate-50 rounded-[2rem] flex items-center justify-center text-4xl shadow-inner">⚽</div>
+                      <div className="space-y-4 w-full px-4">
+                        <button 
+                          onClick={() => {
+                            if (tournamentTeams.length === 0) return alert('Debes agregar equipos al torneo antes de generar los partidos.');
+                            setShowGenType(true);
+                          }}
+                          className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-lg active:scale-95"
+                        >
+                          Generar Partidos
+                        </button>
+                        <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">— o —</div>
+                        <button 
+                          onClick={() => {
+                            if (tournamentTeams.length === 0) return alert('Debes agregar equipos al torneo antes de agregar una fecha.');
+                            setShowAddMatchModal(true);
+                          }}
+                          className="w-full py-4 border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-50 transition-all active:scale-95"
+                        >
+                          Agregar Fecha Manual
+                        </button>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <RankingCard title="Mejor ataque" label="Goles" data={getTeamRankings().bestAttack} field="gf" />
-                        <RankingCard title="Mejor defensa" label="Goles" data={getTeamRankings().bestDefense} field="ga" />
-                        <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
-                        <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
+                    </div>
+                  ) : matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-4">
+                      <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-3xl">🗓️</div>
+                      <div>
+                        <p className="text-slate-400 font-bold italic text-sm">No hay partidos programados</p>
+                        <p className="text-slate-300 text-[10px] uppercase font-black tracking-tighter mt-1">Selecciona otra fase o fecha</p>
                       </div>
                     </div>
                   ) : (
-                    <>
-                      {!selectedPhase.toLowerCase().includes('final') && !selectedPhase.toLowerCase().includes('eliminatoria') ? (
-                        <div className="space-y-4 mt-2">
-                          <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] text-center w-full">Clasificación</h2>
-                          <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
-                            <table className="w-full text-sm">
-                              <thead>
-                              <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
-                                <th className="p-4 text-center">Pos</th>
-                                <th className="p-4 text-left">EQUIPOS</th>
-                                <th className="p-4 text-center">Pts</th>
-                                <th className="p-4 text-center">J</th>
-                                <th className="p-4 text-center">G</th>
-                                <th className="p-4 text-center">E</th>
-                                <th className="p-4 text-center">P</th>
-                                <th className="p-4 text-center">GF</th>
-                                <th className="p-4 text-center">GC</th>
-                                <th className="p-4 text-center">DIF</th>
-                                <th className="p-4 text-center">%</th>
-                                <th className="p-4 text-center">PE</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                              {getStandings().length === 0 ? (
-                                <tr><td colSpan={12} className="p-12 text-center text-slate-300 font-bold italic">No hay partidos registrados aún</td></tr>
-                              ) : getStandings().map((row: any, i: number) => (
-                                <tr key={row.id} className="hover:bg-slate-50 transition-all group">
-                                  <td className="p-4 text-center">
-                                    <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-sm mx-auto">{i+1}</div>
-                                  </td>
-                                  <td className="p-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-xl shadow-inner">⚽</div>
-                                      <span className="font-black text-slate-800">{row.name}</span>
-                                    </div>
-                                  </td>
-                                  <td className="p-4 text-center font-black text-blue-600 text-lg bg-blue-50/30">{row.points}</td>
-                                  <td className="p-4 text-center font-bold text-slate-600">{row.played}</td>
-                                  <td className="p-4 text-center text-slate-500 font-bold bg-slate-50/30">{row.won}</td>
-                                  <td className="p-4 text-center text-slate-400 font-bold">{row.drawn}</td>
-                                  <td className="p-4 text-center text-slate-400 font-bold bg-slate-50/30">{row.lost}</td>
-                                  <td className="p-4 text-center text-slate-500 font-bold">{row.gf}</td>
-                                  <td className="p-4 text-center text-slate-500 font-bold bg-slate-50/30">{row.ga}</td>
-                                  <td className="p-4 text-center font-black text-slate-800">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
-                                  <td className="p-4 text-center font-bold text-slate-500 bg-slate-50/30">{row.perc}</td>
-                                  <td className="p-4 text-center font-bold text-slate-400">0</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+                      {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).map(m => renderMatchCard(m))}
+                      
+                      <div className="mt-10 pt-10 border-t border-slate-100">
+                        <h3 className="bg-[#0F172A] text-white p-4 rounded-t-[1.5rem] text-center font-black text-xs uppercase tracking-widest">Estadísticas de la fecha</h3>
+                        <div className="bg-slate-50 rounded-b-[1.5rem] p-6">
+                          <RoundStatistics matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)} />
                         </div>
-                      </div>
-                      ) : (
-                        <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
-                          <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Tabla de clasificación no disponible en esta fase</p>
-                        </div>
-                      )}
-
-                      {(selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria')) && (
-                        <>
-                          <div className="flex justify-between items-center mb-10 border-t border-slate-100 pt-10">
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">🌳 Cuadro de Llaves</h2>
-                            <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase italic">Esquema Visual</span>
-                          </div>
-                          
-                          <div className="grid grid-cols-3 gap-10">
-                            <BracketColumn title="Cuartos" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
-                            <BracketColumn title="Semis" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
-                            <BracketColumn title="Final" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('final'))} />
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
-            </div>
-
-            {/* Calendar */}
-            <div className="w-full xl:w-[450px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 flex flex-col flex-shrink-0 overflow-hidden xl:mt-[112px]">
-              <div className="bg-[#0F172A] p-6 flex justify-between items-center relative z-10">
-                <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
-                <div className="flex border border-white rounded-full overflow-hidden">
-                  <select 
-                    value={selectedPhase} 
-                    onChange={(e) => handlePhaseChange(e.target.value)}
-                    className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none border-r border-white appearance-none cursor-pointer text-center"
-                    style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                  >
-                    {phases.map(p => <option key={p.id || p.name} value={p.name} className="text-black">{p.name}</option>)}
-                    {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase} className="text-black">{selectedPhase}</option>}
-                  </select>
-                  <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
-                    {Array.from(new Set(matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => m.roundName))).sort((a,b) => {
-                      const isANum = !isNaN(Number(a));
-                      const isBNum = !isNaN(Number(b));
-                      if (isANum && isBNum) return Number(a) - Number(b);
-                      const order: any = { 'cuartos de final': 1, 'semifinal': 2, 'final': 3 };
-                      const aO = order[a.toLowerCase()] || 99;
-                      const bO = order[b.toLowerCase()] || 99;
-                      if (aO !== bO) return aO - bO;
-                      return a.localeCompare(b);
-                    }).map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
-                  </select>
-                </div>
-                {/* Plus button at the bottom of header */}
-                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
-                  <button onClick={() => {
-                    if (tournamentTeams.length === 0) {
-                      alert('Debes agregar equipos al torneo antes de realizar esta acción.');
-                      return;
-                    }
-                    setShowFixtureMenu(true)
-                  }} className="bg-[#3B405A] text-white w-16 h-6 rounded-b-2xl flex items-center justify-center font-black text-xl hover:bg-[#2A2E44] transition-all">+</button>
-                </div>
-              </div>
-              
-              <div className="p-6 pt-10 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar flex-1 flex flex-col relative">
-                {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center space-y-6 pt-4">
-                    <button onClick={() => {
-                      if (tournamentTeams.length === 0) {
-                        alert('Debes agregar equipos al torneo antes de generar los partidos.');
-                        return;
-                      }
-                      setShowGenType(true)
-                    }} className="px-8 py-3.5 bg-[#0F172A] text-white rounded-xl font-medium text-sm hover:bg-[#1E293B] transition-all shadow-md">GENERAR PARTIDOS</button>
-                    <div className="text-lg text-slate-800 font-normal">o</div>
-                    <button onClick={() => {
-                      if (tournamentTeams.length === 0) {
-                        alert('Debes agregar equipos al torneo antes de agregar una fecha.');
-                        return;
-                      }
-                      const pending = matches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
-                      if (pending.length > 0) return alert('No se puede generar partidos de la segunda fase porque aún no se han jugado todos los partidos de la primera fase.')
-                      setShowAddMatchModal(true)
-                    }} className="px-8 py-3.5 bg-[#0F172A] text-white rounded-xl font-medium text-sm hover:bg-[#1E293B] transition-all shadow-md">AGREGAR FECHA</button>
-                  </div>
-                ) : (
-                  <>
-                    {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).map(m => {
-                      const isE = editingMatchData?.id === m.id; const hS = isE ? editingMatchData.homeScore : m.homeScore; const aS = isE ? editingMatchData.awayScore : m.awayScore; const st = isE ? editingMatchData.status : m.status
-                      return (
-                        <div key={m.id} onClick={() => handleOpenMatchModal(m)} className={`relative flex items-center justify-between p-4 group cursor-pointer transition-all ${isE ? 'scale-[1.02]' : ''}`}>
-                          {/* Home Team */}
-                          <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
-                            {m.advantageTeamId === m.homeTeam?.id && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>}
-                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative ${m.homeTeam ? 'bg-green-500 text-white' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`}>
-                              {m.homeTeam ? <>
-                                <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
-                                🏆
-                              </> : <span className="text-slate-300 text-sm">?</span>}
-                            </div>
-                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.homeTeam?.name || m.homePlaceholder || 'Por definir'}</span>
-                          </div>
-
-                          {/* Score Block */}
-                          <div className="flex flex-col items-center">
-                            <div className="bg-white border border-slate-100 rounded-xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px]">
-                              <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
-                              {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : ':'}
-                              {st === 'FINALIZADO' && m.homePenaltyScore !== null && m.awayPenaltyScore !== null && (
-                                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest text-center mt-1">Penales: {m.homePenaltyScore} - {m.awayPenaltyScore}</span>
-                              )}
-                              {st === 'NO_REALIZADO' && m.roundName !== '1' && (
-                                <span className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest max-w-[120px] text-center">{m.notes || ''}</span>
-                              )}
-                            </div>
-                              {st !== 'NO_REALIZADO' && (
-                                <div className={`text-[8px] font-black px-3 py-0.5 rounded-md mt-1 uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
-                                  {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Away Team */}
-                          <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
-                            {m.advantageTeamId === m.awayTeam?.id && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>}
-                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative ${m.awayTeam ? 'bg-green-500 text-white' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`}>
-                              {m.awayTeam ? <>
-                                <span className="absolute -top-2 text-yellow-400 text-sm">👑</span>
-                                🏆
-                              </> : <span className="text-slate-300 text-sm">?</span>}
-                            </div>
-                            <span className="text-[11px] font-black text-slate-600 text-center uppercase truncate w-full">{m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}</span>
-                          </div>
-
-                          {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2rem] pointer-events-none"></div>}
-                        </div>
-                      )
-                    })}
-                    <div className="mt-10 pt-10 border-t border-slate-100">
-                      <h3 className="bg-[#0F172A] text-white p-4 rounded-t-[1.5rem] text-center font-black text-xs uppercase tracking-widest">Estadísticas de la fecha</h3>
-                      <div className="bg-slate-50 rounded-b-[1.5rem] p-6">
-                        <RoundStatistics matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)} />
                       </div>
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        </div>
         ) : (
           <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
