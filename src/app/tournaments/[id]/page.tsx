@@ -71,6 +71,7 @@ export default function TournamentPage() {
   const [showGenType, setShowGenType] = useState(false)
   const [selectedPhase, setSelectedPhase] = useState('Primera Fase')
   const [phases, setPhases] = useState<any[]>([])
+  const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
 
   // Fases Modals State
@@ -148,7 +149,7 @@ export default function TournamentPage() {
         if (matchesRes.ok) {
           const m = await matchesRes.json()
           setMatches(m)
-          const phaseRounds = [...new Set(m.filter((x: any) => (x.phaseName || 'Primera Fase') === selectedPhase).map((x: any) => String(x.roundName)))].sort((a: any, b: any) => {
+          const phaseRounds = [...new Set(m.filter((x: any) => (x.phaseName || firstPhaseName) === selectedPhase).map((x: any) => String(x.roundName)))].sort((a: any, b: any) => {
             const isANum = !isNaN(Number(a));
             const isBNum = !isNaN(Number(b));
             if (isANum && isBNum) return Number(a) - Number(b);
@@ -186,34 +187,20 @@ export default function TournamentPage() {
     }
   }
 
-  const handleDeletePhase = async (phaseId: string | undefined) => {
-    if (!phaseId) return alert('No se pudo encontrar el ID de la fase.')
-    if (!confirm('¿Estás seguro de eliminar esta fase? Se eliminarán todos los partidos asociados.')) return
-    
-    const token = localStorage.getItem('token')
-    try {
-      const res = await fetch(`/api/tournaments/${tournamentId}/phases/${phaseId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (res.ok) {
-        await fetchData()
-        setSelectedPhase('Primera Fase')
-        alert('Fase eliminada correctamente.')
-      } else {
-        alert('Error al eliminar la fase.')
-      }
-    } catch (error) {
-      console.error(error)
-      alert('Error de conexión al eliminar la fase.')
-    }
-  }
+
 
   const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
-    const pending = matches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
-    if (pending.length > 0) return alert('No se puede generar partidos de la segunda fase porque aún no se han jugado todos los partidos de la primera fase.')
-    
     if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
+
+    const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
+    if (selectedPhase !== firstPhaseName) {
+      const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
+      const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
+      if (primeraFaseMatches.length === 0 || pendingPrimeraFase.length > 0) {
+        return alert(`No se puede generar partidos de esta fase porque aún no se han jugado todos los partidos de la fase inicial (${firstPhaseName}).`)
+      }
+    }
+
     setGenerating(true)
     const token = localStorage.getItem('token')
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
@@ -230,12 +217,29 @@ export default function TournamentPage() {
   }
 
   const handleCreateAdvantagePlayoff = () => {
-    const pending = matches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
-    if (pending.length > 0) return alert('No se puede generar partidos de la segunda fase porque aún no se han jugado todos los partidos de la primera fase.')
+    if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
+
+    const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
+    if (selectedPhase !== firstPhaseName) {
+      const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
+      const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
+      if (primeraFaseMatches.length === 0 || pendingPrimeraFase.length > 0) {
+        return alert(`No se puede generar partidos de esta fase porque aún no se han jugado todos los partidos de la fase inicial (${firstPhaseName}).`)
+      }
+    }
     setShowPlayoffDraw(true)
   }
 
   const handleGenerateSemifinals = async () => {
+    if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
+    const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
+    if (selectedPhase !== firstPhaseName) {
+      const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
+      const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
+      if (primeraFaseMatches.length === 0 || pendingPrimeraFase.length > 0) {
+        return alert(`No se puede generar partidos de esta fase porque aún no se han jugado todos los partidos de la fase inicial (${firstPhaseName}).`)
+      }
+    }
     if (!confirm('¿Generar semifinales basándose en los resultados de Cuartos de Final?')) return;
     const token = localStorage.getItem('token')
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateSemifinals`, {
@@ -254,6 +258,15 @@ export default function TournamentPage() {
   }
 
   const handleGenerateFinal = async () => {
+    if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
+    const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
+    if (selectedPhase !== firstPhaseName) {
+      const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
+      const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
+      if (primeraFaseMatches.length === 0 || pendingPrimeraFase.length > 0) {
+        return alert(`No se puede generar partidos de esta fase porque aún no se han jugado todos los partidos de la fase inicial (${firstPhaseName}).`)
+      }
+    }
     if (!confirm('¿Generar la Final basándose en los resultados de Semifinales?')) return;
     const token = localStorage.getItem('token')
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateFinal`, {
@@ -278,7 +291,7 @@ export default function TournamentPage() {
     }
     setActiveMenu('clasificacion')
     setSelectedPhase(val)
-    const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === val)
+    const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === val)
     if (phaseMatches.length > 0) {
       const rounds = [...new Set(phaseMatches.map((x: any) => String(x.roundName)))].sort((a: any, b: any) => {
         const isANum = !isNaN(Number(a));
@@ -352,7 +365,7 @@ export default function TournamentPage() {
     tournamentTeams.forEach(tt => { stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } })
     
     // Filter matches by selected phase AND EXCLUDE playoffs
-    const phaseMatches = matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && !['Cuartos de final', 'Semifinal', 'Final', 'Cuartos', 'Semi Final'].includes(String(m.roundName)))
+    const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && !['Cuartos de final', 'Semifinal', 'Final', 'Cuartos', 'Semi Final'].includes(String(m.roundName)))
     
     phaseMatches.forEach(m => {
       const isE = editingMatchData?.id === m.id
@@ -542,14 +555,6 @@ export default function TournamentPage() {
         {/* TOP NAVIGATION SELECTOR */}
         <div className="max-w-[1600px] mx-auto mb-8 flex items-center justify-end bg-white rounded-3xl p-2 shadow-sm border border-slate-100">
           <div className="pr-4 flex gap-3">
-             {selectedPhase !== 'Primera Fase' && (
-               <button 
-                 onClick={() => handleDeletePhase(phases.find(p => p.name === selectedPhase)?.id)}
-                 className="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-red-100 transition-all"
-               >
-                 Eliminar Fase
-               </button>
-             )}
              <button onClick={() => setShowQR(!showQR)} className="text-slate-400 hover:text-slate-600 transition-all text-sm">📤</button>
           </div>
         </div>
@@ -562,6 +567,7 @@ export default function TournamentPage() {
               
               <div className="flex gap-4 mb-10">
                 <button onClick={() => setShowQR(!showQR)} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg"><span>📤</span> Compartir Link</button>
+                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg">Agregar Equipos</button>
                 <button className="bg-slate-50 text-slate-600 px-6 py-3 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all">Configuración</button>
               </div>
 
@@ -605,7 +611,7 @@ export default function TournamentPage() {
                         <option value="estadisticas" className="text-blue-600 font-black">🏆 Estadísticas Generales</option>
                       </select>
                     </div>
-                    <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all">GESTOR DE EQUIPOS</button>
+                    <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-slate-50 text-slate-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-blue-50 hover:text-blue-600 transition-all">AGREGAR EQUIPOS</button>
                   </div>
                   
                   {activeMenu === 'estadisticas' ? (
@@ -745,9 +751,9 @@ export default function TournamentPage() {
                           </div>
                           
                           <div className="grid grid-cols-3 gap-10">
-                            <BracketColumn title="Cuartos" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
-                            <BracketColumn title="Semis" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
-                            <BracketColumn title="Final" matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && m.roundName.toLowerCase().includes('final'))} />
+                            <BracketColumn title="Cuartos" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
+                            <BracketColumn title="Semis" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
+                            <BracketColumn title="Final" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('final'))} />
                           </div>
                         </>
                       )}
@@ -771,7 +777,7 @@ export default function TournamentPage() {
                     {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase} className="text-black">{selectedPhase}</option>}
                   </select>
                   <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
-                    {Array.from(new Set(matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase).map(m => m.roundName))).sort((a,b) => {
+                    {Array.from(new Set(matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => m.roundName))).sort((a,b) => {
                       const isANum = !isNaN(Number(a));
                       const isBNum = !isNaN(Number(b));
                       if (isANum && isBNum) return Number(a) - Number(b);
@@ -796,7 +802,7 @@ export default function TournamentPage() {
               </div>
               
               <div className="p-6 pt-10 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar flex-1 flex flex-col relative">
-                {matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase).length === 0 ? (
+                {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center space-y-6 pt-4">
                     <button onClick={() => {
                       if (tournamentTeams.length === 0) {
@@ -818,7 +824,7 @@ export default function TournamentPage() {
                   </div>
                 ) : (
                   <>
-                    {matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && String(m.roundName) === selectedRound).map(m => {
+                    {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).map(m => {
                       const isE = editingMatchData?.id === m.id; const hS = isE ? editingMatchData.homeScore : m.homeScore; const aS = isE ? editingMatchData.awayScore : m.awayScore; const st = isE ? editingMatchData.status : m.status
                       return (
                         <div key={m.id} onClick={() => handleOpenMatchModal(m)} className={`relative flex items-center justify-between p-4 group cursor-pointer transition-all ${isE ? 'scale-[1.02]' : ''}`}>
@@ -873,7 +879,7 @@ export default function TournamentPage() {
                     <div className="mt-10 pt-10 border-t border-slate-100">
                       <h3 className="bg-[#0F172A] text-white p-4 rounded-t-[1.5rem] text-center font-black text-xs uppercase tracking-widest">Estadísticas de la fecha</h3>
                       <div className="bg-slate-50 rounded-b-[1.5rem] p-6">
-                        <RoundStatistics matches={matches.filter(m => (m.phaseName || 'Primera Fase') === selectedPhase && String(m.roundName) === selectedRound)} />
+                        <RoundStatistics matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)} />
                       </div>
                     </div>
                   </>
