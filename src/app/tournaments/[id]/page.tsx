@@ -595,9 +595,11 @@ export default function TournamentPage() {
             </div>
           </div>
         ) : (activeMenu === 'clasificacion' || activeMenu === 'estadisticas') ? (
-          <div className="flex flex-col xl:flex-row gap-8 max-w-[1600px] mx-auto h-full">
-            {/* Classification OR Bracket */}
-            <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50 overflow-y-auto">
+          <div className="flex flex-col h-full max-w-[1600px] mx-auto w-full">
+            <h1 className="text-3xl font-black text-[#0A1128] mb-8 tracking-tight">{tournament?.name}</h1>
+            <div className="flex flex-col xl:flex-row gap-8 w-full h-full">
+              {/* Classification OR Bracket */}
+              <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-200/60 overflow-y-auto relative">
                 <div className="animate-in fade-in duration-500">
                   <div className="flex justify-between items-center mb-12 relative">
                     <div className="flex items-center gap-4">
@@ -928,6 +930,7 @@ export default function TournamentPage() {
               </div>
             </div>
           </div>
+        </div>
         ) : (
           <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
