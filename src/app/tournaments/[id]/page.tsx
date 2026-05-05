@@ -391,9 +391,8 @@ export default function TournamentPage() {
       (m.events || []).forEach((e: any) => {
         const t = stats[e.teamId]
         if (!t) return
-        if (e.type === 'RED_CARD') { t.red++; t.totalCards++ }
+        if (e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD') { t.red++; t.totalCards++ }
         else if (e.type === 'YELLOW_CARD') { t.yellow++; t.totalCards++ }
-        else if (e.type === 'DOUBLE_YELLOW_CARD') { t.red++; t.yellow++; t.totalCards += 2 }
       })
     })
 
@@ -410,11 +409,15 @@ export default function TournamentPage() {
     const scorers: Record<string, { name: string; team: string; goals: number }> = {}
     matches.forEach(m => {
       (m.events || []).forEach((e: any) => {
-        if (e.type === 'GOAL') {
-          const pName = e.player?.name || 'Desconocido'
+        if (e.type === 'GOAL' || e.type === 'OWN_GOAL') {
+          const pName = e.player?.name;
           const tName = e.team?.name || ''
-          if (!scorers[pName]) scorers[pName] = { name: pName, team: tName, goals: 0 }
-          scorers[pName].goals++
+          const goalType = e.detail === 'PENAL' ? ' (P)' : ''
+          const displayName = pName ? (e.type === 'OWN_GOAL' ? `${pName} (A.G.)` : pName) : (e.type === 'OWN_GOAL' ? 'Autogol' : 'Desconocido')
+          const label = `${displayName}${goalType}`
+          const key = e.type === 'OWN_GOAL' ? `AG_${pName || 'anon'}_${e.id}` : (pName || 'Desconocido')
+          if (!scorers[key]) scorers[key] = { name: label, team: tName, goals: 0 }
+          scorers[key].goals++
         }
       })
     })
@@ -429,8 +432,7 @@ export default function TournamentPage() {
         const tName = e.team?.name || ''
         if (!players[pName]) players[pName] = { name: pName, team: tName, yellow: 0, red: 0 }
         if (e.type === 'YELLOW_CARD') players[pName].yellow++
-        if (e.type === 'RED_CARD') players[pName].red++
-        if (e.type === 'DOUBLE_YELLOW_CARD') { players[pName].yellow++; players[pName].red++ }
+        else if (e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD') players[pName].red++
       })
     })
     return Object.values(players).sort((a, b) => (b.red * 3 + b.yellow) - (a.red * 3 + a.yellow)).slice(0, 10)
@@ -1415,61 +1417,122 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
   }, [hG.length, aG.length, homePenalties, awayPenalties, useAdvantage, match])
 
   const fetchMatch = async () => {
-    const token = localStorage.getItem('token')
-    const res = await fetch(`/api/matches/${matchId}`, { headers: { Authorization: `Bearer ${token}` } })
-    const data = await res.json()
-    setMatch(data); setSt(data.status || 'NO_REALIZADO')
-    setHomePenalties(data.homePenaltyScore ?? '')
-    setAwayPenalties(data.awayPenaltyScore ?? '')
-    const parse = (tId: string, type: any) => (data.events || []).filter((e: any) => e.teamId === tId && (Array.isArray(type) ? type.includes(e.type) : e.type === type)).map((e: any) => ({ ...e, minutes: e.minute || 0, timeType: e.timeType || '1°', detail: e.detail || '', x: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).x : 0, y: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).y : 0 }))
-    const [hM, aM] = await Promise.all([fetch(`/api/teams/${data.homeTeam.id}/members`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()), fetch(`/api/teams/${data.awayTeam.id}/members`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())])
-    setHG(parse(data.homeTeam.id, 'GOAL')); setHC(parse(data.homeTeam.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'])); setHF(parse(data.homeTeam.id, 'FOUL')); setHS(parse(data.homeTeam.id, 'SUBSTITUTION')); setHO(parse(data.homeTeam.id, 'OWN_GOAL')); setHK(parse(data.homeTeam.id, 'GOALKEEPER')); setHHi(parse(data.homeTeam.id, 'HIGHLIGHT')); setHL(parse(data.homeTeam.id, 'LINEUP'))
-    setAG(parse(data.awayTeam.id, 'GOAL')); setAC(parse(data.awayTeam.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'])); setAF(parse(data.awayTeam.id, 'FOUL')); setAS(parse(data.awayTeam.id, 'SUBSTITUTION')); setAO(parse(data.awayTeam.id, 'OWN_GOAL')); setAK(parse(data.awayTeam.id, 'GOALKEEPER')); setAHi(parse(data.awayTeam.id, 'HIGHLIGHT')); setAL(parse(data.awayTeam.id, 'LINEUP'))
-    setMatch((p: any) => ({ ...p, homeTeam: { ...p.homeTeam, players: hM }, awayTeam: { ...p.awayTeam, players: aM } }))
-    setLoading(false)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/matches/${matchId}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error('No se pudo cargar el partido')
+      const data = await res.json()
+      
+      setMatch(data); 
+      setSt(data.status || 'NO_REALIZADO')
+      setHomePenalties(data.homePenaltyScore ?? '')
+      setAwayPenalties(data.awayPenaltyScore ?? '')
+      
+      const parse = (tId: string, type: any) => (data.events || [])
+        .filter((e: any) => e.teamId === tId && (Array.isArray(type) ? type.includes(e.type) : e.type === type))
+        .map((e: any) => ({ 
+          ...e, 
+          minutes: e.minute || 0, 
+          timeType: e.timeType || '1°', 
+          detail: e.detail || '', 
+          x: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).x : 0, 
+          y: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).y : 0 
+        }))
+
+      let hM = [], aM = []
+      if (data.homeTeam?.id) {
+        const hr = await fetch(`/api/teams/${data.homeTeam.id}/members`, { headers: { Authorization: `Bearer ${token}` } })
+        if (hr.ok) hM = await hr.json()
+      }
+      if (data.awayTeam?.id) {
+        const ar = await fetch(`/api/teams/${data.awayTeam.id}/members`, { headers: { Authorization: `Bearer ${token}` } })
+        if (ar.ok) aM = await ar.json()
+      }
+
+      setHG(parse(data.homeTeam?.id, 'GOAL')); 
+      setHC(parse(data.homeTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'])); 
+      setHF(parse(data.homeTeam?.id, 'FOUL')); 
+      setHS(parse(data.homeTeam?.id, 'SUBSTITUTION')); 
+      setHO(parse(data.homeTeam?.id, 'OWN_GOAL')); 
+      setHK(parse(data.homeTeam?.id, 'GOALKEEPER')); 
+      setHHi(parse(data.homeTeam?.id, 'HIGHLIGHT')); 
+      setHL(parse(data.homeTeam?.id, 'LINEUP'))
+
+      setAG(parse(data.awayTeam?.id, 'GOAL')); 
+      setAC(parse(data.awayTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'])); 
+      setAF(parse(data.awayTeam?.id, 'FOUL')); 
+      setAS(parse(data.awayTeam?.id, 'SUBSTITUTION')); 
+      setAO(parse(data.awayTeam?.id, 'OWN_GOAL')); 
+      setAK(parse(data.awayTeam?.id, 'GOALKEEPER')); 
+      setAHi(parse(data.awayTeam?.id, 'HIGHLIGHT')); 
+      setAL(parse(data.awayTeam?.id, 'LINEUP'))
+
+      setMatch((p: any) => ({ 
+        ...p, 
+        homeTeam: p.homeTeam ? { ...p.homeTeam, players: hM } : null, 
+        awayTeam: p.awayTeam ? { ...p.awayTeam, players: aM } : null 
+      }))
+    } catch (err: any) {
+      alert(err.message)
+      onClose()
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSave = async () => {
-    const token = localStorage.getItem('token')
-    const serialize = (evs: any[], tId: string) => evs.map(e => {
-      const m = parseInt(e.minutes as any);
-      return {
-        teamId: tId, 
-        playerId: e.playerId || null, 
-        assistId: e.assistId || null,
-        type: e.type, 
-        minute: isNaN(m) ? null : m, 
-        second: 0,
-        timeType: e.timeType || '1°', 
-        detail: e.type === 'LINEUP' ? JSON.stringify({ x: e.x, y: e.y }) : (e.detail || '')
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const serialize = (evs: any[], tId: string | undefined) => {
+        if (!tId) return []
+        return evs.map(e => {
+          const m = parseInt(e.minutes as any);
+          return {
+            teamId: tId, 
+            playerId: e.playerId || null, 
+            assistId: e.assistId || null,
+            type: e.type, 
+            minute: isNaN(m) ? null : m, 
+            second: 0,
+            timeType: e.timeType || '1°', 
+            detail: e.type === 'LINEUP' ? JSON.stringify({ x: e.x, y: e.y }) : (e.detail || '')
+          }
+        })
       }
-    })
-    const all = [
-      ...serialize(hG, match.homeTeam.id), ...serialize(aG, match.awayTeam.id),
-      ...serialize(hC, match.homeTeam.id), ...serialize(aC, match.awayTeam.id),
-      ...serialize(hF, match.homeTeam.id), ...serialize(aF, match.awayTeam.id),
-      ...serialize(hS, match.homeTeam.id), ...serialize(aS, match.awayTeam.id),
-      ...serialize(hO, match.homeTeam.id), ...serialize(aO, match.awayTeam.id),
-      ...serialize(hK, match.homeTeam.id), ...serialize(aK, match.awayTeam.id),
-      ...serialize(hHi, match.homeTeam.id), ...serialize(aHi, match.awayTeam.id),
-      ...serialize(hL, match.homeTeam.id), ...serialize(aL, match.awayTeam.id),
-    ].filter(e => e.type)
+      
+      const all = [
+        ...serialize(hG, match.homeTeam?.id), ...serialize(aG, match.awayTeam?.id),
+        ...serialize(hC, match.homeTeam?.id), ...serialize(aC, match.awayTeam?.id),
+        ...serialize(hF, match.homeTeam?.id), ...serialize(aF, match.awayTeam?.id),
+        ...serialize(hS, match.homeTeam?.id), ...serialize(aS, match.awayTeam?.id),
+        ...serialize(hO, match.homeTeam?.id), ...serialize(aO, match.awayTeam?.id),
+        ...serialize(hK, match.homeTeam?.id), ...serialize(aK, match.awayTeam?.id),
+        ...serialize(hHi, match.homeTeam?.id), ...serialize(aHi, match.awayTeam?.id),
+        ...serialize(hL, match.homeTeam?.id), ...serialize(aL, match.awayTeam?.id),
+      ].filter(e => e.type)
 
-    const isNR = st === 'NO_REALIZADO'
-    const res = await fetch(`/api/matches/${matchId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ 
-        status: st, 
-        homeScore: isNR ? null : (hG.length + aO.length), 
-        awayScore: isNR ? null : (aG.length + hO.length), 
-        homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
-        awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
-        advancingTeamId: advancingTeamId || null,
-        events: all 
+      const isNR = st === 'NO_REALIZADO'
+      const res = await fetch(`/api/matches/${matchId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ 
+          status: st, 
+          homeScore: isNR ? null : (hG.length + aO.length), 
+          awayScore: isNR ? null : (aG.length + hO.length), 
+          homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
+          awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
+          advancingTeamId: advancingTeamId || null,
+          events: all 
+        })
       })
-    })
-    if (res.ok) onClose(); else alert('Error al guardar')
+      if (!res.ok) throw new Error('Error al guardar los cambios')
+      onClose()
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (loading) return null
@@ -1585,7 +1648,7 @@ function TeamRowSection({ team, goals, setGoals, cards, setCards, fouls, setFoul
 
         {/* Content */}
         <div className="min-h-[180px]">
-          {tab === 'goles' && <RowFormSection title="⚽ Goles anotados" evs={goals} setEvs={setGoals} players={team.players || []} color={color} assist={true} type="GOAL" pLabel="Goleador" aLabel="Asistente" />}
+          {tab === 'goles' && <RowFormSection title="⚽ Goles anotados" evs={goals} setEvs={setGoals} players={team.players || []} color={color} assist={true} type="GOAL" pLabel="Goleador" aLabel="Asistente" isGoalType={true} />}
           {tab === 'tarjetas' && <RowFormSection title="🟨 Tarjetas disciplinarias" evs={cards} setEvs={setCards} players={team.players || []} color={color} isType={true} type="YELLOW_CARD" opts={[
             { v: 'YELLOW_CARD',        label: '🟨 Amarilla',            hint: '1ª falta' },
             { v: 'DOUBLE_YELLOW_CARD', label: '🟨🟥 2ª Amarilla → Expulsado', hint: 'Acumulación' },
@@ -1619,7 +1682,7 @@ function TeamRowSection({ team, goals, setGoals, cards, setCards, fouls, setFoul
   )
 }
 
-function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = 'Asistente', pLabel = 'Jugador', isType, opts, detail, type }: any) {
+function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = 'Asistente', pLabel = 'Jugador', isType, opts, detail, type, isGoalType }: any) {
   const add = () => setEvs([...evs, { id: Date.now().toString(), playerId: '', assistId: '', type, minutes: 0, timeType: '1°', detail: '' }])
   const up = (id: string, f: string, v: any) => setEvs(evs.map((e: any) => e.id === id ? { ...e, [f]: v } : e))
   const rm = (id: string) => setEvs(evs.filter((e: any) => e.id !== id))
@@ -1670,6 +1733,12 @@ function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = '
                 {detail && (
                   <input type="text" value={e.detail} onChange={v => up(e.id, 'detail', v.target.value)}
                     className="w-full bg-white border-none rounded-xl px-3 py-1.5 text-[10px] font-bold shadow-sm outline-none text-slate-600" placeholder="Descripción opcional..." />
+                )}
+                {isGoalType && (
+                  <div className="flex gap-2 mt-1">
+                    <button onClick={() => up(e.id, 'detail', 'JUGADA')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${e.detail !== 'PENAL' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'}`}>Jugada</button>
+                    <button onClick={() => up(e.id, 'detail', 'PENAL')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${e.detail === 'PENAL' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'}`}>Penal</button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1784,23 +1853,28 @@ function RoundStatistics({ matches }: { matches: any[] }) {
     if (aS !== null) stats.goals += aS
     
     m.events?.forEach((e: any) => {
-      const pName = e.player?.name || 'Desconocido'
+      const pName = e.player?.name;
       const tName = e.team?.name || ''
-      if (e.type === 'GOAL') {
-        if (!stats.scorers[pName]) stats.scorers[pName] = { name: pName, team: tName, goals: 0 }
-        stats.scorers[pName].goals++
+      if (e.type === 'GOAL' || e.type === 'OWN_GOAL') {
+        const goalType = e.detail === 'PENAL' ? ' (P)' : ''
+        const displayName = pName ? (e.type === 'OWN_GOAL' ? `${pName} (A.G.)` : pName) : (e.type === 'OWN_GOAL' ? 'Autogol' : 'Desconocido')
+        const label = `${displayName}${goalType}`
+        const key = e.type === 'OWN_GOAL' ? `AG_${pName || 'anon'}_${e.id}` : (pName || 'Desconocido')
+        if (!stats.scorers[key]) stats.scorers[key] = { name: label, team: tName, goals: 0 }
+        stats.scorers[key].goals++
       } else if (e.type === 'YELLOW_CARD') {
         if (!stats.yellowCards[pName]) stats.yellowCards[pName] = { name: pName, team: tName, count: 0 }
         stats.yellowCards[pName].count++
-      } else if (e.type === 'RED_CARD') {
+      } else if (e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD') {
         if (!stats.redCards[pName]) stats.redCards[pName] = { name: pName, team: tName, count: 0 }
         stats.redCards[pName].count++
       }
     })
   })
 
-  const topScorers = Object.values(stats.scorers).sort((a, b) => b.goals - a.goals).slice(0, 5)
+  const topScorers = Object.values(stats.scorers).sort((a, b) => b.goals - a.goals).slice(0, 10)
   const topYellows = Object.values(stats.yellowCards).sort((a, b) => b.count - a.count).slice(0, 5)
+  const topReds = Object.values(stats.redCards).sort((a, b) => b.count - a.count).slice(0, 5)
 
   return (
     <div className="space-y-8">
@@ -1817,10 +1891,10 @@ function RoundStatistics({ matches }: { matches: any[] }) {
 
       <section>
         <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-          <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest">Goles</div>
+          <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest">Goleadores</div>
           <div className="divide-y divide-slate-50">
-            {topScorers.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topScorers.map(s => (
-              <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
+            {topScorers.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topScorers.map((s, i) => (
+              <div key={i} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px]">👤</div>
                   <div className="flex flex-col">
@@ -1835,25 +1909,47 @@ function RoundStatistics({ matches }: { matches: any[] }) {
         </div>
       </section>
 
-      <section>
-        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-          <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest">Tarjeta Amarilla</div>
-          <div className="divide-y divide-slate-50">
-            {topYellows.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topYellows.map(s => (
-              <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-yellow-100 flex items-center justify-center text-[10px]">👤</div>
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-black text-slate-700 uppercase">{s.name}</span>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{s.team}</span>
+      <div className="flex flex-col gap-6">
+        <section>
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest">Tarjeta Amarilla</div>
+            <div className="divide-y divide-slate-50">
+              {topYellows.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topYellows.map(s => (
+                <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-yellow-100 flex items-center justify-center text-[10px]">👤</div>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-black text-slate-700 uppercase">{s.name}</span>
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{s.team}</span>
+                    </div>
                   </div>
+                  <span className="text-sm font-black text-slate-900">{s.count}</span>
                 </div>
-                <span className="text-sm font-black text-slate-900">{s.count}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section>
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest text-red-500">Tarjeta Roja</div>
+            <div className="divide-y divide-slate-50">
+              {topReds.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topReds.map(s => (
+                <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-[10px]">👤</div>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-black text-slate-700 uppercase">{s.name}</span>
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{s.team}</span>
+                    </div>
+                  </div>
+                  <span className="text-sm font-black text-slate-900">{s.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   )
 }
