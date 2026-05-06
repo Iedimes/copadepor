@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+export const dynamic = 'force-dynamic'
 import { verifyToken } from '@/lib/auth'
 import { z } from 'zod'
 
@@ -96,8 +97,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       where: { id: params.id },
     })
 
-    if (!tournament || tournament.organizerId !== payload.userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if (!tournament || (tournament.organizerId !== payload.userId && payload.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'No autorizado: No eres el organizador de este torneo' }, { status: 403 })
     }
 
     const url = new URL(request.url)
@@ -159,8 +160,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       where: { id: params.id },
     })
 
-    if (!tournament || tournament.organizerId !== payload.userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if (!tournament || (tournament.organizerId !== payload.userId && payload.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'No autorizado: No eres el organizador de este torneo' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -533,23 +534,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         const { phaseName } = body
         if (!phaseName) return NextResponse.json({ error: 'phaseName requerido' }, { status: 400 })
 
-        // Get all matches for this phase
         const matches = await prisma.match.findMany({
           where: { tournamentId: params.id, phaseName },
-          orderBy: { createdAt: 'asc' } // Keep original creation order
+          orderBy: { createdAt: 'asc' }
         })
 
-        // Identify unique rounds in their current order
         const roundNames = [...new Set(matches.map(m => m.roundName))]
-        
-        // Filter only numeric rounds for reordering
         const numericRounds = roundNames.filter(r => !isNaN(Number(r))).sort((a, b) => Number(a) - Number(b))
         
         let updatedCount = 0
         for (let i = 0; i < numericRounds.length; i++) {
           const oldName = numericRounds[i]
           const newName = String(i + 1)
-          
           if (oldName !== newName) {
             await prisma.match.updateMany({
               where: { tournamentId: params.id, phaseName, roundName: oldName },
@@ -558,11 +554,39 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             updatedCount++
           }
         }
-
         return NextResponse.json({ message: 'Rondas reordenadas con éxito', updatedCount })
       } catch (error) {
         console.error('Reorder rounds error:', error)
         return NextResponse.json({ error: 'Error al reordenar rondas' }, { status: 500 })
+      }
+    } else if (action === 'reassignRounds') {
+      try {
+        const { phaseName, roundSequence } = body
+        if (!phaseName || !roundSequence || !Array.isArray(roundSequence)) {
+          return NextResponse.json({ error: 'phaseName y roundSequence requeridos' }, { status: 400 })
+        }
+        
+        const summary = await prisma.$transaction(async (tx) => {
+          const results = []
+          for (let i = 0; i < roundSequence.length; i++) {
+            const count = await tx.match.updateMany({
+              where: { tournamentId: params.id, phaseName, roundName: String(roundSequence[i]) },
+              data: { roundOrder: i + 1 }
+            })
+            results.push({ round: roundSequence[i], order: i + 1, updated: count.count })
+          }
+          return results
+        })
+
+        const totalFound = summary.reduce((acc, r) => acc + r.updated, 0)
+        console.log(`[API] Updated roundOrder for tournament ${params.id}, phase "${phaseName}". Total matches updated: ${totalFound}`)
+        return NextResponse.json({ 
+          message: totalFound > 0 ? 'Orden de rondas actualizado con éxito' : 'No se encontraron partidos para las rondas especificadas', 
+          summary 
+        })
+      } catch (error) {
+        console.error('Reassign rounds error:', error)
+        return NextResponse.json({ error: 'Error al reasignar rondas' }, { status: 500 })
       }
     } else if (action === 'generateFinal') {
       try {

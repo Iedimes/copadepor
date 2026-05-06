@@ -250,6 +250,7 @@ model Match {
   status       MatchStatus  @default(SCHEDULED)
   matchDate    DateTime
   roundName    String
+  roundOrder   Int          @default(0)
   phaseName    String?      @default("Primera Fase")
   phaseId      String?
   groupName    String?      

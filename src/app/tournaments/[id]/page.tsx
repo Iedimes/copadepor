@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 
 interface Tournament {
@@ -99,6 +99,7 @@ export default function TournamentPage() {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
   const [showRoundActions, setShowRoundActions] = useState(false)
+  const [showReorderModal, setShowReorderModal] = useState(false)
 
   const tournamentId = params.id as string
 
@@ -207,10 +208,10 @@ export default function TournamentPage() {
         if (mRes.ok) setMessages(await mRes.json())
       } else if (activeMenu === 'clasificacion' || activeMenu === 'estadisticas') {
         const [matchesRes, teamsRes, allTeamsRes, phasesRes] = await Promise.all([
-          fetch(`/api/tournaments/${tournamentId}/matches`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`/api/tournaments/${tournamentId}/teams`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/tournaments/${tournamentId}/matches?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/tournaments/${tournamentId}/teams?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/teams', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`/api/tournaments/${tournamentId}/phases`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/tournaments/${tournamentId}/phases?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }),
         ])
         
         if (phasesRes && phasesRes.ok) {
@@ -224,16 +225,15 @@ export default function TournamentPage() {
         if (matchesRes.ok) {
           const m = await matchesRes.json()
           setMatches(m)
-          const phaseRounds = [...new Set(m.filter((x: any) => (x.phaseName || firstPhaseName) === selectedPhase).map((x: any) => String(x.roundName)))].sort((a: any, b: any) => {
-            const isANum = !isNaN(Number(a));
-            const isBNum = !isNaN(Number(b));
-            if (isANum && isBNum) return Number(a) - Number(b);
-            const order: any = { 'cuartos de final': 1, 'semifinal': 2, 'final': 3 };
-            const aO = order[a.toLowerCase()] || 99;
-            const bO = order[b.toLowerCase()] || 99;
-            if (aO !== bO) return aO - bO;
-            return a.localeCompare(b);
-          }) as string[]
+                    const phaseRoundsWithOrder = Array.from(new Set(m.filter((x) => (x.phaseName || firstPhaseName) === selectedPhase).map((x) => String(x.roundName)))).map(r => {
+            const firstMatch = m.find((x) => (x.phaseName || firstPhaseName) === selectedPhase && String(x.roundName) === r)
+            return { name: r, order: firstMatch?.roundOrder || 0 }
+          }).sort((a, b) => {
+            if (a.order !== b.order) return a.order - b.order
+            if (!isNaN(Number(a.name)) && !isNaN(Number(b.name))) return Number(a.name) - Number(b.name)
+            return a.name.localeCompare(b.name)
+          })
+          const phaseRounds = phaseRoundsWithOrder.map(r => r.name)
           if (phaseRounds.length > 0 && (!selectedRound || !phaseRounds.includes(selectedRound))) {
             setSelectedRound(phaseRounds[0])
           }
@@ -603,7 +603,6 @@ export default function TournamentPage() {
       setSelectedRound('1')
     }
   }
-
   const getStandings = () => {
     const stats: Record<string, any> = {}
     
@@ -1133,16 +1132,14 @@ export default function TournamentPage() {
                         {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase} className="text-black">{selectedPhase}</option>}
                       </select>
                         <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
-                          {Array.from(new Set([...matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => String(m.roundName)), selectedRound])).filter(Boolean).sort((a: any,b: any) => {
-                          const isANum = !isNaN(Number(a));
-                          const isBNum = !isNaN(Number(b));
-                          if (isANum && isBNum) return Number(a) - Number(b);
-                          const order: any = { 'cuartos de final': 1, 'semifinal': 2, 'final': 3 };
-                          const aO = order[a.toLowerCase()] || 99;
-                          const bO = order[b.toLowerCase()] || 99;
-                          if (aO !== bO) return aO - bO;
-                          return a.localeCompare(b);
-                        }).map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
+                          {Array.from(new Set([...matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => String(m.roundName)), selectedRound])).filter(Boolean).map(r => {
+                            const firstMatch = matches.find(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === r)
+                            return { name: r, order: firstMatch?.roundOrder || 0 }
+                          }).sort((a, b) => {
+                            if (a.order !== b.order) return a.order - b.order
+                            if (!isNaN(Number(a.name)) && !isNaN(Number(b.name))) return Number(a.name) - Number(b.name)
+                            return a.name.localeCompare(b.name)
+                          }).map(r => <option key={r.name} value={r.name} className="text-black">{!isNaN(Number(r.name)) ? `${r.name}º Fecha` : r.name}</option>)}
                       </select>
                     </div>
                   </div>
@@ -1160,7 +1157,7 @@ export default function TournamentPage() {
                           <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="🔄" label="Regenerar Fixture" onClick={() => { setShowGenType(true); setShowRoundActions(false); }} />
                           <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setShowRoundActions(false); }} />
-                          <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowRoundActions(false); }} />
+                          <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowReorderModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); }} />
                           <div className="h-px bg-white/10 my-1 mx-2"></div>
                           <MenuOption icon="✕" label="Eliminar fecha" color="text-red-400" onClick={handleRemoveRound} />
@@ -1571,6 +1568,16 @@ export default function TournamentPage() {
         tournamentTeams={tournamentTeams}
         onClose={() => setShowPlayoffDraw(false)}
         onSuccess={() => { setShowPlayoffDraw(false); fetchData(); }}
+      />
+    )}
+
+    {showReorderModal && (
+      <ReorderRoundsModal
+        phaseName={selectedPhase}
+        matches={matches}
+        tournamentId={tournamentId}
+        onClose={() => setShowReorderModal(false)}
+        onSuccess={() => { setShowReorderModal(false); fetchData(); }}
       />
     )}
     </>
@@ -2456,6 +2463,136 @@ function RoundStatistics({ matches }: { matches: any[] }) {
             </div>
           </div>
         </section>
+      </div>
+    </div>
+  )
+}
+
+function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSuccess }: any) {
+  const [rounds, setRounds] = useState<string[]>([])
+  const [roundsData, setRoundsData] = useState<any[]>([])
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    const firstPhaseName = '1° Fase'
+    const phaseMatches = matches.filter((m: any) => (m.phaseName || firstPhaseName) === phaseName)
+    const roundsWithDates = Array.from(new Set(phaseMatches.map((m: any) => String(m.roundName)))).map(r => {
+      const rMatches = phaseMatches.filter((m: any) => String(m.roundName) === r)
+      const minDate = rMatches.length > 0 ? new Date(Math.min(...rMatches.map((m: any) => new Date(m.matchDate).getTime()))) : null
+      return { name: r, date: minDate, order: rMatches[0]?.roundOrder || 0 }
+    }).sort((a: any, b: any) => {
+      if (a.order !== b.order) return a.order - b.order
+      if (!isNaN(Number(a.name)) && !isNaN(Number(b.name))) return Number(a.name) - Number(b.name)
+      return a.name.localeCompare(b.name)
+    })
+    setRounds(roundsWithDates.map(r => r.name))
+    setRoundsData(roundsWithDates)
+  }, [matches, phaseName])
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index)
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (index: number) => {
+    if (draggedIndex === null) return
+    if (draggedIndex === index) return
+    const newRounds = [...rounds]
+    const item = newRounds.splice(draggedIndex, 1)[0]
+    newRounds.splice(index, 0, item)
+    setRounds(newRounds)
+    setDraggedIndex(null)
+  }
+
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=reassignRounds`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phaseName, roundSequence: rounds }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        console.log('Reorder success:', data)
+        const total = data.summary?.reduce((acc: number, curr: any) => acc + curr.updated, 0) || 0
+        if (total === 0) {
+          alert('No se encontraron partidos para reordenar. Verifica que la fase sea la correcta.')
+        } else {
+          onSuccess()
+        }
+      } else {
+        alert(data.error || 'Error al reordenar')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error de conexión')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-[200] p-4" onClick={onClose}>
+      <div className="bg-[#F1F3F9] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-black text-slate-800">Reordenar rondas</h3>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-all text-xl">✕</button>
+          </div>
+          
+          <div className="space-y-2 mb-10 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+            {rounds.map((r, i) => (
+              <div 
+                key={r} 
+                draggable
+                onDragStart={() => handleDragStart(i)}
+                onDragOver={(e) => handleDragOver(e, i)}
+                onDrop={() => handleDrop(i)}
+                className={`bg-white p-4 rounded-2xl flex items-center justify-between shadow-sm border border-slate-100 group cursor-move transition-all ${draggedIndex === i ? 'opacity-40 scale-95 border-blue-200' : 'hover:border-blue-200'}`}
+              >
+                <div className="flex flex-col">
+                  <span className="font-bold text-slate-700">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</span>
+                  {roundsData.find(rd => rd.name === r)?.date && (
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                      {new Date(roundsData.find(rd => rd.name === r).date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="text-slate-300 font-black tracking-tighter">≡</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center mb-8">Arrastra las fechas para cambiar su orden</p>
+          
+          <div className="flex gap-4">
+            <button 
+              onClick={onClose}
+              disabled={isSaving}
+              className="flex-1 bg-slate-200 text-slate-500 font-black py-4 rounded-2xl hover:bg-slate-300 transition-all uppercase tracking-widest disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-1 bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all uppercase tracking-widest flex items-center justify-center disabled:opacity-50"
+            >
+              {isSaving ? (
+                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : 'Guardar'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
