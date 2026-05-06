@@ -561,24 +561,32 @@ export default function TournamentPage() {
       return alert('No se puede eliminar la fecha porque contiene partidos con resultados o eventos. Borra los resultados primero para poder quitar la fecha.')
     }
 
-    if (!confirm(`¿Estás seguro de eliminar TODOS los partidos de la fecha ${selectedRound}?`)) return
+    if (!confirm(`¿Estás seguro de eliminar la fecha ${selectedRound}?`)) return
     
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=deleteStage&stageName=${encodeURIComponent(selectedRound)}&phaseName=${encodeURIComponent(selectedPhase)}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    })
     
-    if (res.ok) {
-      await fetchData()
-      setShowRoundActions(false)
-      // Reset to first round if possible
-      const remainingMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) !== selectedRound)
-      if (remainingMatches.length > 0) {
-        setSelectedRound(String(remainingMatches[0].roundName))
-      }
+    // If it has matches, delete them via API
+    if (roundMatches.length > 0) {
+      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=deleteStage&stageName=${encodeURIComponent(selectedRound)}&phaseName=${encodeURIComponent(selectedPhase)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!res.ok) return alert('Error al eliminar los partidos de la fecha')
+    }
+    
+    // Refresh data anyway
+    await fetchData()
+    setShowRoundActions(false)
+
+    // Calculate which round to show next
+    const remainingMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) !== selectedRound)
+    if (remainingMatches.length > 0) {
+      // Get the highest round number available that is not the one we just deleted
+      const rounds = remainingMatches.map(m => Number(m.roundName)).filter(n => !isNaN(n))
+      const nextR = rounds.length > 0 ? String(Math.max(...rounds)) : String(remainingMatches[0].roundName)
+      setSelectedRound(nextR)
     } else {
-      alert('Error al eliminar la fecha')
+      setSelectedRound('1') // Default if nothing left
     }
   }
 
