@@ -497,6 +497,19 @@ export default function TournamentPage() {
   }
 
   const handleRemoveMatch = async (matchId: string) => {
+    const m = matches.find(x => x.id === matchId)
+    const hasResult = m && (
+      m.status === 'FINALIZADO' || 
+      m.status === 'EN_VIVO' || 
+      (m.homeScore !== null && m.homeScore !== undefined) || 
+      (m.awayScore !== null && m.awayScore !== undefined) || 
+      (m.events && m.events.length > 0)
+    )
+
+    if (hasResult) {
+      return alert('No se puede eliminar un partido que ya tiene resultados, goles o tarjetas registrados. Debes borrar los resultados primero para poder quitar el partido.')
+    }
+
     if (!confirm('¿Eliminar este partido?')) return
     const token = localStorage.getItem('token')
     const res = await fetch(`/api/matches/${matchId}`, {
@@ -507,6 +520,66 @@ export default function TournamentPage() {
       setShowMatchMenu(false)
       fetchData()
     } else alert('Error al eliminar')
+  }
+
+  const handleResetMatch = async (matchId: string) => {
+    if (!confirm('¿Deseas REINICIAR este partido? Se borrarán todos los goles, tarjetas e incidencias de forma permanente.')) return
+    
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/matches/${matchId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ 
+        homeScore: null, 
+        awayScore: null, 
+        homePenaltyScore: null,
+        awayPenaltyScore: null,
+        status: 'NO_REALIZADO',
+        events: [] 
+      }),
+    })
+    
+    if (res.ok) {
+      setShowMatchMenu(false)
+      fetchData()
+    } else {
+      alert('Error al reiniciar el partido')
+    }
+  }
+
+  const handleRemoveRound = async () => {
+    const roundMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)
+    const hasResults = roundMatches.some(m => 
+      m.status === 'FINALIZADO' || 
+      m.status === 'EN_VIVO' || 
+      (m.homeScore !== null && m.homeScore !== undefined) || 
+      (m.awayScore !== null && m.awayScore !== undefined) || 
+      (m.events && m.events.length > 0)
+    )
+    
+    if (hasResults) {
+      return alert('No se puede eliminar la fecha porque contiene partidos con resultados o eventos. Borra los resultados primero para poder quitar la fecha.')
+    }
+
+    if (!confirm(`¿Estás seguro de eliminar TODOS los partidos de la fecha ${selectedRound}?`)) return
+    
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=deleteStage&stageName=${encodeURIComponent(selectedRound)}&phaseName=${encodeURIComponent(selectedPhase)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    
+    if (res.ok) {
+      await fetchData()
+      setShowRoundActions(false)
+      // Reset to first round if possible
+      const remainingMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) !== selectedRound)
+      if (remainingMatches.length > 0) {
+        setSelectedRound(String(remainingMatches[0].roundName))
+      }
+    } else {
+      alert('Error al eliminar la fecha')
+    }
   }
 
   const getStandings = () => {
@@ -1067,6 +1140,8 @@ export default function TournamentPage() {
                           <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setShowRoundActions(false); }} />
                           <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowRoundActions(false); }} />
                           <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); }} />
+                          <div className="h-px bg-white/10 my-1 mx-2"></div>
+                          <MenuOption icon="✕" label="Eliminar fecha" color="text-red-400" onClick={handleRemoveRound} />
                         </div>
                       </div>
                     )}
@@ -1456,7 +1531,7 @@ export default function TournamentPage() {
               
               <div className="h-px bg-slate-800 my-2 mx-4"></div>
               
-              <MenuOption icon="🔄" label="Restaurar" color="text-red-400" onClick={() => setShowMatchMenu(false)} />
+              <MenuOption icon="🔄" label="Restaurar / Limpiar" color="text-blue-400" onClick={() => { if (selectedMatchId) handleResetMatch(selectedMatchId); }} />
               <MenuOption icon="✕" label="Quitar" color="text-red-500" onClick={() => { if (selectedMatchId) handleRemoveMatch(selectedMatchId); }} />
             </div>
             <div className="p-4 bg-slate-800/50 text-center">
