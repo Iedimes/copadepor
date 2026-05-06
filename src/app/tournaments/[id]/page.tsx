@@ -98,6 +98,7 @@ export default function TournamentPage() {
   const [showMatchMenu, setShowMatchMenu] = useState(false)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
+  const [showRoundActions, setShowRoundActions] = useState(false)
 
   const tournamentId = params.id as string
 
@@ -1007,6 +1008,26 @@ export default function TournamentPage() {
                         }).map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
                       </select>
                     </div>
+                  </div>
+
+                  {/* CENTRAL ACTION BUTTON (+) */}
+                  <div className="relative flex justify-center -mt-px z-20">
+                    <div className="bg-[#0F172A] px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:bg-slate-800 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)}>
+                      <span className="text-white font-black text-lg group-hover:scale-110 transition-transform">+</span>
+                    </div>
+                    
+                    {showRoundActions && (
+                      <div className="absolute top-10 w-64 bg-[#0A1128] rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="p-2 space-y-1">
+                          <MenuOption icon="➕" label="Agregar fecha" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
+                          <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
+                          <MenuOption icon="🔄" label="Regenerar Fixture" onClick={() => { setShowGenType(true); setShowRoundActions(false); }} />
+                          <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setShowRoundActions(false); }} />
+                          <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowRoundActions(false); }} />
+                          <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).length === 0 ? (
