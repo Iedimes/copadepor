@@ -433,6 +433,15 @@ export default function TournamentPage() {
     setShowEditPhase(true)
   }
 
+  const handleAddNextRound = () => {
+    const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
+    const rounds = phaseMatches.map(m => Number(m.roundName)).filter(n => !isNaN(n))
+    const maxRound = rounds.length > 0 ? Math.max(...rounds) : 0
+    const nextRound = String(maxRound + 1)
+    setSelectedRound(nextRound)
+    setShowRoundActions(false)
+  }
+
   const handleDeletePhase = async (phaseId: string) => {
     if (!confirm('¿Estás seguro de eliminar esta fase? Se perderán todos los partidos asociados.')) return
     const token = localStorage.getItem('token')
@@ -1028,8 +1037,8 @@ export default function TournamentPage() {
                         {phases.map(p => <option key={p.id || p.name} value={p.name} className="text-black">{p.name}</option>)}
                         {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase} className="text-black">{selectedPhase}</option>}
                       </select>
-                      <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
-                        {Array.from(new Set(matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => m.roundName))).sort((a,b) => {
+                        <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
+                          {Array.from(new Set([...matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => String(m.roundName)), selectedRound])).filter(Boolean).sort((a: any,b: any) => {
                           const isANum = !isNaN(Number(a));
                           const isBNum = !isNaN(Number(b));
                           if (isANum && isBNum) return Number(a) - Number(b);
@@ -1052,7 +1061,7 @@ export default function TournamentPage() {
                     {showRoundActions && (
                       <div className="absolute top-10 w-64 bg-[#0A1128] rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="p-2 space-y-1">
-                          <MenuOption icon="➕" label="Agregar fecha" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
+                          <MenuOption icon="➕" label="Agregar fecha" onClick={handleAddNextRound} />
                           <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="🔄" label="Regenerar Fixture" onClick={() => { setShowGenType(true); setShowRoundActions(false); }} />
                           <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setShowRoundActions(false); }} />
@@ -1089,17 +1098,32 @@ export default function TournamentPage() {
                       </div>
                     </div>
                   ) : matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-4">
+                    <div className="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-6">
                       <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-3xl">🗓️</div>
                       <div>
                         <p className="text-slate-400 font-bold italic text-sm">No hay partidos programados</p>
-                        <p className="text-slate-300 text-[10px] uppercase font-black tracking-tighter mt-1">Selecciona otra fase o fecha</p>
+                        <p className="text-slate-300 text-[10px] uppercase font-black tracking-tighter mt-1">Selecciona otra fase o agrega uno nuevo</p>
                       </div>
+                      <button 
+                        onClick={() => setShowAddMatchModal(true)}
+                        className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg active:scale-95"
+                      >
+                        AGREGAR PARTIDO
+                      </button>
                     </div>
                   ) : (
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
                       {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).map(m => renderMatchCard(m))}
                       
+                      <div className="pt-4">
+                        <button 
+                          onClick={() => setShowAddMatchModal(true)}
+                          className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg active:scale-95"
+                        >
+                          AGREGAR PARTIDO
+                        </button>
+                      </div>
+
                       <div className="mt-10 pt-10 border-t border-slate-100">
                         <h3 className="bg-[#0F172A] text-white p-4 rounded-t-[1.5rem] text-center font-black text-xs uppercase tracking-widest">Estadísticas de la fecha</h3>
                         <div className="bg-slate-50 rounded-b-[1.5rem] p-6">
