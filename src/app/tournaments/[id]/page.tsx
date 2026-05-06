@@ -267,6 +267,14 @@ export default function TournamentPage() {
   const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
     if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
 
+    // Safety check: Don't regenerate if there are matches with results in current phase
+    const currentPhaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
+    const hasResults = currentPhaseMatches.some(m => m.status !== 'NO_REALIZADO')
+    
+    if (hasResults) {
+      return alert('No se puede regenerar el fixture porque ya hay partidos con resultados o en juego en esta fase. Debes eliminar los resultados primero si deseas empezar de cero.')
+    }
+
     if (selectedPhase !== firstPhaseName) {
       const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
       const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
@@ -275,19 +283,44 @@ export default function TournamentPage() {
       }
     }
 
+    if (currentPhaseMatches.length > 0) {
+      if (!confirm('Esta fase ya tiene partidos generados (pero ninguno jugado aún). ¿Deseas ELIMINARLOS todos y volver a generar el fixture desde cero?')) return
+    }
+
     setGenerating(true)
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType: type, phaseName: selectedPhase }),
-    })
-    if (res.ok) {
-      await fetchData()
-      setSelectedRound('1')
-      setShowGenType(false)
+
+    try {
+      // 1. Clean existing matches of this phase if any
+      if (currentPhaseMatches.length > 0) {
+        const cleanRes = await fetch(`/api/tournaments/${tournamentId}/matches?action=deletePhase&phaseName=${encodeURIComponent(selectedPhase)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (!cleanRes.ok) throw new Error('Error al limpiar la fase anterior')
+      }
+
+      // 2. Generate new matches
+      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType: type, phaseName: selectedPhase }),
+      })
+      
+      if (res.ok) {
+        await fetchData()
+        setSelectedRound('1')
+        setShowGenType(false)
+        setShowRoundActions(false)
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Error al generar')
+      }
+    } catch (error: any) {
+      alert(error.message)
+    } finally {
+      setGenerating(false)
     }
-    setGenerating(false)
   }
 
   const handleCreateAdvantagePlayoff = () => {

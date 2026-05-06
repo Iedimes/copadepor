@@ -124,6 +124,18 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ message: `Partidos de ${stageName} eliminados` })
     }
 
+    if (action === 'deletePhase') {
+      const phaseName = url.searchParams.get('phaseName')
+      if (!phaseName) return NextResponse.json({ error: 'phaseName requerido' }, { status: 400 })
+      await prisma.match.deleteMany({
+        where: {
+          tournamentId: params.id,
+          phaseName: phaseName,
+        },
+      })
+      return NextResponse.json({ message: `Partidos de la fase ${phaseName} eliminados` })
+    }
+
     return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
   } catch (error) {
     console.error('Delete matches error:', error)
