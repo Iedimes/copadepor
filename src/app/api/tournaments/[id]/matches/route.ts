@@ -528,6 +528,42 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         console.error('Generate knockout tree error:', error)
         return NextResponse.json({ error: 'Error al generar el árbol' }, { status: 500 })
       }
+    } else if (action === 'reorderRounds') {
+      try {
+        const { phaseName } = body
+        if (!phaseName) return NextResponse.json({ error: 'phaseName requerido' }, { status: 400 })
+
+        // Get all matches for this phase
+        const matches = await prisma.match.findMany({
+          where: { tournamentId: params.id, phaseName },
+          orderBy: { createdAt: 'asc' } // Keep original creation order
+        })
+
+        // Identify unique rounds in their current order
+        const roundNames = [...new Set(matches.map(m => m.roundName))]
+        
+        // Filter only numeric rounds for reordering
+        const numericRounds = roundNames.filter(r => !isNaN(Number(r))).sort((a, b) => Number(a) - Number(b))
+        
+        let updatedCount = 0
+        for (let i = 0; i < numericRounds.length; i++) {
+          const oldName = numericRounds[i]
+          const newName = String(i + 1)
+          
+          if (oldName !== newName) {
+            await prisma.match.updateMany({
+              where: { tournamentId: params.id, phaseName, roundName: oldName },
+              data: { roundName: newName }
+            })
+            updatedCount++
+          }
+        }
+
+        return NextResponse.json({ message: 'Rondas reordenadas con éxito', updatedCount })
+      } catch (error) {
+        console.error('Reorder rounds error:', error)
+        return NextResponse.json({ error: 'Error al reordenar rondas' }, { status: 500 })
+      }
     } else if (action === 'generateFinal') {
       try {
         const phaseName = body.phaseName || 'Fase Final'

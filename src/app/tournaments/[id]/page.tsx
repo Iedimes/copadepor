@@ -435,9 +435,15 @@ export default function TournamentPage() {
 
   const handleAddNextRound = () => {
     const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
-    const rounds = phaseMatches.map(m => Number(m.roundName)).filter(n => !isNaN(n))
-    const maxRound = rounds.length > 0 ? Math.max(...rounds) : 0
-    const nextRound = String(maxRound + 1)
+    const existingRounds = new Set(phaseMatches.map(m => Number(m.roundName)).filter(n => !isNaN(n)))
+    
+    // Find the first available number starting from 1
+    let nextNum = 1
+    while (existingRounds.has(nextNum)) {
+      nextNum++
+    }
+    
+    const nextRound = String(nextNum)
     setSelectedRound(nextRound)
     setShowRoundActions(false)
   }
@@ -572,21 +578,29 @@ export default function TournamentPage() {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) return alert('Error al eliminar los partidos de la fecha')
+      
+      // Auto-reorder rounds to close the gap
+      await fetch(`/api/tournaments/${tournamentId}/matches?action=reorderRounds`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phaseName: selectedPhase })
+      })
     }
     
-    // Refresh data anyway
+    // Refresh data
     await fetchData()
     setShowRoundActions(false)
 
-    // Calculate which round to show next
-    const remainingMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) !== selectedRound)
-    if (remainingMatches.length > 0) {
-      // Get the highest round number available that is not the one we just deleted
-      const rounds = remainingMatches.map(m => Number(m.roundName)).filter(n => !isNaN(n))
-      const nextR = rounds.length > 0 ? String(Math.max(...rounds)) : String(remainingMatches[0].roundName)
-      setSelectedRound(nextR)
+    // After reordering, the rounds will be 1, 2, 3...
+    // We should probably stay on the same index or the new maximum
+    const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) !== selectedRound)
+    if (phaseMatches.length > 0) {
+       // Since we reordered, the new max round will be current total rounds
+       const uniqueRounds = new Set(phaseMatches.map(m => m.roundName))
+       const maxR = String(uniqueRounds.size)
+       setSelectedRound(maxR)
     } else {
-      setSelectedRound('1') // Default if nothing left
+      setSelectedRound('1')
     }
   }
 
