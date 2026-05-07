@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏆 CopaDepor - Tournament Management System
 
-## Getting Started
+CopaDepor es una plataforma moderna y robusta diseñada para la gestión integral de torneos de fútbol. El sistema permite administrar desde la creación de equipos hasta la generación automatizada de fixtures y el seguimiento de estadísticas en tiempo real.
 
-First, run the development server:
+## 🚀 Características Principales
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+*   **Gestión de Torneos**: Creación y configuración dinámica de fases y rondas.
+*   **Fixture Automatizado**: Generación de partidos mediante algoritmos Round Robin (Ida o Ida y Vuelta).
+*   **Seguimiento en Vivo**: Registro detallado de eventos de partido (goles, tarjetas amarillas/rojas, etc.).
+*   **Estadísticas Automáticas**: Tablas de posiciones, goleadores y fair play actualizados al instante.
+*   **Sistema de Limpieza Avanzado**: Capacidad para restaurar resultados de una fase sin perder la estructura del fixture.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠️ Stack Tecnológico
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+*   **Frontend**: Next.js (App Router), React, Tailwind CSS.
+*   **Backend**: Next.js API Routes.
+*   **Base de Datos**: PostgreSQL / MySQL (según entorno).
+*   **ORM**: Prisma.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📖 Documentación y Manuales
 
-## Learn More
+Para facilitar el uso del sistema, hemos creado guías detalladas:
 
-To learn more about Next.js, take a look at the following resources:
+*   [**📘 Manual de Administrador**](./docs/MANUAL_ADMIN.md): Todo sobre gestión de torneos, equipos y fixtures.
+*   [**📙 Manual de Usuario (Front-End)**](./docs/MANUAL_FRONTEND.md): Guía para consulta de resultados y tablas.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📂 Estructura del Proyecto
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+*   `/src/app`: Rutas y componentes de la aplicación (Next.js App Router).
+*   `/src/app/api`: Endpoints de la API para gestión de datos.
+*   `/prisma`: Esquema de la base de datos y migraciones.
+*   `/database`: Backups de la base de datos (SQL).
+*   `/docs`: Documentación detallada del proyecto.
 
-## Deploy on Vercel
+## 🛠️ Instalación y Desarrollo
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1.  Instalar dependencias: `npm install`
+2.  Configurar variables de entorno en `.env`.
+3.  Ejecutar el servidor de desarrollo: `npm run dev`
+4.  Acceder a `http://localhost:3000` (o `3001` si el 3000 está en uso).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+*Desarrollado con ❤️ para la comunidad deportiva.*
