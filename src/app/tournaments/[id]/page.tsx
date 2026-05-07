@@ -69,9 +69,9 @@ export default function TournamentPage() {
   const [generating, setGenerating] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
   const [showGenType, setShowGenType] = useState(false)
-  const [selectedPhase, setSelectedPhase] = useState('Primera Fase')
+  const [selectedPhase, setSelectedPhase] = useState('1° Fase')
   const [phases, setPhases] = useState<any[]>([])
-  const firstPhaseName = phases.length > 0 ? phases[0].name : 'Primera Fase';
+  const firstPhaseName = phases.length > 0 ? phases[0].name : '1° Fase';
   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
 
   // Fases Modals State

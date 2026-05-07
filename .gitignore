@@ -42,3 +42,6 @@ next-env.d.ts
 
 # prisma generated
 /src/lib/generated
+
+# scripts temporales de depuracion (no subir al repo)
+/scratch
