@@ -137,6 +137,40 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ message: `Partidos de la fase ${phaseName} eliminados` })
     }
 
+    if (action === 'resetPhaseResults') {
+      const phaseName = url.searchParams.get('phaseName')
+      if (!phaseName) return NextResponse.json({ error: 'phaseName requerido' }, { status: 400 })
+
+      // Buscar todos los partidos de la fase
+      const phaseMatches = await prisma.match.findMany({
+        where: { tournamentId: params.id, phaseName },
+        select: { id: true }
+      })
+      const matchIds = phaseMatches.map(m => m.id)
+
+      if (matchIds.length === 0) {
+        return NextResponse.json({ message: 'No hay partidos en esta fase' })
+      }
+
+      // Borrar todos los eventos (goles, tarjetas, etc.) de esos partidos
+      await prisma.matchEvent.deleteMany({ where: { matchId: { in: matchIds } } })
+
+      // Resetear scores y estado a SCHEDULED
+      await prisma.match.updateMany({
+        where: { tournamentId: params.id, phaseName },
+        data: {
+          homeScore: null,
+          awayScore: null,
+          homePenaltyScore: null,
+          awayPenaltyScore: null,
+          status: 'SCHEDULED',
+        }
+      })
+
+      return NextResponse.json({ message: `Resultados de la fase ${phaseName} limpiados correctamente`, count: matchIds.length })
+    }
+
+
     return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
   } catch (error) {
     console.error('Delete matches error:', error)
@@ -256,8 +290,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
 
       try {
+        const phaseName = body.phaseName || '1° Fase'
         let count = 0
-        for (const m of matches) {
+        for (let i = 0; i < matches.length; i++) {
+          const m = matches[i]
           await prisma.match.create({
             data: {
               tournamentId: params.id,
@@ -265,7 +301,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               awayTeamId: m.awayTeamId,
               matchDate: roundDate,
               roundName: String(m.roundName),
-              phaseName: body.phaseName || 'Primera Fase',
+              roundOrder: Number(m.roundName),
+              phaseName,
               status: 'SCHEDULED',
             },
           })

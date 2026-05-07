@@ -264,64 +264,79 @@ export default function TournamentPage() {
 
 
 
+  // Generar o Regenerar fixture (solo cuando NO hay partidos con datos)
   const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
-    if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
-
-    // Safety check: Don't regenerate if there are matches with results in current phase
-    const currentPhaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
-    const hasResults = currentPhaseMatches.some(m => m.status !== 'NO_REALIZADO')
-    
-    if (hasResults) {
-      return alert('No se puede regenerar el fixture porque ya hay partidos con resultados o en juego en esta fase. Debes eliminar los resultados primero si deseas empezar de cero.')
-    }
-
-    if (selectedPhase !== firstPhaseName) {
-      const primeraFaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === firstPhaseName)
-      const pendingPrimeraFase = primeraFaseMatches.filter(m => m.status === 'NO_REALIZADO' || m.status === 'EN_VIVO')
-      if (primeraFaseMatches.length === 0 || pendingPrimeraFase.length > 0) {
-        return alert(`No se puede generar partidos de esta fase porque aún no se han jugado todos los partidos de la fase inicial (${firstPhaseName}).`)
-      }
-    }
-
-    if (currentPhaseMatches.length > 0) {
-      if (!confirm('Esta fase ya tiene partidos generados (pero ninguno jugado aún). ¿Deseas ELIMINARLOS todos y volver a generar el fixture desde cero?')) return
-    }
+    if (tournamentTeams.length === 0) return alert('Debes agregar equipos al torneo antes de generar partidos.')
 
     setGenerating(true)
     const token = localStorage.getItem('token')
 
     try {
-      // 1. Clean existing matches of this phase if any
+      // 1. Borrar todos los partidos de la fase actual si los hay (cascade borra eventos, goles, tarjetas)
+      const currentPhaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
       if (currentPhaseMatches.length > 0) {
         const cleanRes = await fetch(`/api/tournaments/${tournamentId}/matches?action=deletePhase&phaseName=${encodeURIComponent(selectedPhase)}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         })
-        if (!cleanRes.ok) throw new Error('Error al limpiar la fase anterior')
+        if (!cleanRes.ok) {
+          const cleanErr = await cleanRes.json()
+          throw new Error(cleanErr.error || 'Error al limpiar los partidos anteriores')
+        }
       }
 
-      // 2. Generate new matches
+      // 2. Generar nuevos partidos
       const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generate`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roundName: '1', roundDate: roundDate || new Date().toISOString(), matchType: type, phaseName: selectedPhase }),
+        body: JSON.stringify({
+          roundDate: new Date().toISOString(),
+          matchType: type,
+          phaseName: selectedPhase,
+        }),
       })
-      
+
       if (res.ok) {
+        const result = await res.json()
         await fetchData()
         setSelectedRound('1')
         setShowGenType(false)
         setShowRoundActions(false)
       } else {
         const err = await res.json()
-        alert(err.error || 'Error al generar')
+        alert(err.error || 'Error al generar el fixture')
       }
     } catch (error: any) {
-      alert(error.message)
+      alert(error.message || 'Error inesperado al generar el fixture')
     } finally {
       setGenerating(false)
     }
   }
+
+  // Restaurar/Limpiar resultados: borra scores, eventos y tarjetas pero MANTIENE los partidos
+  const handleRestorePhaseResults = async () => {
+    setGenerating(true)
+    const token = localStorage.getItem('token')
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=resetPhaseResults&phaseName=${encodeURIComponent(selectedPhase)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        await fetchData()
+        setShowGenType(false)
+        setShowRoundActions(false)
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Error al limpiar los resultados')
+      }
+    } catch (error: any) {
+      alert(error.message || 'Error inesperado')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
 
   const handleCreateAdvantagePlayoff = () => {
     if (tournamentTeams.length === 0) return alert('Debes agregar equipos antes.')
@@ -870,9 +885,6 @@ export default function TournamentPage() {
                      {/* Dropdown Menu */}
                      <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
                        <div className="py-2">
-                         <button onClick={() => setShowGenType(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                           <span className="text-lg">⚽</span> Generar Fixture
-                         </button>
                          <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                            <span className="text-lg">📋</span> Equipos
                          </button>
@@ -940,9 +952,6 @@ export default function TournamentPage() {
                            {/* Dropdown Menu */}
                            <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
                              <div className="py-2">
-                               <button onClick={() => setShowGenType(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                                 <span className="text-lg">⚽</span> Generar Fixture
-                               </button>
                                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">📋</span> Equipos
                                </button>
@@ -1355,24 +1364,120 @@ export default function TournamentPage() {
       )}
 
       {/* Fixture Type Modal */}
-      {showGenType && (
-        <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-50 p-4" onClick={() => setShowGenType(false)}>
-          <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-xl font-black text-center mb-8 text-slate-900">Configurar Fixture</h3>
-            <div className="space-y-3">
-              <button onClick={() => handleGenerateMatches('ida')} className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100">SOLO IDA (Round Robin)</button>
-              <button onClick={() => handleGenerateMatches('idayvuelta')} className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100">IDA Y VUELTA</button>
+      {showGenType && (() => {
+        const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
+        const phaseHasResults = phaseMatches.some(m => m.status === 'EN_VIVO' || m.status === 'FINALIZADO')
+        const phaseHasMatches = phaseMatches.length > 0
+        const noTeams = tournamentTeams.length === 0
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !generating && setShowGenType(false)}>
+            <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+              <p className="text-center text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Fase: {selectedPhase}</p>
+
+              {generating ? (
+                <div className="flex flex-col items-center gap-4 py-6">
+                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-slate-500 font-bold text-sm">Procesando...</p>
+                </div>
+              ) : noTeams ? (
+                // Sin equipos → mostrar mensaje y redirigir
+                <>
+                  <div className="text-center text-5xl mb-4">👥</div>
+                  <h3 className="text-xl font-black text-center mb-3 text-slate-900">Sin equipos</h3>
+                  <p className="text-center text-sm text-slate-500 mb-8 leading-relaxed">
+                    Para generar el fixture necesitás agregar equipos al torneo primero.
+                  </p>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => { setShowGenType(false); router.push(`/tournaments/${tournamentId}/add-teams`) }}
+                      className="w-full p-5 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition-all shadow-lg"
+                    >
+                      👥 Agregar Equipos
+                    </button>
+                    <button onClick={() => setShowGenType(false)} className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">
+                      Cerrar
+                    </button>
+                  </div>
+                </>
+              ) : phaseHasResults ? (
+                // Hay partidos CON resultados → mostrar Restaurar/Limpiar
+                <>
+                  <h3 className="text-xl font-black text-center mb-2 text-slate-900">Restaurar Resultados</h3>
+                  <p className="text-center text-xs text-slate-500 mb-8 leading-relaxed">
+                    Esta fase tiene partidos con resultados.<br/>
+                    Podés limpiar todos los datos (goles, tarjetas, eventos) y dejar los partidos sin resultado.
+                  </p>
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleRestorePhaseResults}
+                      className="w-full p-5 bg-orange-500 text-white rounded-2xl font-black hover:bg-orange-600 transition-all shadow-lg"
+                    >
+                      🧹 Limpiar resultados y tarjetas
+                    </button>
+                    <div className="relative py-2">
+                      <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
+                      <div className="relative flex justify-center"><span className="px-3 bg-white text-[10px] text-slate-400 font-black uppercase tracking-widest">o también</span></div>
+                    </div>
+                    <button
+                      onClick={() => handleGenerateMatches('ida')}
+                      className="w-full p-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-red-50 hover:text-red-600 transition-all border border-slate-200 text-sm"
+                    >
+                      🗑️ Borrar todo y regenerar (Ida)
+                    </button>
+                    <button
+                      onClick={() => handleGenerateMatches('idayvuelta')}
+                      className="w-full p-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-red-50 hover:text-red-600 transition-all border border-slate-200 text-sm"
+                    >
+                      🗑️ Borrar todo y regenerar (Ida y Vuelta)
+                    </button>
+                    <button onClick={() => setShowGenType(false)} className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                // Sin resultados → mostrar Generar / Regenerar
+                <>
+                  <h3 className="text-xl font-black text-center mb-2 text-slate-900">
+                    {phaseHasMatches ? 'Regenerar Fixture' : 'Generar Fixture'}
+                  </h3>
+                  <p className="text-center text-xs text-slate-500 mb-8 leading-relaxed">
+                    {phaseHasMatches
+                      ? `Se eliminarán los ${phaseMatches.length} partidos actuales y se generará el fixture desde cero.`
+                      : 'Elegí el formato del fixture para esta fase.'}
+                  </p>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => handleGenerateMatches('ida')}
+                      className="w-full p-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg"
+                    >
+                      ⚽ SOLO IDA (Round Robin)
+                    </button>
+                    <button
+                      onClick={() => handleGenerateMatches('idayvuelta')}
+                      className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100"
+                    >
+                      🔄 IDA Y VUELTA
+                    </button>
+                    <button onClick={() => setShowGenType(false)} className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">
+                      Cancelar
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
+
 
       {/* CENTRAL CONFIG MENU */}
       {showConfigMenu && (
         <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setShowConfigMenu(false)}>
           <div className="bg-[#0F172A] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="p-4 space-y-1">
-              <MenuOption icon="⚽" label="Generar Fixture" onClick={() => { setShowConfigMenu(false); setShowGenType(true); }} />
+
               <MenuOption icon="👥" label="Equipos" onClick={() => { setShowConfigMenu(false); router.push(`/tournaments/${tournamentId}/add-teams`); }} />
               <MenuOption icon="💠" label="Grupos" onClick={() => { setShowConfigMenu(false); }} />
               <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); setShowPhasesList(true); }} />
