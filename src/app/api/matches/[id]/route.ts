@@ -99,6 +99,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       await prisma.matchEvent.deleteMany({
         where: { matchId }
       })
+      await prisma.goal.deleteMany({
+        where: { matchId }
+      })
+      await prisma.matchReport.deleteMany({
+        where: { matchId }
+      })
 
       if (events.length > 0) {
         await prisma.matchEvent.createMany({

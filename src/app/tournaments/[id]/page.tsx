@@ -100,6 +100,7 @@ export default function TournamentPage() {
   const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
   const [showRoundActions, setShowRoundActions] = useState(false)
   const [showReorderModal, setShowReorderModal] = useState(false)
+  const [confirmResetMatch, setConfirmResetMatch] = useState(false)
 
   const tournamentId = params.id as string
 
@@ -512,7 +513,6 @@ export default function TournamentPage() {
       router.push(`/tournaments/${tournamentId}/add-players?teamId=${m.awayTeam.id}&teamName=${encodeURIComponent(m.awayTeam.name)}`)
       return
     }
-
     setSelectedMatchId(m.id)
     setShowMatchMenu(true)
   }
@@ -544,27 +544,33 @@ export default function TournamentPage() {
   }
 
   const handleResetMatch = async (matchId: string) => {
-    if (!confirm('¿Deseas REINICIAR este partido? Se borrarán todos los goles, tarjetas e incidencias de forma permanente.')) return
-    
+    // La confirmación ocurre en el botón de la interfaz
+    const m = matches.find(x => x.id === matchId)
+    const hasResult = m && (
+      m.status === 'FINALIZADO' || 
+      m.status === 'EN_VIVO' || 
+      (m.homeScore !== null && m.homeScore !== undefined) || 
+      (m.awayScore !== null && m.awayScore !== undefined) || 
+      (m.events && m.events.length > 0)
+    )
+
+    if (!hasResult) return
+
+    setGenerating(true)
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/matches/${matchId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ 
-        homeScore: null, 
-        awayScore: null, 
-        homePenaltyScore: null,
-        awayPenaltyScore: null,
-        status: 'NO_REALIZADO',
-        events: [] 
-      }),
-    })
-    
-    if (res.ok) {
-      setShowMatchMenu(false)
-      fetchData()
-    } else {
-      alert('Error al reiniciar el partido')
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=resetMatch&matchId=${matchId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      
+      if (res.ok) {
+        setShowMatchMenu(false)
+        await fetchData()
+      }
+    } catch (error) {
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -630,7 +636,7 @@ export default function TournamentPage() {
         if (Array.isArray(teamsParsed) && teamsParsed.length > 0) {
           phaseTeamIds = teamsParsed
         }
-      } catch (e) { console.error('Error parsing phase teams:', e) }
+      } catch (e) { }
     }
 
     tournamentTeams.forEach(tt => { 
@@ -1655,7 +1661,23 @@ export default function TournamentPage() {
               
               <div className="h-px bg-slate-800 my-2 mx-4"></div>
               
-              <MenuOption icon="🔄" label="Restaurar / Limpiar" color="text-blue-400" onClick={() => { if (selectedMatchId) handleResetMatch(selectedMatchId); }} />
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!confirmResetMatch) {
+                    setConfirmResetMatch(true);
+                  } else {
+                    if (selectedMatchId) handleResetMatch(selectedMatchId);
+                    setConfirmResetMatch(false);
+                  }
+                }}
+                className={`w-full flex items-center gap-4 px-6 py-4 transition-all rounded-[1.5rem] group text-left border ${confirmResetMatch ? 'bg-red-600 border-red-400' : 'bg-blue-600/10 border-blue-500/30 hover:bg-blue-600/20'}`}
+              >
+                <span className={`text-xl group-hover:scale-125 transition-transform ${confirmResetMatch ? 'text-white' : 'text-blue-500'}`}>{confirmResetMatch ? '⚠️' : '⚡'}</span>
+                <span className={`font-black text-sm tracking-tight uppercase ${confirmResetMatch ? 'text-white' : 'text-blue-500'}`}>
+                  {confirmResetMatch ? '¿ESTÁS SEGURO? (CLICK AQUÍ)' : 'Restaurar / Limpiar (Goles, Tarjetas, etc)'}
+                </span>
+              </button>
               <MenuOption icon="✕" label="Quitar" color="text-red-500" onClick={() => { if (selectedMatchId) handleRemoveMatch(selectedMatchId); }} />
             </div>
             <div className="p-4 bg-slate-800/50 text-center">

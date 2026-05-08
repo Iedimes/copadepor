@@ -137,37 +137,50 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ message: `Partidos de la fase ${phaseName} eliminados` })
     }
 
-    if (action === 'resetPhaseResults') {
+    if (action === 'resetPhaseResults' || action === 'resetMatch') {
       const phaseName = url.searchParams.get('phaseName')
-      if (!phaseName) return NextResponse.json({ error: 'phaseName requerido' }, { status: 400 })
-
-      // Buscar todos los partidos de la fase
-      const phaseMatches = await prisma.match.findMany({
-        where: { tournamentId: params.id, phaseName },
-        select: { id: true }
-      })
-      const matchIds = phaseMatches.map(m => m.id)
-
-      if (matchIds.length === 0) {
-        return NextResponse.json({ message: 'No hay partidos en esta fase' })
+      const matchId = url.searchParams.get('matchId')
+      
+      let matchIds: string[] = []
+      
+      if (action === 'resetMatch' && matchId) {
+        matchIds = [matchId]
+      } else if (action === 'resetPhaseResults' && phaseName) {
+        const phaseMatches = await prisma.match.findMany({
+          where: { tournamentId: params.id, phaseName },
+          select: { id: true }
+        })
+        matchIds = phaseMatches.map(m => m.id)
+      } else {
+        return NextResponse.json({ error: 'Faltan parámetros (matchId o phaseName)' }, { status: 400 })
       }
 
-      // Borrar todos los eventos (goles, tarjetas, etc.) de esos partidos
-      await prisma.matchEvent.deleteMany({ where: { matchId: { in: matchIds } } })
+      if (matchIds.length === 0) {
+        return NextResponse.json({ message: 'No se encontraron partidos' })
+      }
 
-      // Resetear scores y estado a SCHEDULED
+      // Limpieza profunda
+      await prisma.matchEvent.deleteMany({ where: { matchId: { in: matchIds } } })
+      await prisma.goal.deleteMany({ where: { matchId: { in: matchIds } } })
+      await prisma.matchReport.deleteMany({ where: { matchId: { in: matchIds } } })
+
+      // Reset de estados y scores
       await prisma.match.updateMany({
-        where: { tournamentId: params.id, phaseName },
+        where: { id: { in: matchIds } },
         data: {
           homeScore: null,
           awayScore: null,
           homePenaltyScore: null,
           awayPenaltyScore: null,
           status: 'SCHEDULED',
+          notes: null
         }
       })
 
-      return NextResponse.json({ message: `Resultados de la fase ${phaseName} limpiados correctamente`, count: matchIds.length })
+      return NextResponse.json({ 
+        message: action === 'resetMatch' ? 'Partido restaurado' : 'Fase restaurada', 
+        count: matchIds.length 
+      })
     }
 
 
