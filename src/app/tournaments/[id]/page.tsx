@@ -2357,7 +2357,7 @@ function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = '
                 <div className="flex items-center gap-1">
                   <span className="text-[8px] font-black text-slate-400 w-16 shrink-0 uppercase tracking-wider">{pLabel}</span>
                   <select value={e.playerId} onChange={v => up(e.id, 'playerId', v.target.value)} className="flex-1 bg-white border-none rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm outline-none text-slate-700">
-                    <option value="">Seleccionar...</option>
+                    <option value="">Sin especificar...</option>
                     {players.map((p: any) => <option key={p.id} value={p.id}>{p.number ? `#${p.number} ` : ''}{p.name}</option>)}
                   </select>
                 </div>
@@ -2366,7 +2366,7 @@ function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = '
                     <span className="text-[8px] font-black text-slate-400 w-16 shrink-0 uppercase tracking-wider">{aLabel}</span>
                     <select value={e.assistId} onChange={v => up(e.id, 'assistId', v.target.value)} className="flex-1 bg-white border-none rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm outline-none text-slate-700">
                       <option value="">Ninguno</option>
-                      {players.map((p: any) => <option key={p.id} value={p.id}>{p.number ? `#${p.number} ` : ''}{p.name}</option>)}
+                      {players.filter((p: any) => p.id !== e.playerId).map((p: any) => <option key={p.id} value={p.id}>{p.number ? `#${p.number} ` : ''}{p.name}</option>)}
                     </select>
                   </div>
                 )}
