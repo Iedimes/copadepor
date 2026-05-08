@@ -101,6 +101,7 @@ export default function TournamentPage() {
   const [showRoundActions, setShowRoundActions] = useState(false)
   const [showReorderModal, setShowReorderModal] = useState(false)
   const [confirmResetMatch, setConfirmResetMatch] = useState(false)
+  const [confirmRemoveMatchId, setConfirmRemoveMatchId] = useState<string | null>(null)
 
   const tournamentId = params.id as string
 
@@ -518,20 +519,7 @@ export default function TournamentPage() {
   }
 
   const handleRemoveMatch = async (matchId: string) => {
-    const m = matches.find(x => x.id === matchId)
-    const hasResult = m && (
-      m.status === 'FINALIZADO' || 
-      m.status === 'EN_VIVO' || 
-      (m.homeScore !== null && m.homeScore !== undefined) || 
-      (m.awayScore !== null && m.awayScore !== undefined) || 
-      (m.events && m.events.length > 0)
-    )
-
-    if (hasResult) {
-      return alert('No se puede eliminar un partido que ya tiene resultados, goles o tarjetas registrados. Debes borrar los resultados primero para poder quitar el partido.')
-    }
-
-    if (!confirm('¿Eliminar este partido?')) return
+    // La confirmación ocurre en el botón de la interfaz
     const token = localStorage.getItem('token')
     const res = await fetch(`/api/matches/${matchId}`, {
       method: 'DELETE',
@@ -565,6 +553,8 @@ export default function TournamentPage() {
       })
       
       if (res.ok) {
+        setConfirmRemoveMatchId(null);
+        setConfirmResetMatch(false);
         setShowMatchMenu(false)
         await fetchData()
       }
@@ -1678,10 +1668,36 @@ export default function TournamentPage() {
                   {confirmResetMatch ? '¿ESTÁS SEGURO? (CLICK AQUÍ)' : 'Restaurar / Limpiar (Goles, Tarjetas, etc)'}
                 </span>
               </button>
-              <MenuOption icon="✕" label="Quitar" color="text-red-500" onClick={() => { if (selectedMatchId) handleRemoveMatch(selectedMatchId); }} />
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirmRemoveMatchId !== selectedMatchId) {
+                    setConfirmRemoveMatchId(selectedMatchId);
+                  } else {
+                    if (selectedMatchId) handleRemoveMatch(selectedMatchId);
+                    setConfirmRemoveMatchId(null);
+                  }
+                }}
+                className={`w-full flex items-center gap-4 px-6 py-4 transition-all rounded-[1.5rem] group text-left border ${confirmRemoveMatchId === selectedMatchId ? 'bg-red-600 border-red-400 animate-pulse' : 'hover:bg-slate-800 border-transparent'}`}
+              >
+                <span className={`text-xl group-hover:scale-125 transition-transform ${confirmRemoveMatchId === selectedMatchId ? 'text-white' : 'text-red-500'}`}>{confirmRemoveMatchId === selectedMatchId ? '🚨' : '✕'}</span>
+                <span className={`font-black text-sm tracking-tight ${confirmRemoveMatchId === selectedMatchId ? 'text-white' : 'text-red-500 uppercase'}`}>
+                  {confirmRemoveMatchId === selectedMatchId ? (
+                    (() => {
+                      const m = matches.find(x => x.id === selectedMatchId);
+                      const hasRes = m && (m.homeScore !== null || (m.events && m.events.length > 0));
+                      return hasRes ? '🚨 ¡TIENE RESULTADOS! ¿BORRAR TODO?' : '⚠️ ¿CONFIRMAR ELIMINAR?'
+                    })()
+                  ) : 'Quitar partido'}
+                </span>
+              </button>
             </div>
             <div className="p-4 bg-slate-800/50 text-center">
-              <button onClick={() => setShowMatchMenu(false)} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
+              <button onClick={() => { 
+                setConfirmRemoveMatchId(null); 
+                setConfirmResetMatch(false); 
+                setShowMatchMenu(false); 
+              }} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
             </div>
           </div>
         </div>

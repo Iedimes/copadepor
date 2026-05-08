@@ -150,6 +150,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   const matchId = params.id
 
   try {
+    // Limpieza de datos relacionados antes de borrar el partido
+    await prisma.matchEvent.deleteMany({ where: { matchId } })
+    await prisma.goal.deleteMany({ where: { matchId } })
+    await prisma.matchReport.deleteMany({ where: { matchId } })
+
     await prisma.match.delete({
       where: { id: matchId },
     })
