@@ -1137,14 +1137,17 @@ export default function TournamentPage() {
                         {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase} className="text-black">{selectedPhase}</option>}
                       </select>
                         <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
-                          {Array.from(new Set([...matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => String(m.roundName)), selectedRound])).filter(Boolean).map(r => {
-                            const firstMatch = matches.find(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === r)
-                            return { name: r, order: firstMatch?.roundOrder || 0 }
-                          }).sort((a, b) => {
-                            if (a.order !== b.order) return a.order - b.order
-                            if (!isNaN(Number(a.name)) && !isNaN(Number(b.name))) return Number(a.name) - Number(b.name)
-                            return a.name.localeCompare(b.name)
-                          }).map(r => <option key={r.name} value={r.name} className="text-black">{!isNaN(Number(r.name)) ? `${r.name}º Fecha` : r.name}</option>)}
+                          {Array.from(new Set([...matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => String(m.roundName)), selectedRound]))
+                            .filter(Boolean)
+                            .sort((a, b) => {
+                              const numA = parseInt(a);
+                              const numB = parseInt(b);
+                              if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                              if (!isNaN(numA)) return -1;
+                              if (!isNaN(numB)) return 1;
+                              return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                            })
+                            .map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
                       </select>
                     </div>
                   </div>
@@ -2619,13 +2622,29 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
   useEffect(() => {
     const firstPhaseName = '1° Fase'
     const phaseMatches = matches.filter((m: any) => (m.phaseName || firstPhaseName) === phaseName)
-    const roundsWithDates = Array.from(new Set(phaseMatches.map((m: any) => String(m.roundName)))).map(r => {
+    const rounds = Array.from(new Set(phaseMatches.map((m: any) => String(m.roundName))))
+      .sort((a, b) => {
+        const numA = parseInt(a);
+        const numB = parseInt(b);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        if (!isNaN(numA)) return -1;
+        if (!isNaN(numB)) return 1;
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+      })
+      .sort((a, b) => {
+        const numA = parseInt(a);
+        const numB = parseInt(b);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        if (!isNaN(numA)) return -1;
+        if (!isNaN(numB)) return 1;
+        return a.localeCompare(b);
+      })
+      .map(r => {
       const rMatches = phaseMatches.filter((m: any) => String(m.roundName) === r)
       const minDate = rMatches.length > 0 ? new Date(Math.min(...rMatches.map((m: any) => new Date(m.matchDate).getTime()))) : null
       return { name: r, date: minDate, order: rMatches[0]?.roundOrder || 0 }
     }).sort((a: any, b: any) => {
       if (a.order !== b.order) return a.order - b.order
-      if (!isNaN(Number(a.name)) && !isNaN(Number(b.name))) return Number(a.name) - Number(b.name)
       return a.name.localeCompare(b.name)
     })
     setRounds(roundsWithDates.map(r => r.name))
