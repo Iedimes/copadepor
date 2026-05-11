@@ -102,6 +102,7 @@ export default function TournamentPage() {
   const [showReorderModal, setShowReorderModal] = useState(false)
   const [confirmResetMatch, setConfirmResetMatch] = useState(false)
   const [confirmRemoveMatchId, setConfirmRemoveMatchId] = useState<string | null>(null)
+  const [showChangeTeamsModal, setShowChangeTeamsModal] = useState(false)
 
   const tournamentId = params.id as string
 
@@ -781,7 +782,6 @@ export default function TournamentPage() {
   if (!tournament) return <div className="p-8 text-center text-slate-400 font-bold italic">No se encontró el torneo.</div>
 
   return (
-    <>
     <div className="min-h-screen bg-[#F8FAFC] flex relative overflow-hidden font-sans">
       {/* Sidebar */}
       <div className="w-64 bg-[#0A1128] text-slate-400 flex flex-col h-full z-10 border-r border-white/5">
@@ -1654,6 +1654,7 @@ export default function TournamentPage() {
               
               <div className="h-px bg-slate-800 my-2 mx-4"></div>
               
+              <MenuOption icon="⚽" label="Sustituir Equipos" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1705,28 +1706,39 @@ export default function TournamentPage() {
           </div>
         </div>
       )}
-    </div>
-    {showPlayoffDraw && (
-      <KnockoutWizard
-        tournamentId={tournamentId}
-        phaseName={selectedPhase}
-        matches={matches}
-        tournamentTeams={tournamentTeams}
-        onClose={() => setShowPlayoffDraw(false)}
-        onSuccess={() => { setShowPlayoffDraw(false); fetchData(); }}
-      />
-    )}
 
-    {showReorderModal && (
-      <ReorderRoundsModal
-        phaseName={selectedPhase}
-        matches={matches}
-        tournamentId={tournamentId}
-        onClose={() => setShowReorderModal(false)}
-        onSuccess={() => { setShowReorderModal(false); fetchData(); }}
-      />
-    )}
-    </>
+
+      {showChangeTeamsModal && selectedMatchId && (
+        <ChangeTeamsModal 
+          matchId={selectedMatchId} 
+          onClose={() => setShowChangeTeamsModal(false)} 
+          onSuccess={() => { setShowChangeTeamsModal(false); fetchData(); }} 
+          matches={matches}
+          allTeams={tournamentTeams}
+        />
+      )}
+
+      {showPlayoffDraw && (
+        <KnockoutWizard
+          tournamentId={tournamentId}
+          phaseName={selectedPhase}
+          matches={matches}
+          tournamentTeams={tournamentTeams}
+          onClose={() => setShowPlayoffDraw(false)}
+          onSuccess={() => { setShowPlayoffDraw(false); fetchData(); }}
+        />
+      )}
+
+      {showReorderModal && (
+        <ReorderRoundsModal
+          phaseName={selectedPhase}
+          matches={matches}
+          tournamentId={tournamentId}
+          onClose={() => setShowReorderModal(false)}
+          onSuccess={() => { setShowReorderModal(false); fetchData(); }}
+        />
+      )}
+    </div>
   )
 }
 
@@ -2447,6 +2459,109 @@ function PitchV6({ lin, setLin, players, color }: any) {
         </div>
       ))}
     </div>
+  )
+}
+
+function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: any) {
+  const match = matches.find((m: any) => m.id === matchId)
+  const [editingSide, setEditingSide] = useState<string | null>(null) // 'home' or 'away'
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleUpdateTeam = async (side: 'home' | 'away', newTeamId: string) => {
+    setIsSaving(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/matches/${matchId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ 
+          [side === 'home' ? 'homeTeamId' : 'awayTeamId']: newTeamId 
+        }),
+      })
+      if (res.ok) onSuccess()
+      else alert('Error al actualizar el equipo')
+    } catch (e) {
+      alert('Error de conexión')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (!match) return null
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="w-full max-w-xl bg-[#F1EEF6] rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="p-8">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Sustituir Equipos</h3>
+            <button onClick={onClose} className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-slate-400 hover:text-red-500 transition-all">✕</button>
+          </div>
+
+          {!editingSide ? (
+            <div className="flex items-center gap-4 bg-white/50 p-6 rounded-[2.5rem] border border-white shadow-inner">
+              <TeamSwapCard 
+                team={match.homeTeam} 
+                label="Local" 
+                onClick={() => setEditingSide('home')} 
+              />
+              <div className="text-slate-300 font-black text-2xl italic px-2">VS</div>
+              <TeamSwapCard 
+                team={match.awayTeam} 
+                label="Visitante" 
+                onClick={() => setEditingSide('away')} 
+              />
+            </div>
+          ) : (
+            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+              <div className="flex items-center justify-between mb-4 px-2">
+                <span className="font-black text-slate-400 text-[10px] uppercase tracking-widest">Elegir nuevo equipo para {editingSide === 'home' ? 'LOCAL' : 'VISITANTE'}</span>
+                <button onClick={() => setEditingSide(null)} className="text-[10px] font-black text-blue-600 uppercase hover:underline">Volver</button>
+              </div>
+              <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                {allTeams.map((t: any) => (
+                  <button 
+                    key={t.team.id} 
+                    onClick={() => handleUpdateTeam(editingSide as any, t.team.id)}
+                    className="w-full flex items-center justify-between p-4 bg-white hover:bg-blue-600 hover:text-white transition-all rounded-2xl group border border-slate-100 shadow-sm"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-lg group-hover:bg-white/20">🏆</div>
+                      <span className="font-black tracking-tight">{t.team.name}</span>
+                    </div>
+                    <span className="text-[10px] font-black opacity-0 group-hover:opacity-100 uppercase tracking-widest bg-white/20 px-3 py-1 rounded-full">Seleccionar</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isSaving && (
+            <div className="mt-8 flex justify-center">
+              <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TeamSwapCard({ team, label, onClick }: any) {
+  return (
+    <button 
+      onClick={onClick}
+      className="flex-1 group transition-all"
+    >
+      <div className="bg-white rounded-[2rem] p-6 shadow-lg border border-slate-100 group-hover:border-blue-500 group-hover:shadow-blue-200/50 transition-all text-center">
+        <div className="w-20 h-20 bg-[#0F172A] rounded-2xl mx-auto mb-4 flex flex-col overflow-hidden shadow-xl group-hover:scale-105 transition-transform">
+          <div className="h-1/2 bg-[#0F172A] flex items-center justify-center text-yellow-400 text-xl">👑</div>
+          <div className="h-1/2 bg-[#22C55E]"></div>
+        </div>
+        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</div>
+        <div className="font-black text-slate-800 truncate">{team.name}</div>
+      </div>
+    </button>
   )
 }
 
