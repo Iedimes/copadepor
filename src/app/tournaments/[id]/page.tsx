@@ -103,6 +103,9 @@ export default function TournamentPage() {
   const [confirmResetMatch, setConfirmResetMatch] = useState(false)
   const [confirmRemoveMatchId, setConfirmRemoveMatchId] = useState<string | null>(null)
   const [showChangeTeamsModal, setShowChangeTeamsModal] = useState(false)
+  const [showCriteriaModal, setShowCriteriaModal] = useState(false)
+  const [tempCriteria, setTempCriteria] = useState<string[]>([])
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const tournamentId = params.id as string
 
@@ -615,6 +618,22 @@ export default function TournamentPage() {
       setSelectedRound('1')
     }
   }
+
+  const handleSaveCriteria = async () => {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classificationCriteria: tempCriteria.join(',') }),
+    })
+    if (res.ok) {
+      await fetchData()
+      setShowCriteriaModal(false)
+    } else {
+      alert('Error al guardar criterios')
+    }
+  }
+
   const getStandings = () => {
     const stats: Record<string, any> = {}
     
@@ -633,7 +652,7 @@ export default function TournamentPage() {
     tournamentTeams.forEach(tt => { 
       // If phase has specific teams, only include those. Otherwise, include all.
       if (!phaseTeamIds || phaseTeamIds.includes(tt.team.id)) {
-        stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 } 
+        stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, red: 0, yellow: 0 } 
       }
     })
     
@@ -667,6 +686,13 @@ export default function TournamentPage() {
           else { h.drawn++; a.drawn++; h.points++; a.points++ }
         }
       }
+      // Count cards for the standings tie-breakers
+      (m.events || []).forEach((e: any) => {
+        const teamStats = stats[e.teamId]
+        if (!teamStats) return
+        if (e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD') teamStats.red++
+        else if (e.type === 'YELLOW_CARD') teamStats.yellow++
+      })
     })
 
     const criteria = (tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(',')
@@ -680,6 +706,8 @@ export default function TournamentPage() {
         if (criterion === 'PUNTOS' && b.points !== a.points) return b.points - a.points
         if (criterion === 'GOLES' && b.diff !== a.diff) return b.diff - a.diff
         if (criterion === 'GOLES_A_FAVOR' && b.gf !== a.gf) return b.gf - a.gf
+        if (criterion === 'TARJETAS_ROJAS' && a.red !== b.red) return a.red - b.red // Less is better
+        if (criterion === 'TARJETAS_AMARILLAS' && a.yellow !== b.yellow) return a.yellow - b.yellow // Less is better
       }
       return 0
     })
@@ -976,7 +1004,10 @@ export default function TournamentPage() {
                                <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
                                  <span className="text-lg">☰</span> Tabla
                                </button>
-                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <button onClick={() => { 
+                                 setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
+                                 setShowCriteriaModal(true); 
+                               }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">☑</span> Criterios de clasificación
                                </button>
                                <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
@@ -1066,7 +1097,16 @@ export default function TournamentPage() {
                           const isFirstPhase = phases.length > 0 && (currentPhaseObj?.id === phases[0].id || currentPhaseObj?.order === 0);
                           const hasParent = currentPhaseObj?.continueFromId !== null && currentPhaseObj?.continueFromId !== undefined;
                           const isEliminatoria = currentPhaseObj?.type === 'ELIMINATORIA' || selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria');
+                          const isClassification = currentPhaseObj?.isClassification !== false;
                           
+                          if (!isClassification) {
+                            return (
+                              <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                                <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Clasificación deshabilitada en esta fase</p>
+                              </div>
+                            )
+                          }
+
                           // We now always show the table if it's a Liga, or if it has a parent phase, or if it's Phase 1.
                           // If it's an Eliminatoria with NO parent phase and NOT Phase 1, we show the "Not available" message.
                           if (!isEliminatoria || hasParent || isFirstPhase) {
@@ -1208,6 +1248,11 @@ export default function TournamentPage() {
                           <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setShowRoundActions(false); }} />
                           <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowReorderModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); }} />
+                          <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
+                            setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
+                            setShowRoundActions(false); 
+                            setShowCriteriaModal(true); 
+                          }} />
                           <div className="h-px bg-white/10 my-1 mx-2"></div>
                           <MenuOption icon="✕" label="Eliminar fecha" color="text-red-400" onClick={handleRemoveRound} />
                         </div>
@@ -1525,11 +1570,57 @@ export default function TournamentPage() {
               <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); setShowPhasesList(true); }} />
               <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); }} />
               <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); }} />
-              <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
+                setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
+                setShowConfigMenu(false); 
+                setShowCriteriaModal(true); 
+              }} />
               <MenuOption icon="🔄" label="Reordenar" onClick={() => { setShowConfigMenu(false); }} />
             </div>
             <div className="p-4 bg-slate-800/50">
               <button onClick={() => setShowConfigMenu(false)} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CRITERIA MODAL */}
+      {showCriteriaModal && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[130] p-4 backdrop-blur-sm" onClick={() => setShowCriteriaModal(false)}>
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-center mb-8 text-slate-900">Criterios de Desempate</h3>
+            <div className="space-y-3 mb-10">
+              {tempCriteria.map((c, i) => (
+                <div 
+                  key={c} 
+                  draggable
+                  onDragStart={() => setDraggedIndex(i)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => {
+                    if (draggedIndex === null || draggedIndex === i) return
+                    const newC = [...tempCriteria]
+                    const [removed] = newC.splice(draggedIndex, 1)
+                    newC.splice(i, 0, removed)
+                    setTempCriteria(newC)
+                    setDraggedIndex(null)
+                  }}
+                  className={`flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 group cursor-grab active:cursor-grabbing transition-all ${draggedIndex === i ? 'opacity-20 bg-blue-50 border-blue-200' : 'hover:border-blue-200 hover:bg-white shadow-sm'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center shadow-lg">{i + 1}</span>
+                    <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                      {c.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div className="text-slate-300 group-hover:text-blue-500 transition-colors">
+                    <span className="text-lg">☰</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => setShowCriteriaModal(false)} className="flex-1 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
+              <button onClick={handleSaveCriteria} className="flex-1 py-4 bg-[#0F172A] text-white rounded-[1.5rem] font-black text-xs hover:bg-blue-600 transition-all shadow-xl active:scale-95">Guardar</button>
             </div>
           </div>
         </div>
@@ -2771,6 +2862,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
     </div>
   )
 }
+
 
 function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSuccess }: any) {
   const [rounds, setRounds] = useState<string[]>([])
