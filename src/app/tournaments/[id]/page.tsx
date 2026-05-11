@@ -637,8 +637,21 @@ export default function TournamentPage() {
       }
     })
     
-    // Filter matches by selected phase AND EXCLUDE playoffs
-    const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && !['Cuartos de final', 'Semifinal', 'Final', 'Cuartos', 'Semi Final'].includes(String(m.roundName)))
+    // Gather all phases to include
+    const phaseNamesToInclude = [selectedPhase]
+    let currentIterPhase = currentPhaseObj
+    while (currentIterPhase && currentIterPhase.continueFromId) {
+      const parentPhase = phases.find((p: any) => p.id === currentIterPhase!.continueFromId)
+      if (parentPhase && !phaseNamesToInclude.includes(parentPhase.name)) {
+        phaseNamesToInclude.push(parentPhase.name)
+        currentIterPhase = parentPhase
+      } else {
+        break
+      }
+    }
+    
+    // Filter matches by selected phase (and any parent phases)
+    const phaseMatches = matches.filter((m: any) => phaseNamesToInclude.includes(m.phaseName || firstPhaseName))
     
     phaseMatches.forEach(m => {
       const isE = editingMatchData?.id === m.id
@@ -1046,62 +1059,77 @@ export default function TournamentPage() {
                       </div>
                     ) : (
                       <>
-                        {!selectedPhase.toLowerCase().includes('final') && !selectedPhase.toLowerCase().includes('eliminatoria') ? (
-                          <div className="space-y-4 mt-2">
-                            <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] text-center w-full">Clasificación</h2>
-                            <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
-                              <table className="w-full text-sm">
-                                <thead>
-                                <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
-                                  <th className="p-4 text-center">Pos</th>
-                                  <th className="p-4 text-left">EQUIPOS</th>
-                                  <th className="p-4 text-center">Pts</th>
-                                  <th className="p-4 text-center">J</th>
-                                  <th className="p-4 text-center">G</th>
-                                  <th className="p-4 text-center">E</th>
-                                  <th className="p-4 text-center">P</th>
-                                  <th className="p-4 text-center">GF</th>
-                                  <th className="p-4 text-center">GC</th>
-                                  <th className="p-4 text-center">DIF</th>
-                                  <th className="p-4 text-center">%</th>
-                                  <th className="p-4 text-center">PE</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {getStandings().map((row: any, index: number) => (
-                                  <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
-                                    <td className="p-4 text-center">
-                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
-                                        {index + 1}
-                                      </div>
-                                    </td>
-                                    <td className="p-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg shadow-sm border border-slate-100">🏆</div>
-                                        <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-4 text-center font-black text-blue-600 bg-blue-50/30">{row.points}</td>
-                                    <td className="p-4 text-center font-black text-slate-500">{row.played}</td>
-                                    <td className="p-4 text-center font-bold text-slate-400">{row.won}</td>
-                                    <td className="p-4 text-center font-bold text-slate-400">{row.drawn}</td>
-                                    <td className="p-4 text-center font-bold text-slate-400">{row.lost}</td>
-                                    <td className="p-4 text-center font-bold text-slate-400">{row.gf}</td>
-                                    <td className="p-4 text-center font-bold text-slate-400">{row.ga}</td>
-                                    <td className="p-4 text-center font-black text-slate-700">{row.diff}</td>
-                                    <td className="p-4 text-center font-bold text-slate-500 bg-slate-50/30">{row.perc}</td>
-                                    <td className="p-4 text-center font-bold text-slate-400">0</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                        ) : (
-                          <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
-                            <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Tabla de clasificación no disponible en esta fase</p>
-                          </div>
-                        )}
+                        {(() => {
+                          const currentPhaseObj = phases.find((p: any) => p.name === selectedPhase);
+                          if (!currentPhaseObj && phases.length > 0) return null;
+
+                          const isFirstPhase = phases.length > 0 && (currentPhaseObj?.id === phases[0].id || currentPhaseObj?.order === 0);
+                          const hasParent = currentPhaseObj?.continueFromId !== null && currentPhaseObj?.continueFromId !== undefined;
+                          const isEliminatoria = currentPhaseObj?.type === 'ELIMINATORIA' || selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria');
+                          
+                          // We now always show the table if it's a Liga, or if it has a parent phase, or if it's Phase 1.
+                          // If it's an Eliminatoria with NO parent phase and NOT Phase 1, we show the "Not available" message.
+                          if (!isEliminatoria || hasParent || isFirstPhase) {
+                            return (
+                              <div className="space-y-4 mt-2">
+                                <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] text-center w-full">Clasificación</h2>
+                                <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                    <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                                      <th className="p-4 text-center">Pos</th>
+                                      <th className="p-4 text-left">EQUIPOS</th>
+                                      <th className="p-4 text-center">Pts</th>
+                                      <th className="p-4 text-center">J</th>
+                                      <th className="p-4 text-center">G</th>
+                                      <th className="p-4 text-center">E</th>
+                                      <th className="p-4 text-center">P</th>
+                                      <th className="p-4 text-center">GF</th>
+                                      <th className="p-4 text-center">GC</th>
+                                      <th className="p-4 text-center">DIF</th>
+                                      <th className="p-4 text-center">%</th>
+                                      <th className="p-4 text-center">PE</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {getStandings().map((row: any, index: number) => (
+                                      <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
+                                        <td className="p-4 text-center">
+                                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                            {index + 1}
+                                          </div>
+                                        </td>
+                                        <td className="p-4">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg shadow-sm border border-slate-100">🏆</div>
+                                            <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
+                                          </div>
+                                        </td>
+                                        <td className="p-4 text-center font-black text-blue-600 bg-blue-50/30">{row.points}</td>
+                                        <td className="p-4 text-center font-black text-slate-500">{row.played}</td>
+                                        <td className="p-4 text-center font-bold text-slate-400">{row.won}</td>
+                                        <td className="p-4 text-center font-bold text-slate-400">{row.drawn}</td>
+                                        <td className="p-4 text-center font-bold text-slate-400">{row.lost}</td>
+                                        <td className="p-4 text-center font-bold text-slate-400">{row.gf}</td>
+                                        <td className="p-4 text-center font-bold text-slate-400">{row.ga}</td>
+                                        <td className="p-4 text-center font-black text-slate-700">{row.diff}</td>
+                                        <td className="p-4 text-center font-bold text-slate-500 bg-slate-50/30">{row.perc}</td>
+                                        <td className="p-4 text-center font-bold text-slate-400">0</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                            )
+                          }
+
+                          return (
+                            <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                              <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">Tabla de clasificación no disponible en esta fase</p>
+                            </div>
+                          )
+                        })()}
 
                         {(selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria')) && (
                           <>
@@ -1111,9 +1139,9 @@ export default function TournamentPage() {
                             </div>
                             
                             <div className="grid grid-cols-3 gap-10">
-                              <BracketColumn title="Cuartos" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
-                              <BracketColumn title="Semis" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
-                              <BracketColumn title="Final" matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('final'))} />
+                              <BracketColumn title="Cuartos" matches={matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
+                              <BracketColumn title="Semis" matches={matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
+                              <BracketColumn title="Final" matches={matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase() === 'final')} />
                             </div>
                           </>
                         )}
@@ -1136,8 +1164,9 @@ export default function TournamentPage() {
                         {phases.map(p => <option key={p.id || p.name} value={p.name} className="text-black">{p.name}</option>)}
                         {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase} className="text-black">{selectedPhase}</option>}
                       </select>
+                      {matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase).length > 0 && (
                         <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
-                          {Array.from(new Set([...matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).map(m => String(m.roundName)), selectedRound]))
+                          {Array.from(new Set(matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase).map((m: any) => String(m.roundName))))
                             .filter(Boolean)
                             .sort((a, b) => {
                               const numA = parseInt(a);
@@ -1145,10 +1174,17 @@ export default function TournamentPage() {
                               if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
                               if (!isNaN(numA)) return -1;
                               if (!isNaN(numB)) return 1;
+                              const playoffOrder = ['Eliminatoria', 'Octavos de final', 'Cuartos de final', 'Cuartos', 'Semifinal', 'Semi Final', 'Tercer Puesto', 'Final'];
+                              const idxA = playoffOrder.indexOf(a);
+                              const idxB = playoffOrder.indexOf(b);
+                              if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                              if (idxA !== -1) return -1;
+                              if (idxB !== -1) return 1;
                               return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
                             })
                             .map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
-                      </select>
+                        </select>
+                      )}
                     </div>
                   </div>
 
@@ -1163,7 +1199,12 @@ export default function TournamentPage() {
                         <div className="p-2 space-y-1">
                           <MenuOption icon="➕" label="Agregar fecha" onClick={handleAddNextRound} />
                           <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
-                          <MenuOption icon="🔄" label="Regenerar Fixture" onClick={() => { setShowGenType(true); setShowRoundActions(false); }} />
+                          <MenuOption icon="🔄" label="Regenerar Fixture" onClick={() => { 
+                            const currentPhaseObj = phases.find((p: any) => p.name === selectedPhase);
+                            if (currentPhaseObj?.type === 'ELIMINATORIA') setShowPlayoffDraw(true);
+                            else setShowGenType(true);
+                            setShowRoundActions(false); 
+                          }} />
                           <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setShowRoundActions(false); }} />
                           <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowReorderModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); }} />
@@ -1181,7 +1222,9 @@ export default function TournamentPage() {
                         <button 
                           onClick={() => {
                             if (tournamentTeams.length === 0) return alert('Debes agregar equipos al torneo antes de generar los partidos.');
-                            setShowGenType(true);
+                            const currentPhaseObj = phases.find((p: any) => p.name === selectedPhase);
+                            if (currentPhaseObj?.type === 'ELIMINATORIA') setShowPlayoffDraw(true);
+                            else setShowGenType(true);
                           }}
                           className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-lg active:scale-95"
                         >
@@ -1551,8 +1594,8 @@ export default function TournamentPage() {
             <h3 className="text-xl font-black text-center mb-8 text-slate-900">Fases</h3>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">1° Fase</div>
             <div className="space-y-3">
-              <button onClick={() => { setEditPhaseData({ name: '', type: 'LIGA', order: phases.length, isClassification: true, continueFromId: null, teams: [] }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
-              <button onClick={() => { setEditPhaseData({ name: '', type: 'ELIMINATORIA', order: phases.length, isClassification: true, continueFromId: null, teams: [] }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Eliminatoria</button>
+              <button onClick={() => { setEditPhaseData({ name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', type: 'LIGA', order: phases.length, isClassification: true, continueFromId: null, teams: tournamentTeams.map((t: any) => t.team.id) }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
+              <button onClick={() => { setEditPhaseData({ name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', type: 'ELIMINATORIA', order: phases.length, isClassification: true, continueFromId: null, teams: tournamentTeams.map((t: any) => t.team.id) }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Eliminatoria</button>
             </div>
             <button onClick={() => setShowPhaseType(false)} className="w-full mt-6 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
           </div>

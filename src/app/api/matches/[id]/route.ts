@@ -80,7 +80,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     })
 
     if (dbStatus === 'COMPLETED' && advancingTeamId) {
-      const matchLabel = `${match.roundName} ${match.groupName}`
+      const matchLabel = `Ganador ${match.roundName} ${match.groupName}`
       
       const nextMatchHome = await prisma.match.findFirst({
          where: { tournamentId: match.tournamentId, phaseName: match.phaseName, homePlaceholder: matchLabel }
