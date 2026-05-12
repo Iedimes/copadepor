@@ -99,7 +99,28 @@ export default function TournamentPage() {
   const [showAddMatchModal, setShowAddMatchModal] = useState(false)
   const [showMatchMenu, setShowMatchMenu] = useState(false)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
-  const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
+   const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
+   const [showTableConfig, setShowTableConfig] = useState(false)
+   const [tableColumns, setTableColumns] = useState([
+     { id: 'points', label: 'Puntos', visible: true },
+     { id: 'played', label: 'Juegos', visible: true },
+     { id: 'won', label: 'Ganados', visible: true },
+     { id: 'drawn', label: 'Empates', visible: true },
+     { id: 'lost', label: 'Perdido', visible: true },
+     { id: 'gf', label: 'Goles a Favor', visible: true },
+     { id: 'ga', label: 'Goles Contra', visible: true },
+     { id: 'diff', label: 'Diferencia de Goles', visible: true },
+     { id: 'avg', label: 'Promedio de goles', visible: false },
+     { id: 'perc', label: 'Aprovechamiento', visible: true },
+     { id: 'pe', label: 'Puntos Extras', visible: true },
+     { id: 'red', label: 'Tarjeta roja', visible: false },
+     { id: 'yellow', label: 'Tarjeta amarilla', visible: false },
+     { id: 'blue', label: 'Tarjeta azul', visible: false },
+     { id: 'allCards', label: 'Todas las tarjetas', visible: false },
+     { id: 'fairPlay', label: 'Juego Limpio', visible: false },
+     { id: 'technique', label: 'Index technique', visible: false },
+   ])
+   const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null)
   const [showRoundActions, setShowRoundActions] = useState(false)
   const [showReorderModal, setShowReorderModal] = useState(false)
   const [confirmResetMatch, setConfirmResetMatch] = useState(false)
@@ -1045,7 +1066,7 @@ export default function TournamentPage() {
                                <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
                                  <span className="text-lg">⬇</span> Exportar
                                </button>
-                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <button onClick={() => setShowTableConfig(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">☰</span> Tabla
                                </button>
                                <button onClick={() => { 
@@ -1054,7 +1075,7 @@ export default function TournamentPage() {
                                }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">☑</span> Criterios de clasificación
                                </button>
-                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <button onClick={() => setShowReorderModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">⇅</span> Reordenar
                                </button>
                              </div>
@@ -1163,51 +1184,45 @@ export default function TournamentPage() {
                                   <h3 className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">GRUPO {groupName}</h3>
                                 )}
                                 <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm bg-white">
-                                  <table className="w-full text-sm">
-                                    <thead>
-                                      <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
-                                        <th className="p-4 text-center w-16">Pos</th>
-                                        <th className="p-4 text-left">EQUIPOS</th>
-                                        <th className="p-4 text-center">Pts</th>
-                                        <th className="p-4 text-center">J</th>
-                                        <th className="p-4 text-center">G</th>
-                                        <th className="p-4 text-center">E</th>
-                                        <th className="p-4 text-center">P</th>
-                                        <th className="p-4 text-center">GF</th>
-                                        <th className="p-4 text-center">GC</th>
-                                        <th className="p-4 text-center">DIF</th>
-                                        <th className="p-4 text-center">%</th>
-                                        <th className="p-4 text-center">PE</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {rows.map((row: any, index: number) => (
-                                        <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
-                                          <td className="p-4 text-center">
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
-                                              {index + 1}
-                                            </div>
-                                          </td>
-                                          <td className="p-4">
-                                            <div className="flex items-center gap-3">
-                                              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg shadow-sm border border-slate-100">🏆</div>
-                                              <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
-                                            </div>
-                                          </td>
-                                          <td className="p-4 text-center font-black text-blue-600 bg-blue-50/30">{row.points}</td>
-                                          <td className="p-4 text-center font-black text-slate-500">{row.played}</td>
-                                          <td className="p-4 text-center font-bold text-slate-400">{row.won}</td>
-                                          <td className="p-4 text-center font-bold text-slate-400">{row.drawn}</td>
-                                          <td className="p-4 text-center font-bold text-slate-400">{row.lost}</td>
-                                          <td className="p-4 text-center font-bold text-slate-400">{row.gf}</td>
-                                          <td className="p-4 text-center font-bold text-slate-400">{row.ga}</td>
-                                          <td className="p-4 text-center font-black text-slate-700">{row.diff}</td>
-                                          <td className="p-4 text-center font-bold text-slate-500 bg-slate-50/30">{row.perc}</td>
-                                          <td className="p-4 text-center font-bold text-slate-400">0</td>
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                                          <th className="p-4 text-center w-16">Pos</th>
+                                          <th className="p-4 text-left min-w-[150px]">EQUIPOS</th>
+                                          {tableColumns.filter(c => c.visible).map(col => (
+                                            <th key={col.id} className="p-4 text-center">{col.id === 'perc' ? '%' : col.label.split(' ').map(w => w[0]).join('').toUpperCase()}</th>
+                                          ))}
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                      </thead>
+                                      <tbody>
+                                        {rows.map((row: any, index: number) => (
+                                          <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
+                                            <td className="p-4 text-center">
+                                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                                {index + 1}
+                                              </div>
+                                            </td>
+                                            <td className="p-4">
+                                              <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg shadow-sm border border-slate-100">🏆</div>
+                                                <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
+                                              </div>
+                                            </td>
+                                            {tableColumns.filter(c => c.visible).map(col => {
+                                              let val = row[col.id] || 0
+                                              if (col.id === 'avg') val = (row.gf / (row.played || 1)).toFixed(2)
+                                              return (
+                                                <td key={col.id} className={`p-4 text-center font-bold ${col.id === 'points' ? 'text-blue-600 bg-blue-50/30' : 'text-slate-400'}`}>
+                                                  {val}
+                                                </td>
+                                              )
+                                            })}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
                               </div>
                             )
@@ -1693,7 +1708,7 @@ export default function TournamentPage() {
               <MenuOption icon="💠" label="Grupos" onClick={() => { setShowConfigMenu(false); setShowGroupsModal(true); }} />
               <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); setShowPhasesList(true); }} />
               <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); }} />
-              <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); setShowTableConfig(true); }} />
               <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
                 setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
                 setShowConfigMenu(false); 
@@ -2067,6 +2082,56 @@ export default function TournamentPage() {
           matches={matches}
           allTeams={tournamentTeams}
         />
+      )}
+      
+      {/* TABLE CONFIG MODAL (Drag and Drop) */}
+      {showTableConfig && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[110] p-4 backdrop-blur-sm" onClick={() => setShowTableConfig(false)}>
+          <div className="bg-[#F8F7FB] rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-black mb-8 text-slate-900">Tabla</h3>
+            
+            <div className="space-y-1 mb-8 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {tableColumns.map((col, idx) => (
+                <div 
+                  key={col.id}
+                  draggable
+                  onDragStart={() => setDraggedColIdx(idx)}
+                  onDragOver={(e) => { e.preventDefault(); }}
+                  onDrop={() => {
+                    if (draggedColIdx === null) return
+                    const newCols = [...tableColumns]
+                    const draggedCol = newCols.splice(draggedColIdx, 1)[0]
+                    newCols.splice(idx, 0, draggedCol)
+                    setTableColumns(newCols)
+                    setDraggedColIdx(null)
+                  }}
+                  className={`flex items-center justify-between p-3 rounded-2xl transition-all ${draggedColIdx === idx ? 'opacity-50 bg-blue-50' : 'hover:bg-white hover:shadow-sm'}`}
+                >
+                  <span className="text-sm font-bold text-slate-600">{col.label}</span>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      checked={col.visible}
+                      onChange={() => {
+                        const newCols = [...tableColumns]
+                        newCols[idx].visible = !newCols[idx].visible
+                        setTableColumns(newCols)
+                      }}
+                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-slate-400 cursor-grab active:cursor-grabbing font-black text-xl">≡</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <p className="text-[10px] text-slate-400 text-center font-bold mb-6">Mantenga presionado y arrastre para cambiar</p>
+            
+            <button onClick={() => setShowTableConfig(false)} className="w-full py-5 bg-[#0F172A] text-white rounded-[1.5rem] font-black text-sm hover:bg-blue-600 transition-all shadow-xl active:scale-95">
+              Listo
+            </button>
+          </div>
+        </div>
       )}
 
       {showPlayoffDraw && (
