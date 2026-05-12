@@ -106,6 +106,12 @@ export default function TournamentPage() {
   const [showCriteriaModal, setShowCriteriaModal] = useState(false)
   const [tempCriteria, setTempCriteria] = useState<string[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [showGroupsModal, setShowGroupsModal] = useState(false)
+  const [numGroups, setNumGroups] = useState(2)
+  const [showSeedConfirm, setShowSeedConfirm] = useState(false)
+  const [showSeedSelection, setShowSeedSelection] = useState(false)
+  const [selectedSeeds, setSelectedSeeds] = useState<string[]>([])
+  const [groupByGroup, setGroupByGroup] = useState(false)
 
   const tournamentId = params.id as string
 
@@ -634,6 +640,25 @@ export default function TournamentPage() {
     }
   }
 
+  const handleGenerateGroups = async () => {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/teams/groups`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numGroups, seedTeamIds: selectedSeeds }),
+    })
+    if (res.ok) {
+      await fetchData()
+      setShowGroupsModal(false)
+      setShowSeedConfirm(false)
+      setShowSeedSelection(false)
+      setGroupByGroup(true)
+    } else {
+      const err = await res.json()
+      alert(err.error || 'Error al generar grupos')
+    }
+  }
+
   const getStandings = () => {
     const stats: Record<string, any> = {}
     
@@ -697,20 +722,36 @@ export default function TournamentPage() {
 
     const criteria = (tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(',')
 
-    return Object.values(stats).map(s => ({
-      ...s,
-      diff: s.gf - s.ga,
-      perc: s.played > 0 ? Math.round((s.points / (s.played * 3)) * 100) : 0
-    })).sort((a: any, b: any) => {
+    const sortedStandings = Object.values(stats).map(s => {
+      const tt = tournamentTeams.find(t => t.team.id === s.id)
+      return {
+        ...s,
+        groupName: tt?.groupName || null,
+        diff: s.gf - s.ga,
+        perc: s.played > 0 ? Math.round((s.points / (s.played * 3)) * 100) : 0
+      }
+    }).sort((a: any, b: any) => {
       for (const criterion of criteria) {
         if (criterion === 'PUNTOS' && b.points !== a.points) return b.points - a.points
         if (criterion === 'GOLES' && b.diff !== a.diff) return b.diff - a.diff
         if (criterion === 'GOLES_A_FAVOR' && b.gf !== a.gf) return b.gf - a.gf
-        if (criterion === 'TARJETAS_ROJAS' && a.red !== b.red) return a.red - b.red // Less is better
-        if (criterion === 'TARJETAS_AMARILLAS' && a.yellow !== b.yellow) return a.yellow - b.yellow // Less is better
+        if (criterion === 'TARJETAS_ROJAS' && a.red !== b.red) return a.red - b.red 
+        if (criterion === 'TARJETAS_AMARILLAS' && a.yellow !== b.yellow) return a.yellow - b.yellow 
       }
       return 0
     })
+
+    if (groupByGroup) {
+      const grouped: Record<string, any[]> = {}
+      sortedStandings.forEach(s => {
+        const gn = s.groupName || 'Sin Grupo'
+        if (!grouped[gn]) grouped[gn] = []
+        grouped[gn].push(s)
+      })
+      return grouped
+    }
+
+    return sortedStandings
   }
 
   const getTeamRankings = () => {
@@ -925,7 +966,7 @@ export default function TournamentPage() {
                          <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                            <span className="text-lg">📋</span> Equipos
                          </button>
-                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                         <button onClick={() => setShowGroupsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                            <span className="text-lg">⛖</span> Grupos
                          </button>
                          <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
@@ -992,7 +1033,7 @@ export default function TournamentPage() {
                                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">📋</span> Equipos
                                </button>
-                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <button onClick={() => setShowGroupsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">⛖</span> Grupos
                                </button>
                                <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
@@ -1110,57 +1151,84 @@ export default function TournamentPage() {
                           // We now always show the table if it's a Liga, or if it has a parent phase, or if it's Phase 1.
                           // If it's an Eliminatoria with NO parent phase and NOT Phase 1, we show the "Not available" message.
                           if (!isEliminatoria || hasParent || isFirstPhase) {
-                            return (
-                              <div className="space-y-4 mt-2">
-                                <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] text-center w-full">Clasificación</h2>
-                                <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
+                            const standingsData = getStandings()
+                            
+                            const renderStandingsTable = (rows: any[], groupName?: string) => (
+                              <div key={groupName || 'all'} className="space-y-4 mb-10 last:mb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                {groupName && (
+                                  <h3 className="text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">GRUPO {groupName}</h3>
+                                )}
+                                <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm bg-white">
                                   <table className="w-full text-sm">
                                     <thead>
-                                    <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
-                                      <th className="p-4 text-center">Pos</th>
-                                      <th className="p-4 text-left">EQUIPOS</th>
-                                      <th className="p-4 text-center">Pts</th>
-                                      <th className="p-4 text-center">J</th>
-                                      <th className="p-4 text-center">G</th>
-                                      <th className="p-4 text-center">E</th>
-                                      <th className="p-4 text-center">P</th>
-                                      <th className="p-4 text-center">GF</th>
-                                      <th className="p-4 text-center">GC</th>
-                                      <th className="p-4 text-center">DIF</th>
-                                      <th className="p-4 text-center">%</th>
-                                      <th className="p-4 text-center">PE</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {getStandings().map((row: any, index: number) => (
-                                      <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
-                                        <td className="p-4 text-center">
-                                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
-                                            {index + 1}
-                                          </div>
-                                        </td>
-                                        <td className="p-4">
-                                          <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg shadow-sm border border-slate-100">🏆</div>
-                                            <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
-                                          </div>
-                                        </td>
-                                        <td className="p-4 text-center font-black text-blue-600 bg-blue-50/30">{row.points}</td>
-                                        <td className="p-4 text-center font-black text-slate-500">{row.played}</td>
-                                        <td className="p-4 text-center font-bold text-slate-400">{row.won}</td>
-                                        <td className="p-4 text-center font-bold text-slate-400">{row.drawn}</td>
-                                        <td className="p-4 text-center font-bold text-slate-400">{row.lost}</td>
-                                        <td className="p-4 text-center font-bold text-slate-400">{row.gf}</td>
-                                        <td className="p-4 text-center font-bold text-slate-400">{row.ga}</td>
-                                        <td className="p-4 text-center font-black text-slate-700">{row.diff}</td>
-                                        <td className="p-4 text-center font-bold text-slate-500 bg-slate-50/30">{row.perc}</td>
-                                        <td className="p-4 text-center font-bold text-slate-400">0</td>
+                                      <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                                        <th className="p-4 text-center w-16">Pos</th>
+                                        <th className="p-4 text-left">EQUIPOS</th>
+                                        <th className="p-4 text-center">Pts</th>
+                                        <th className="p-4 text-center">J</th>
+                                        <th className="p-4 text-center">G</th>
+                                        <th className="p-4 text-center">E</th>
+                                        <th className="p-4 text-center">P</th>
+                                        <th className="p-4 text-center">GF</th>
+                                        <th className="p-4 text-center">GC</th>
+                                        <th className="p-4 text-center">DIF</th>
+                                        <th className="p-4 text-center">%</th>
+                                        <th className="p-4 text-center">PE</th>
                                       </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map((row: any, index: number) => (
+                                        <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
+                                          <td className="p-4 text-center">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                              {index + 1}
+                                            </div>
+                                          </td>
+                                          <td className="p-4">
+                                            <div className="flex items-center gap-3">
+                                              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg shadow-sm border border-slate-100">🏆</div>
+                                              <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
+                                            </div>
+                                          </td>
+                                          <td className="p-4 text-center font-black text-blue-600 bg-blue-50/30">{row.points}</td>
+                                          <td className="p-4 text-center font-black text-slate-500">{row.played}</td>
+                                          <td className="p-4 text-center font-bold text-slate-400">{row.won}</td>
+                                          <td className="p-4 text-center font-bold text-slate-400">{row.drawn}</td>
+                                          <td className="p-4 text-center font-bold text-slate-400">{row.lost}</td>
+                                          <td className="p-4 text-center font-bold text-slate-400">{row.gf}</td>
+                                          <td className="p-4 text-center font-bold text-slate-400">{row.ga}</td>
+                                          <td className="p-4 text-center font-black text-slate-700">{row.diff}</td>
+                                          <td className="p-4 text-center font-bold text-slate-500 bg-slate-50/30">{row.perc}</td>
+                                          <td className="p-4 text-center font-bold text-slate-400">0</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
                               </div>
-                            </div>
+                            )
+
+                            return (
+                              <div className="space-y-4 mt-2">
+                                <div className="flex justify-between items-center mb-6">
+                                  <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Clasificación</h2>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clasificación por Grupo</span>
+                                    <button 
+                                      onClick={() => setGroupByGroup(!groupByGroup)}
+                                      className={`w-12 h-6 rounded-full transition-all relative ${groupByGroup ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                    >
+                                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${groupByGroup ? 'left-7' : 'left-1'}`}></div>
+                                    </button>
+                                  </div>
+                                </div>
+                                
+                                {groupByGroup ? (
+                                  Object.entries(standingsData as Record<string, any[]>).map(([gn, r]) => renderStandingsTable(r, gn))
+                                ) : (
+                                  renderStandingsTable(standingsData as any[])
+                                )}
+                              </div>
                             )
                           }
 
@@ -1566,7 +1634,7 @@ export default function TournamentPage() {
             <div className="p-4 space-y-1">
 
               <MenuOption icon="👥" label="Equipos" onClick={() => { setShowConfigMenu(false); router.push(`/tournaments/${tournamentId}/add-teams`); }} />
-              <MenuOption icon="💠" label="Grupos" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="💠" label="Grupos" onClick={() => { setShowConfigMenu(false); setShowGroupsModal(true); }} />
               <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); setShowPhasesList(true); }} />
               <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); }} />
               <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); }} />
@@ -1621,6 +1689,81 @@ export default function TournamentPage() {
             <div className="flex gap-4">
               <button onClick={() => setShowCriteriaModal(false)} className="flex-1 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
               <button onClick={handleSaveCriteria} className="flex-1 py-4 bg-[#0F172A] text-white rounded-[1.5rem] font-black text-xs hover:bg-blue-600 transition-all shadow-xl active:scale-95">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GROUPS MODALS FLOW */}
+      {showGroupsModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[140] p-4" onClick={() => setShowGroupsModal(false)}>
+          <div className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+            <h3 className="text-2xl font-black text-slate-900 mb-2">Grupos</h3>
+            <p className="text-slate-400 font-bold mb-8 text-sm">Número de grupos</p>
+            
+            <div className="flex items-center gap-6 mb-12 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+              <input 
+                type="range" min="1" max="10" step="1" 
+                value={numGroups} 
+                onChange={(e) => setNumGroups(parseInt(e.target.value))}
+                className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <span className="text-2xl font-black text-blue-600 w-8 text-center">{numGroups}</span>
+            </div>
+
+            <div className="flex gap-4">
+              <button onClick={() => setShowGroupsModal(false)} className="flex-1 py-4 text-slate-400 font-black text-xs uppercase tracking-widest">Cancelar</button>
+              <button onClick={() => { setShowGroupsModal(false); setShowSeedConfirm(true); }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Siguiente</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSeedConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[140] p-4" onClick={() => setShowSeedConfirm(false)}>
+          <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-black text-slate-900 mb-8">¿Definir Cabeza de Serie?</h3>
+            
+            <div className="flex gap-4">
+              <button onClick={() => { setShowSeedConfirm(false); handleGenerateGroups(); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">No</button>
+              <button onClick={() => { setShowSeedConfirm(false); setShowSeedSelection(true); }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Si</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSeedSelection && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[140] p-4" onClick={() => setShowSeedSelection(false)}>
+          <div className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <h3 className="text-2xl font-black text-slate-900 mb-2">Seleccionar equipos</h3>
+            <p className="text-slate-400 font-bold mb-6 text-sm italic">Seleccioná los cabezas de serie para el sorteo</p>
+            
+            <div className="flex-1 overflow-y-auto pr-2 space-y-2 mb-8 custom-scrollbar">
+              {tournamentTeams.map(tt => (
+                <label key={tt.team.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${selectedSeeds.includes(tt.team.id) ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
+                  <input 
+                    type="checkbox" 
+                    className="w-5 h-5 rounded-lg border-2 border-slate-300 text-blue-600 focus:ring-blue-500"
+                    checked={selectedSeeds.includes(tt.team.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedSeeds([...selectedSeeds, tt.team.id])
+                      else setSelectedSeeds(selectedSeeds.filter(id => id !== tt.team.id))
+                    }}
+                  />
+                  <span className="font-black text-slate-700 text-sm uppercase tracking-tight">{tt.team.name}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex gap-4">
+              <button onClick={() => setShowSeedSelection(false)} className="flex-1 py-4 text-slate-400 font-black text-xs uppercase tracking-widest">Cancelar</button>
+              <button 
+                onClick={handleGenerateGroups}
+                disabled={selectedSeeds.length === 0}
+                className="flex-1 py-4 bg-[#0A1128] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Aceptar
+              </button>
             </div>
           </div>
         </div>

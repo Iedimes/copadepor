@@ -24,14 +24,27 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
-    const teams = await prisma.tournamentTeam.findMany({
-      where: { tournamentId: params.id },
-      include: {
-        team: true,
-      },
-    })
+    const teams: any = await prisma.$queryRawUnsafe(`
+      SELECT tt.*, t.name as teamName, t.id as teamIdReal
+      FROM TournamentTeam tt
+      JOIN Team t ON tt.teamId = t.id
+      WHERE tt.tournamentId = ?
+    `, params.id)
 
-    return NextResponse.json(teams)
+    const formattedTeams = teams.map((tt: any) => ({
+      id: tt.id,
+      tournamentId: tt.tournamentId,
+      teamId: tt.teamId,
+      groupName: tt.groupName,
+      registeredAt: tt.registeredAt,
+      status: tt.status,
+      team: {
+        id: tt.teamIdReal,
+        name: tt.teamName
+      }
+    }))
+
+    return NextResponse.json(formattedTeams)
   } catch (error) {
     console.error('Get tournament teams error:', error)
     return NextResponse.json({ error: 'Error al obtener equipos' }, { status: 500 })

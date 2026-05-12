@@ -157,6 +157,7 @@ model TournamentTeam {
   id           String     @id @default(cuid())
   tournamentId String
   teamId       String
+  groupName    String?
   registeredAt DateTime   @default(now())
   status       String     @default("active")
 
