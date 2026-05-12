@@ -72,7 +72,9 @@ export default function TournamentPage() {
   const [selectedPhase, setSelectedPhase] = useState('1° Fase')
   const [phases, setPhases] = useState<any[]>([])
   const firstPhaseName = phases.length > 0 ? phases[0].name : '1° Fase';
-  const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
+   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
+   const [genStep, setGenStep] = useState(1)
+   const [genFormat, setGenFormat] = useState<'STANDARD' | 'INTERGROUP' | 'SWISS'>('STANDARD')
 
   // Fases Modals State
   const [showPhasesList, setShowPhasesList] = useState(false)
@@ -305,6 +307,7 @@ export default function TournamentPage() {
           roundDate: new Date().toISOString(),
           matchType: type,
           phaseName: selectedPhase,
+          genFormat: genFormat,
         }),
       })
 
@@ -1152,6 +1155,7 @@ export default function TournamentPage() {
                           // If it's an Eliminatoria with NO parent phase and NOT Phase 1, we show the "Not available" message.
                           if (!isEliminatoria || hasParent || isFirstPhase) {
                             const standingsData = getStandings()
+                            const hasGroups = tournamentTeams.some((tt: any) => tt.groupName !== null && tt.groupName !== undefined);
                             
                             const renderStandingsTable = (rows: any[], groupName?: string) => (
                               <div key={groupName || 'all'} className="space-y-4 mb-10 last:mb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1213,18 +1217,22 @@ export default function TournamentPage() {
                                 <div className="flex justify-between items-center mb-6">
                                   <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Clasificación</h2>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clasificación por Grupo</span>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${!hasGroups ? 'text-slate-300' : 'text-slate-400'}`}>Clasificación por Grupo</span>
                                     <button 
-                                      onClick={() => setGroupByGroup(!groupByGroup)}
-                                      className={`w-12 h-6 rounded-full transition-all relative ${groupByGroup ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                      onClick={() => hasGroups && setGroupByGroup(!groupByGroup)}
+                                      disabled={!hasGroups}
+                                      title={!hasGroups ? "Realiza el sorteo de grupos primero" : ""}
+                                      className={`w-12 h-6 rounded-full transition-all relative ${!hasGroups ? 'bg-slate-100 cursor-not-allowed opacity-50' : groupByGroup ? 'bg-blue-600' : 'bg-slate-200'}`}
                                     >
-                                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${groupByGroup ? 'left-7' : 'left-1'}`}></div>
+                                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${groupByGroup && hasGroups ? 'left-7' : 'left-1'}`}></div>
                                     </button>
                                   </div>
                                 </div>
                                 
                                 {groupByGroup ? (
-                                  Object.entries(standingsData as Record<string, any[]>).map(([gn, r]) => renderStandingsTable(r, gn))
+                                  Object.entries(standingsData as Record<string, any[]>)
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([gn, r]) => renderStandingsTable(r, gn))
                                 ) : (
                                   renderStandingsTable(standingsData as any[])
                                 )}
@@ -1602,20 +1610,68 @@ export default function TournamentPage() {
                       ? `Se eliminarán los ${phaseMatches.length} partidos actuales y se generará el fixture desde cero.`
                       : 'Elegí el formato del fixture para esta fase.'}
                   </p>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => handleGenerateMatches('ida')}
-                      className="w-full p-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg"
-                    >
-                      ⚽ SOLO IDA (Round Robin)
-                    </button>
-                    <button
-                      onClick={() => handleGenerateMatches('idayvuelta')}
-                      className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100"
-                    >
-                      🔄 IDA Y VUELTA
-                    </button>
-                    <button onClick={() => setShowGenType(false)} className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">
+                   <div className="space-y-3">
+                    {genStep === 1 ? (
+                      <>
+                        <button
+                          onClick={() => { setGenFormat('STANDARD'); setGenStep(2); }}
+                          className="w-full p-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg text-left flex justify-between items-center"
+                        >
+                          <div>
+                            <p className="text-sm">Grupos entre sí</p>
+                            <p className="text-[10px] opacity-50 font-normal normal-case mt-1 tracking-normal">Formato estándar de liga</p>
+                          </div>
+                          <span className="text-xl">⚽</span>
+                        </button>
+                        <button
+                          onClick={() => { setGenFormat('INTERGROUP'); setGenStep(2); }}
+                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left flex justify-between items-center"
+                        >
+                          <div>
+                            <p className="text-sm">Grupo x Grupo</p>
+                            <p className="text-[10px] text-slate-400 font-normal normal-case mt-1 tracking-normal">Ex: "Grupo A" x "Grupo B"</p>
+                          </div>
+                          <span className="text-xl">⚔️</span>
+                        </button>
+                        <button
+                          onClick={() => { setGenFormat('SWISS'); setGenStep(2); }}
+                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left flex justify-between items-center"
+                        >
+                          <div>
+                            <p className="text-sm">Sistema Suizo</p>
+                            <p className="text-[10px] text-slate-400 font-normal normal-case mt-1 tracking-normal">Estilo Champions / Ajedrez</p>
+                          </div>
+                          <span className="text-xl">🏆</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleGenerateMatches('ida')}
+                          className="w-full p-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg"
+                        >
+                          ⚽ SOLO IDA
+                        </button>
+                        <button
+                          onClick={() => handleGenerateMatches('idayvuelta')}
+                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100"
+                        >
+                          🔄 IDA Y VUELTA
+                        </button>
+                        {genFormat === 'INTERGROUP' && (
+                          <button
+                            onClick={() => handleGenerateMatches('cruzados' as any)}
+                            className="w-full p-5 bg-blue-50 text-blue-700 rounded-2xl font-black hover:bg-blue-100 transition-all border border-blue-200"
+                          >
+                            ⚔️ CRUZADOS
+                          </button>
+                        )}
+                        <button onClick={() => setGenStep(1)} className="w-full py-2 text-blue-500 font-bold text-[10px] uppercase tracking-widest hover:underline">
+                          Volver
+                        </button>
+                      </>
+                    )}
+                    <button onClick={() => { setShowGenType(false); setGenStep(1); }} className="w-full py-3 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">
                       Cancelar
                     </button>
                   </div>
@@ -1845,7 +1901,25 @@ export default function TournamentPage() {
               <div className="space-y-5 mb-8">
                 <div>
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título</label>
-                  <input type="text" value={editPhaseData.name} onChange={e => setEditPhaseData({...editPhaseData, name: e.target.value})} className="w-full py-2 bg-transparent font-bold text-slate-800 outline-none border-b border-slate-400 focus:border-blue-600 transition-colors" placeholder="Ej: FASE FINAL" />
+                  <input 
+                    type="text" 
+                    value={editPhaseData.name} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      let newTeams = editPhaseData.teams;
+                      const gMatch = val.match(/Grupo\s+([A-Z])/i);
+                      if (gMatch) {
+                        const gLetter = gMatch[1].toUpperCase();
+                        const matchingTeams = tournamentTeams
+                          .filter((tt: any) => tt.groupName === gLetter)
+                          .map((tt: any) => tt.team.id);
+                        if (matchingTeams.length > 0) newTeams = matchingTeams;
+                      }
+                      setEditPhaseData({...editPhaseData, name: val, teams: newTeams});
+                    }} 
+                    className="w-full py-2 bg-transparent font-bold text-slate-800 outline-none border-b border-slate-400 focus:border-blue-600 transition-colors" 
+                    placeholder="Ej: FASE FINAL" 
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm text-slate-700">Clasificación</span>

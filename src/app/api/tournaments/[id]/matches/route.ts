@@ -218,86 +218,123 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (action === 'generate') {
       const roundDateStr = body.roundDate || new Date().toISOString()
       const roundDate = new Date(roundDateStr)
+      const phaseName = body.phaseName || '1° Fase'
+      const genFormat = body.genFormat || 'STANDARD'
+      const matchType = body.matchType || 'ida'
+
       if (isNaN(roundDate.getTime())) {
         return NextResponse.json({ error: 'Fecha inválida' }, { status: 400 })
       }
-      
-      const teams = await prisma.tournamentTeam.findMany({
-        where: { tournamentId: params.id },
+
+      // 1. Get Phase to know which teams are participating
+      const phase = await prisma.phase.findFirst({
+        where: { tournamentId: params.id, name: phaseName }
       })
 
-      if (teams.length < 2) {
+      let participatingTeamIds: string[] = []
+      if (phase?.teams) {
+        try {
+          participatingTeamIds = JSON.parse(phase.teams)
+        } catch (e) {
+          console.error('Error parsing phase teams:', e)
+        }
+      }
+
+      // 2. Fetch TournamentTeam details to get groupName
+      const allTournamentTeams = await prisma.tournamentTeam.findMany({
+        where: { 
+          tournamentId: params.id,
+          ...(participatingTeamIds.length > 0 ? { teamId: { in: participatingTeamIds } } : {})
+        },
+      })
+
+      if (allTournamentTeams.length < 2) {
         return NextResponse.json({ error: 'Se necesitan al menos 2 equipos' }, { status: 400 })
       }
 
-      // Mezclar equipos aleatoriamente (Shuffle)
-      const teamIds = teams.map(t => t.teamId).sort(() => Math.random() - 0.5)
+      const teamIds = allTournamentTeams.map(t => t.teamId)
       const matches: { homeTeamId: string; awayTeamId: string; roundName: string }[] = []
-      
-      const n = teamIds.length
-      const numRounds = n % 2 === 0 ? n - 1 : n
-      const matchType = body.matchType || 'ida'
-      
-      let rotatingTeams = [...teamIds]
-      if (n % 2 === 0) {
-        rotatingTeams = [teamIds[0], ...teamIds.slice(1)]
-      }
-      
-      for (let round = 1; round <= numRounds; round++) {
-        const roundName = `${round}`
-        
-        if (n % 2 === 0) {
-          for (let i = 0; i < n / 2; i++) {
-            const home = rotatingTeams[i]
-            const away = rotatingTeams[n - 1 - i]
-            if (home && away) {
-              matches.push({ homeTeamId: home, awayTeamId: away, roundName })
-            }
-          }
-          
-          rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
-        } else {
-          for (let i = 0; i < (n - 1) / 2; i++) {
-            const home = rotatingTeams[i]
-            const away = rotatingTeams[n - 2 - i]
-            if (home && away) {
-              matches.push({ homeTeamId: home, awayTeamId: away, roundName })
-            }
-          }
-          
-          rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
+
+      if (genFormat === 'INTERGROUP') {
+        // Group x Group Logic
+        const groups: Record<string, string[]> = {}
+        allTournamentTeams.forEach(tt => {
+          const gn = tt.groupName || 'SIN_GRUPO'
+          if (!groups[gn]) groups[gn] = []
+          groups[gn].push(tt.teamId)
+        })
+
+        const groupNames = Object.keys(groups)
+        if (groupNames.length < 2) {
+          return NextResponse.json({ error: 'Se necesitan al menos 2 grupos para este formato' }, { status: 400 })
         }
-      }
-      
-      if (matchType === 'idayvuelta') {
-        rotatingTeams = [...teamIds]
+
+        // Generate matches between Group 1 and Group 2, etc.
+        // Simplified: Round Robin between groups
+        let roundIdx = 1
+        for (let i = 0; i < groupNames.length; i++) {
+          for (let j = i + 1; j < groupNames.length; j++) {
+            const groupA = groups[groupNames[i]]
+            const groupB = groups[groupNames[j]]
+            
+            for (const teamA of groupA) {
+              for (const teamB of groupB) {
+                matches.push({ homeTeamId: teamA, awayTeamId: teamB, roundName: String(roundIdx) })
+                if (matchType === 'idayvuelta') {
+                  matches.push({ homeTeamId: teamB, awayTeamId: teamA, roundName: String(roundIdx + 1) })
+                }
+                // For simplicity, we just increment roundIdx or keep them in the same round if many matches
+                // In a real tournament, you'd want to distribute them better.
+              }
+              roundIdx++
+            }
+          }
+        }
+      } else if (genFormat === 'SWISS') {
+        // Basic Swiss Round 1: Random pairing
+        const shuffled = [...teamIds].sort(() => Math.random() - 0.5)
+        for (let i = 0; i < shuffled.length; i += 2) {
+          if (shuffled[i] && shuffled[i+1]) {
+            matches.push({ homeTeamId: shuffled[i], awayTeamId: shuffled[i+1], roundName: '1' })
+          }
+        }
+      } else {
+        // STANDARD Round Robin (Existing logic)
+        const shuffledIds = [...teamIds].sort(() => Math.random() - 0.5)
+        const n = shuffledIds.length
+        const numRounds = n % 2 === 0 ? n - 1 : n
+        
+        let rotatingTeams = [...shuffledIds]
         if (n % 2 === 0) {
-          rotatingTeams = [teamIds[0], ...teamIds.slice(1)]
+          rotatingTeams = [shuffledIds[0], ...shuffledIds.slice(1)]
         }
         
         for (let round = 1; round <= numRounds; round++) {
-          const roundName = `${round + numRounds}`
-          
+          const roundName = `${round}`
           if (n % 2 === 0) {
             for (let i = 0; i < n / 2; i++) {
-              const home = rotatingTeams[n - 1 - i]
-              const away = rotatingTeams[i]
-              if (home && away) {
-                matches.push({ homeTeamId: home, awayTeamId: away, roundName })
-              }
+              const home = rotatingTeams[i]; const away = rotatingTeams[n - 1 - i]
+              if (home && away) matches.push({ homeTeamId: home, awayTeamId: away, roundName })
             }
-            
             rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
           } else {
             for (let i = 0; i < (n - 1) / 2; i++) {
-              const home = rotatingTeams[n - 2 - i]
-              const away = rotatingTeams[i]
-              if (home && away) {
-                matches.push({ homeTeamId: home, awayTeamId: away, roundName })
-              }
+              const home = rotatingTeams[i]; const away = rotatingTeams[n - 2 - i]
+              if (home && away) matches.push({ homeTeamId: home, awayTeamId: away, roundName })
             }
-            
             rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
+          }
+        }
+        
+        if (matchType === 'idayvuelta') {
+          const currentCount = matches.length
+          for (let i = 0; i < currentCount; i++) {
+            const m = matches[i]
+            matches.push({ 
+              homeTeamId: m.awayTeamId, 
+              awayTeamId: m.homeTeamId, 
+              roundName: String(Number(m.roundName) + numRounds) 
+            })
           }
         }
       }
