@@ -3512,17 +3512,45 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
   }
 
   const handleExportExcel = () => {
-    const data = standings.map((s: any, idx: number) => {
-      const row: any = { Pos: idx + 1, Equipo: s.name }
-      tableColumns.filter((c: any) => c.visible).forEach((col: any) => {
-        row[col.label] = s[col.id] || 0
+    const dataToExport = exportStandings
+    const rows: any[] = []
+    const visibleCols = tableColumns.filter((c: any) => c.visible)
+    
+    // Header Row Object
+    const headerRow: any = { Pos: 'Pos', Equipo: 'Equipo' }
+    visibleCols.forEach((col: any) => { headerRow[col.label] = col.label })
+
+    if (isGrouped) {
+      const grouped = dataToExport.reduce((acc: any, curr: any) => {
+        const group = curr.groupName || 'General'
+        if (!acc[group]) acc[group] = []
+        acc[group].push(curr)
+        return acc
+      }, {})
+
+      Object.entries(grouped).forEach(([groupName, teams]: [any, any]) => {
+        rows.push({ Equipo: `--- GRUPO: ${groupName.toUpperCase()} ---` })
+        rows.push(headerRow)
+        teams.forEach((s: any, idx: number) => {
+          const row: any = { Pos: idx + 1, Equipo: s.name }
+          visibleCols.forEach((col: any) => { row[col.label] = s[col.id] || 0 })
+          rows.push(row)
+        })
+        rows.push({}) // Spacer
       })
-      return row
-    })
-    const ws = XLSX.utils.json_to_sheet(data)
+    } else {
+      rows.push(headerRow)
+      dataToExport.forEach((s: any, idx: number) => {
+        const row: any = { Pos: idx + 1, Equipo: s.name }
+        visibleCols.forEach((col: any) => { row[col.label] = s[col.id] || 0 })
+        rows.push(row)
+      })
+    }
+
+    const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: true })
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Clasificación")
-    XLSX.writeFile(wb, `clasificacion-${tournament.id}.xlsx`)
+    XLSX.writeFile(wb, `clasificacion-${tournament.name.toLowerCase().replace(/\s+/g, '-')}.xlsx`)
   }
 
   const getEmbedCode = () => {
