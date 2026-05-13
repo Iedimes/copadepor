@@ -3843,9 +3843,9 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
                   onClick={handlePrint}
                 />
                 <ExportOption 
-                  icon="🖼" 
-                  title="Imagen" 
-                  desc="4 estilos profesionales" 
+                  icon="🎨" 
+                  title="Diseño Social" 
+                  desc="4 estilos para compartir" 
                   onClick={() => setExportView('styles')}
                 />
                 <ExportOption 
