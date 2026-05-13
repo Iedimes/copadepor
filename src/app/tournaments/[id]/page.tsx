@@ -1,7 +1,11 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
+import ReactDOM from 'react-dom'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import html2canvas from 'html2canvas'
+import { z } from 'zod'
+import * as XLSX from 'xlsx'
 
 interface Tournament {
   id: string
@@ -124,6 +128,9 @@ export default function TournamentPage() {
   const [showRoundActions, setShowRoundActions] = useState(false)
   const [showReorderModal, setShowReorderModal] = useState(false)
   const [showReorderTeamsModal, setShowReorderTeamsModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportView, setExportView] = useState<'menu' | 'styles'>('menu')
+  const [selectedStyle, setSelectedStyle] = useState(1)
   const [confirmResetMatch, setConfirmResetMatch] = useState(false)
   const [confirmRemoveMatchId, setConfirmRemoveMatchId] = useState<string | null>(null)
   const [showChangeTeamsModal, setShowChangeTeamsModal] = useState(false)
@@ -297,8 +304,6 @@ export default function TournamentPage() {
       fetchData()
     }
   }
-
-
 
   // Generar o Regenerar fixture (solo cuando NO hay partidos con datos)
   const handleGenerateMatches = async (type: 'ida' | 'idayvuelta') => {
@@ -684,7 +689,7 @@ export default function TournamentPage() {
     }
   }
 
-  const getStandings = () => {
+  const getStandings = (forceFlat: boolean = false) => {
     const stats: Record<string, any> = {}
     
     // Find current phase object to get its specific teams
@@ -768,7 +773,7 @@ export default function TournamentPage() {
       return 0
     })
 
-    if (groupByGroup) {
+    if (groupByGroup && !forceFlat) {
       const grouped: Record<string, any[]> = {}
       sortedStandings.forEach(s => {
         const gn = s.groupName || 'Sin Grupo'
@@ -999,7 +1004,7 @@ export default function TournamentPage() {
                          <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                            <span className="text-lg">📚</span> Fases
                          </button>
-                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                         <button onClick={() => { setExportView('menu'); setShowExportModal(true); }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                            <span className="text-lg">⬇</span> Exportar
                          </button>
                          <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
@@ -1066,7 +1071,7 @@ export default function TournamentPage() {
                                <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">📚</span> Fases
                                </button>
-                               <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                               <button onClick={() => { setExportView('menu'); setShowExportModal(true); }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">⬇</span> Exportar
                                </button>
                                <button onClick={() => setShowTableConfig(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
@@ -1341,7 +1346,7 @@ export default function TournamentPage() {
                           }} />
                           <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setShowRoundActions(false); }} />
                           <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowReorderModal(true); setShowRoundActions(false); }} />
-                          <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); }} />
+                          <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); setExportView('menu'); setShowExportModal(true); }} />
                           <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
                             setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
                             setShowRoundActions(false); 
@@ -1710,7 +1715,7 @@ export default function TournamentPage() {
               <MenuOption icon="👥" label="Equipos" onClick={() => { setShowConfigMenu(false); router.push(`/tournaments/${tournamentId}/add-teams`); }} />
               <MenuOption icon="💠" label="Grupos" onClick={() => { setShowConfigMenu(false); setShowGroupsModal(true); }} />
               <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); setShowPhasesList(true); }} />
-              <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); setExportView('menu'); setShowExportModal(true); }} />
               <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); setShowTableConfig(true); }} />
               <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
                 setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
@@ -1853,7 +1858,7 @@ export default function TournamentPage() {
               <MenuOption icon="✏️" label="Editar Fecha" onClick={() => setShowFixtureMenu(false)} />
               <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => setShowFixtureMenu(false)} />
               <MenuOption icon="⇅" label="Reordenar partidos" onClick={() => setShowFixtureMenu(false)} />
-              <MenuOption icon="📥" label="Exportar" onClick={() => setShowFixtureMenu(false)} />
+              <MenuOption icon="📥" label="Exportar" onClick={() => { setShowFixtureMenu(false); setExportView('menu'); setShowExportModal(true); }} />
             </div>
             <div className="p-4 bg-slate-800/50">
               <button onClick={() => setShowFixtureMenu(false)} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
@@ -2164,6 +2169,18 @@ export default function TournamentPage() {
           tournamentId={tournamentId}
           onClose={() => setShowReorderModal(false)}
           onSuccess={() => { setShowReorderModal(false); fetchData(); }}
+        />
+      )}
+
+      {showExportModal && (
+        <ExportModal
+          tournament={tournament}
+          tournamentTeams={tournamentTeams}
+          standings={getStandings(true)}
+          tableColumns={tableColumns}
+          exportView={exportView}
+          setExportView={setExportView}
+          onClose={() => setShowExportModal(false)}
         />
       )}
     </div>
@@ -3439,5 +3456,490 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
         </div>
       </div>
     </div>
+  )
+}
+
+function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exportView, setExportView, onClose }: any) {
+  const [selectedStyle, setSelectedStyle] = useState(1)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [showEmbedCode, setShowEmbedCode] = useState(false)
+  const [showAllGroups, setShowAllGroups] = useState(false)
+  const [isGrouped, setIsGrouped] = useState(true)
+  const [isPrinting, setIsPrinting] = useState(false)
+  const tableRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Keep sidebar hidden if we return from print
+    document.body.classList.remove('print-mode-active')
+  }, [])
+
+  const handlePrint = () => {
+    setIsPrinting(true)
+    setTimeout(() => {
+      window.print()
+      setIsPrinting(false)
+    }, 150)
+  }
+
+  const exportStandings = showAllGroups 
+    ? [...tournamentTeams]
+        .sort((a, b) => (a.order || 0) - (b.order || 0))
+        .map(tt => {
+          const stats = standings.find((s: any) => s.id === tt.team.id) || { points: 0, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, diff: 0 }
+          return { ...stats, ...tt, name: tt.team.name }
+        })
+    : standings
+
+  const handleExportImage = async () => {
+    if (!tableRef.current) return
+    setIsGenerating(true)
+    try {
+      const canvas = await html2canvas(tableRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        logging: false,
+        useCORS: true
+      })
+      const link = document.createElement('a')
+      link.download = `clasificacion-${tournament.name.toLowerCase().replace(/\s+/g, '-')}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (err) {
+      console.error('Error generating image:', err)
+      alert('Error al generar la imagen')
+    }
+    setIsGenerating(false)
+  }
+
+  const handleExportExcel = () => {
+    const data = standings.map((s: any, idx: number) => {
+      const row: any = { Pos: idx + 1, Equipo: s.name }
+      tableColumns.filter((c: any) => c.visible).forEach((col: any) => {
+        row[col.label] = s[col.id] || 0
+      })
+      return row
+    })
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Clasificación")
+    XLSX.writeFile(wb, `clasificacion-${tournament.id}.xlsx`)
+  }
+
+  const getEmbedCode = () => {
+    const url = window.location.href.replace('/tournaments/', '/public/tournaments/')
+    return `<iframe src="${url}" width="100%" height="600" frameborder="0"></iframe>`
+  }
+
+  const renderStylePreview = () => {
+    const groupedStandings = exportStandings.reduce((acc: any, curr: any) => {
+      const group = isGrouped ? (curr.groupName || 'General') : 'General'
+      if (!acc[group]) acc[group] = []
+      acc[group].push(curr)
+      return acc
+    }, {})
+
+    const visibleCols = tableColumns.filter((c: any) => c.visible)
+
+    const TableHeader = ({ className }: { className?: string }) => (
+      <thead className={className || "bg-slate-900 text-white"}>
+        <tr className="uppercase tracking-widest font-black text-[10px]">
+          <th className="p-3 text-center w-10">Pos</th>
+          <th className="p-3 text-left min-w-[150px]">Equipo</th>
+          {visibleCols.map((col: any) => (
+            <th key={col.id} className="p-3 text-center w-12">{col.id.toUpperCase()}</th>
+          ))}
+        </tr>
+      </thead>
+    )
+
+    if (selectedStyle === 1) {
+      return (
+        <div ref={tableRef} className="bg-white p-10 rounded-xl w-full">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-black text-[#0A1128] uppercase">{tournament.name}</h2>
+            <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-xs mt-2">Tabla de Posiciones</p>
+          </div>
+          {Object.entries(groupedStandings).map(([group, teams]: [any, any]) => (
+            <div key={group} className="mb-8 last:mb-0">
+              {group !== 'General' && <h3 className="bg-[#0A1128] text-white py-2 px-4 inline-block rounded-t-lg font-black text-xs uppercase mb-0">Grupo {group}</h3>}
+              <div className="border border-slate-100 overflow-hidden rounded-xl rounded-tl-none shadow-sm">
+                <table className="w-full text-xs">
+                  <TableHeader />
+                  <tbody className="divide-y divide-slate-50">
+                    {teams.map((s: any, i: number) => (
+                      <tr key={s.id} className="hover:bg-slate-50/50">
+                        <td className="p-3 text-center font-black text-slate-400">{i + 1}</td>
+                        <td className="p-3 font-bold text-slate-700 flex items-center gap-3">
+                          <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px]">{s.name[0]}</div>
+                          {s.name}
+                        </td>
+                        {visibleCols.map((col: any) => (
+                          <td key={col.id} className={`p-3 text-center font-bold ${col.id === 'points' ? 'text-blue-600' : 'text-slate-400'}`}>
+                            {s[col.id] || 0}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (selectedStyle === 2) {
+      return (
+        <div ref={tableRef} className="bg-[#020617] p-10 rounded-3xl border border-white/10 relative overflow-hidden w-full">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 blur-[100px] rounded-full -mr-32 -mt-32"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-600/10 blur-[100px] rounded-full -ml-32 -mb-32"></div>
+          
+          <div className="relative z-10">
+            <div className="flex justify-between items-end mb-10">
+              <div>
+                <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
+                  {tournament.name}
+                </h2>
+                <div className="h-1 w-24 bg-emerald-500 mt-2"></div>
+              </div>
+              <p className="text-white/40 font-black text-xs uppercase tracking-widest">Season 2024</p>
+            </div>
+
+            {Object.entries(groupedStandings).map(([group, teams]: [any, any]) => (
+              <div key={group} className="mb-10 last:mb-0">
+                {group !== 'General' && (
+                   <div className="flex items-center gap-4 mb-4">
+                     <span className="h-px flex-1 bg-white/10"></span>
+                     <h3 className="text-emerald-400 font-black text-xs uppercase tracking-[0.2em]">Grupo {group}</h3>
+                     <span className="h-px flex-1 bg-white/10"></span>
+                   </div>
+                )}
+                <div className="overflow-hidden rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
+                  <table className="w-full text-xs">
+                    <thead className="bg-white/10 text-emerald-400">
+                      <tr className="uppercase tracking-widest font-black text-[10px]">
+                        <th className="p-4 text-center w-12">#</th>
+                        <th className="p-4 text-left">Team</th>
+                        {visibleCols.map((col: any) => (
+                          <th key={col.id} className="p-4 text-center">{col.id.toUpperCase()}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {teams.map((s: any, i: number) => (
+                        <tr key={s.id} className="hover:bg-white/5 transition-colors">
+                          <td className="p-4 text-center">
+                            <span className={`w-6 h-6 inline-flex items-center justify-center rounded-lg font-black ${i < 3 ? 'bg-emerald-500 text-black' : 'text-white/30 border border-white/10'}`}>
+                              {i + 1}
+                            </span>
+                          </td>
+                          <td className="p-4 font-bold text-white uppercase tracking-tight">{s.name}</td>
+                          {visibleCols.map((col: any) => (
+                            <td key={col.id} className={`p-4 text-center font-black ${col.id === 'points' ? 'text-emerald-400' : 'text-white/60'}`}>
+                              {s[col.id] || 0}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    if (selectedStyle === 3) {
+      return (
+        <div ref={tableRef} className="bg-gradient-to-br from-[#2D0B5A] to-[#14052D] p-12 rounded-[3rem] relative overflow-hidden w-full">
+          <div className="absolute inset-0 opacity-20 pointer-events-none">
+             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,0,255,0.2),transparent_70%)]"></div>
+          </div>
+          
+          <div className="relative z-10">
+            <h2 className="text-5xl font-black text-white text-center mb-12 drop-shadow-2xl uppercase tracking-tighter italic">Clasificación</h2>
+
+            <div className="space-y-6">
+              {Object.entries(groupedStandings).map(([group, teams]: [any, any]) => (
+                <div key={group} className="space-y-3">
+                  {group !== 'General' && (
+                    <div className="bg-pink-600 text-white px-8 py-2 rounded-full inline-block font-black text-xs uppercase tracking-widest shadow-lg shadow-pink-900/50 -rotate-1 mb-2">
+                      Grupo {group}
+                    </div>
+                  )}
+                  {teams.map((s: any, i: number) => (
+                    <div key={s.id} className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:bg-white/20 transition-all hover:scale-[1.02] cursor-default">
+                      <div className="flex items-center gap-6">
+                        <span className="text-white/40 font-black text-2xl italic w-8">#{i+1}</span>
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-500 p-0.5">
+                          <div className="w-full h-full rounded-[10px] bg-[#14052D] flex items-center justify-center font-black text-white">
+                            {s.name[0]}
+                          </div>
+                        </div>
+                        <span className="text-xl font-black text-white uppercase tracking-tight">{s.name}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-8 pr-4">
+                        {visibleCols.filter(c => ['points', 'played', 'diff'].includes(c.id)).map(col => (
+                          <div key={col.id} className="text-center">
+                            <div className="text-[10px] font-black text-pink-400 uppercase tracking-widest">{col.label.split(' ')[0]}</div>
+                            <div className="text-2xl font-black text-white">{s[col.id] || 0}</div>
+                          </div>
+                        ))}
+                        <div className="h-10 w-px bg-white/10 mx-2"></div>
+                        <div className="text-center">
+                          <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest">PTS</div>
+                          <div className="text-3xl font-black text-white bg-blue-600 px-4 py-1 rounded-xl shadow-lg shadow-blue-900/50">{s.points || 0}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (selectedStyle === 4) {
+      return (
+        <div ref={tableRef} className="bg-[#0A1128] p-12 rounded-3xl min-w-[1000px]">
+          <div className="flex items-center justify-center gap-4 mb-12">
+            <div className="h-px w-20 bg-blue-500/30"></div>
+            <h2 className="text-4xl font-black text-white uppercase tracking-tighter">CLASIFICACIÓN</h2>
+            <div className="h-px w-20 bg-blue-500/30"></div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-12">
+            {Object.entries(groupedStandings).map(([group, teams]: [any, any]) => (
+              <div key={group}>
+                <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
+                  <h3 className="text-blue-400 font-black text-xs uppercase tracking-widest">Grupo {group}</h3>
+                  <div className="flex gap-4 text-[9px] font-black text-white/40 uppercase">
+                    <span>Pts</span>
+                    <span>J</span>
+                    <span>G</span>
+                    <span>Dif</span>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  {teams.map((s: any, i: number) => (
+                    <div key={s.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-white/5 group">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-blue-600 text-white' : 'text-white/30'}`}>{i+1}</span>
+                        <span className="text-sm font-black text-white uppercase group-hover:text-blue-400 transition-colors">{s.name}</span>
+                      </div>
+                      <div className="flex gap-4 text-xs font-black">
+                        <span className="w-6 text-center text-blue-400">{s.points || 0}</span>
+                        <span className="w-6 text-center text-white/60">{s.played || 0}</span>
+                        <span className="w-6 text-center text-white/60">{s.won || 0}</span>
+                        <span className="w-6 text-center text-emerald-400">{s.diff || 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    return null
+  }
+
+  if (typeof document === 'undefined') return null
+
+  if (isPrinting) {
+    return ReactDOM.createPortal(
+      <div className="print-root-active bg-white p-0 m-0 w-full min-h-screen">
+        <style>{`
+          @media print {
+            body > * { display: none !important; }
+            body > .print-root-active { display: block !important; visibility: visible !important; }
+            .print-root-active * { visibility: visible !important; }
+          }
+        `}</style>
+        <div className="w-full">
+          {renderStylePreview()}
+        </div>
+      </div>,
+      document.body
+    )
+  }
+
+  return ReactDOM.createPortal(
+    <div className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[400] p-4 no-print-backdrop export-modal-root`} onClick={onClose}>
+      <div className="bg-slate-50 rounded-[3rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in fade-in duration-300 print-modal-container print-no-scroll print-h-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex h-[700px] print-h-auto print-no-scroll">
+          <div className="w-64 bg-white border-r border-slate-100 p-8 flex flex-col no-print">
+            <h3 className="text-xl font-black text-slate-800 mb-8 uppercase tracking-tighter">Exportar</h3>
+            
+            <div className="space-y-2 flex-1">
+              <button 
+                onClick={() => setExportView('menu')}
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${exportView === 'menu' ? 'bg-[#0F172A] text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-slate-50'}`}
+              >
+                <span className="text-lg">☰</span> Menú Principal
+              </button>
+              <button 
+                onClick={() => setExportView('styles')}
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${exportView === 'styles' ? 'bg-[#0F172A] text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-slate-50'}`}
+              >
+                <span className="text-lg">🖼</span> Estilos Imagen
+              </button>
+
+              <div className="mt-8 pt-8 border-t border-slate-100 space-y-6">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={showAllGroups} 
+                      onChange={() => {
+                        setShowAllGroups(!showAllGroups);
+                        if (!showAllGroups) setIsGrouped(false);
+                      }} 
+                    />
+                    <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors">Tabla General (Todos)</span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={isGrouped} 
+                      onChange={() => {
+                        setIsGrouped(!isGrouped);
+                        if (!isGrouped) setShowAllGroups(false);
+                      }} 
+                    />
+                    <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors">Por Zonas (Fase Actual)</span>
+                </label>
+              </div>
+            </div>
+
+            <button onClick={onClose} className="py-4 text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-slate-600 transition-all">
+              Cerrar
+            </button>
+          </div>
+
+          <div className="flex-1 bg-slate-100/50 p-8 flex flex-col overflow-hidden print-full-width print-no-scroll print-h-auto relative">
+            {exportView === 'menu' ? (
+              <div className="grid grid-cols-2 gap-6 h-full items-center max-w-2xl mx-auto w-full no-print z-10">
+                <ExportOption 
+                  icon="🖨" 
+                  title="Imprimir" 
+                  desc="Versión optimizada para papel" 
+                  onClick={handlePrint}
+                />
+                <ExportOption 
+                  icon="🖼" 
+                  title="Imagen" 
+                  desc="4 estilos profesionales" 
+                  onClick={() => setExportView('styles')}
+                />
+                <ExportOption 
+                  icon="📊" 
+                  title="Excel" 
+                  desc="Descargar datos .xlsx" 
+                  onClick={handleExportExcel}
+                />
+                <ExportOption 
+                  icon="🔗" 
+                  title="Embed" 
+                  desc="Código para tu web" 
+                  onClick={() => setShowEmbedCode(true)}
+                />
+              </div>
+            ) : (
+              <div className="h-full flex flex-col z-10 print-h-auto print-no-scroll">
+                <div className="flex justify-between items-center mb-6 no-print">
+                  <div className="flex gap-2 bg-white p-1.5 rounded-2xl shadow-sm">
+                    {[1, 2, 3, 4].map(num => (
+                      <button
+                        key={num}
+                        onClick={() => setSelectedStyle(num)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${selectedStyle === num ? 'bg-[#0F172A] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                      >
+                        OPCIÓN {num}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={handleExportImage}
+                    disabled={isGenerating}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-2xl font-black text-xs transition-all shadow-lg shadow-blue-200 active:scale-95 disabled:opacity-50"
+                  >
+                    {isGenerating ? 'GENERANDO...' : '📥 DESCARGAR IMAGEN'}
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-auto rounded-3xl border-4 border-white shadow-2xl bg-slate-200/20 p-8 custom-scrollbar print-no-scroll print-h-auto">
+                  <div id="print-target" className="origin-top scale-[0.8] mx-auto print-scale-100 print-no-scroll">
+                    {renderStylePreview()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {exportView === 'menu' && (
+              <div className="absolute inset-0 opacity-0 pointer-events-none overflow-hidden">
+                <div id="print-target-hidden">
+                  {renderStylePreview()}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showEmbedCode && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[500] flex items-center justify-center p-8" onClick={() => setShowEmbedCode(false)}>
+           <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-2xl animate-in zoom-in fade-in" onClick={e => e.stopPropagation()}>
+              <h4 className="text-2xl font-black text-slate-800 mb-6">Código de incorporación</h4>
+              <p className="text-slate-500 mb-6 font-medium">Copia este código para mostrar la tabla en tu sitio web:</p>
+              <textarea 
+                readOnly
+                value={getEmbedCode()}
+                className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm mb-8 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(getEmbedCode())
+                  alert('Código copiado!')
+                }}
+                className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest text-xs"
+              >
+                Copiar Código
+              </button>
+           </div>
+        </div>
+      )}
+    </div>,
+    document.body
+  )
+}
+
+function ExportOption({ icon, title, desc, onClick }: any) {
+  return (
+    <button 
+      onClick={onClick}
+      className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:scale-105 hover:border-blue-200 transition-all group text-left h-48 flex flex-col justify-center"
+    >
+      <span className="text-4xl mb-4 group-hover:scale-125 transition-all block">{icon}</span>
+      <h4 className="text-lg font-black text-slate-800 mb-1">{title}</h4>
+      <p className="text-slate-400 text-xs font-bold leading-tight">{desc}</p>
+    </button>
   )
 }
