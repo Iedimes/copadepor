@@ -158,6 +158,7 @@ model TournamentTeam {
   tournamentId String
   teamId       String
   groupName    String?
+  order        Int        @default(0)
   registeredAt DateTime   @default(now())
   status       String     @default("active")
 

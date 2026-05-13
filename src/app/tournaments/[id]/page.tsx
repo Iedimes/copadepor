@@ -123,6 +123,7 @@ export default function TournamentPage() {
    const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null)
   const [showRoundActions, setShowRoundActions] = useState(false)
   const [showReorderModal, setShowReorderModal] = useState(false)
+  const [showReorderTeamsModal, setShowReorderTeamsModal] = useState(false)
   const [confirmResetMatch, setConfirmResetMatch] = useState(false)
   const [confirmRemoveMatchId, setConfirmRemoveMatchId] = useState<string | null>(null)
   const [showChangeTeamsModal, setShowChangeTeamsModal] = useState(false)
@@ -751,10 +752,12 @@ export default function TournamentPage() {
       return {
         ...s,
         groupName: tt?.groupName || null,
+        order: tt?.order || 0,
         diff: s.gf - s.ga,
         perc: s.played > 0 ? Math.round((s.points / (s.played * 3)) * 100) : 0
       }
     }).sort((a: any, b: any) => {
+      if (a.order !== b.order) return a.order - b.order
       for (const criterion of criteria) {
         if (criterion === 'PUNTOS' && b.points !== a.points) return b.points - a.points
         if (criterion === 'GOLES' && b.diff !== a.diff) return b.diff - a.diff
@@ -1075,7 +1078,7 @@ export default function TournamentPage() {
                                }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">☑</span> Criterios de clasificación
                                </button>
-                               <button onClick={() => setShowReorderModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                               <button onClick={() => setShowReorderTeamsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">⇅</span> Reordenar
                                </button>
                              </div>
@@ -1714,7 +1717,7 @@ export default function TournamentPage() {
                 setShowConfigMenu(false); 
                 setShowCriteriaModal(true); 
               }} />
-              <MenuOption icon="🔄" label="Reordenar" onClick={() => { setShowConfigMenu(false); }} />
+              <MenuOption icon="⇅" label="Reordenar" onClick={() => { setShowConfigMenu(false); setShowReorderTeamsModal(true); }} />
             </div>
             <div className="p-4 bg-slate-800/50">
               <button onClick={() => setShowConfigMenu(false)} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
@@ -2134,6 +2137,15 @@ export default function TournamentPage() {
         </div>
       )}
 
+      {showReorderTeamsModal && (
+        <ReorderTeamsModal
+          tournamentTeams={tournamentTeams}
+          tournamentId={tournamentId}
+          onClose={() => setShowReorderTeamsModal(false)}
+          onSuccess={() => { setShowReorderTeamsModal(false); fetchData(); }}
+        />
+      )}
+
       {showPlayoffDraw && (
         <KnockoutWizard
           tournamentId={tournamentId}
@@ -2154,6 +2166,144 @@ export default function TournamentPage() {
           onSuccess={() => { setShowReorderModal(false); fetchData(); }}
         />
       )}
+    </div>
+  )
+}
+
+function ReorderTeamsModal({ tournamentTeams, tournamentId, onClose, onSuccess }: any) {
+  const [activeGroup, setActiveGroup] = useState<string | null>(null)
+  const [orderedTeams, setOrderedTeams] = useState<any[]>([])
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const groups = Array.from(new Set(tournamentTeams.map((tt: any) => tt.groupName).filter(Boolean))).sort() as string[]
+  
+  useEffect(() => {
+    if (groups.length > 0 && !activeGroup) {
+      setActiveGroup(groups[0])
+    }
+    setOrderedTeams([...tournamentTeams].sort((a, b) => a.order - b.order))
+  }, [tournamentTeams])
+
+  const currentTeams = activeGroup 
+    ? orderedTeams.filter(t => t.groupName === activeGroup)
+    : orderedTeams
+
+  const handleDragStart = (idx: number) => setDraggedIdx(idx)
+  
+  const handleDragOver = (e: any, idx: number) => {
+    e.preventDefault()
+    if (draggedIdx === null || draggedIdx === idx) return
+    
+    const newTeams = [...orderedTeams]
+    const currentGroupTeams = activeGroup ? newTeams.filter(t => t.groupName === activeGroup) : newTeams
+    
+    const draggedItem = currentGroupTeams[draggedIdx]
+    currentGroupTeams.splice(draggedIdx, 1)
+    currentGroupTeams.splice(idx, 0, draggedItem)
+    
+    // Update the main list with the new order for this group
+    if (activeGroup) {
+      let groupIdx = 0
+      const finalTeams = newTeams.map(t => {
+        if (t.groupName === activeGroup) {
+          return currentGroupTeams[groupIdx++]
+        }
+        return t
+      })
+      setOrderedTeams(finalTeams)
+    } else {
+      setOrderedTeams(currentGroupTeams)
+    }
+    setDraggedIdx(idx)
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    const token = localStorage.getItem('token')
+    try {
+      const teamOrders = orderedTeams.map((t, idx) => ({ id: t.id, order: idx + 1 }))
+      const res = await fetch(`/api/tournaments/${tournamentId}/teams`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reorder', teamOrders })
+      })
+      if (res.ok) onSuccess()
+      else {
+        const errData = await res.json()
+        alert('Error al guardar el orden: ' + (errData.details || errData.error || ''))
+      }
+    } catch (e) {
+      alert('Error de conexión')
+    }
+    setIsSaving(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[400] p-4" onClick={onClose}>
+      <div className="bg-slate-50 rounded-[3rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in fade-in duration-300" onClick={e => e.stopPropagation()}>
+        <div className="p-8">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-3xl font-black text-slate-800 tracking-tight">Equipos</h3>
+            <button onClick={onClose} className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">✕</button>
+          </div>
+
+          {groups.length > 0 && (
+            <div className="flex gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl">
+              {groups.map(g => (
+                <button
+                  key={g}
+                  onClick={() => setActiveGroup(g)}
+                  className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeGroup === g ? 'bg-green-500 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  GRUPO {g}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="space-y-3 mb-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {currentTeams.map((t, i) => (
+              <div
+                key={t.id}
+                draggable
+                onDragStart={() => handleDragStart(i)}
+                onDragOver={(e) => handleDragOver(e, i)}
+                onDrop={() => setDraggedIdx(null)}
+                className={`bg-white p-5 rounded-2xl flex items-center justify-between shadow-sm border border-slate-100 group cursor-move transition-all ${draggedIdx === i ? 'opacity-40 scale-95 border-blue-200' : 'hover:border-blue-200 hover:shadow-md'}`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center font-black text-slate-400 text-sm">
+                    {t.team.name.match(/\d+/) || t.team.name[0]}
+                  </div>
+                  <span className="font-bold text-slate-700">{t.team.name}</span>
+                </div>
+                <div className="text-slate-300 font-black tracking-tighter text-2xl group-hover:text-blue-400 transition-colors">≡</div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center mb-10">Mantenga presionado y arrastre para cambiar</p>
+
+          <div className="flex gap-4">
+            <button 
+              onClick={onClose}
+              className="flex-1 py-5 bg-white text-slate-400 font-black rounded-3xl hover:bg-slate-100 transition-all uppercase tracking-widest text-xs border border-slate-100"
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-[2] py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest text-xs flex items-center justify-center disabled:opacity-50"
+            >
+              {isSaving ? (
+                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
