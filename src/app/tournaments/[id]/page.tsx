@@ -68,7 +68,7 @@ export default function TournamentPage() {
     const view = searchParams.get('view')
     return view === 'clasificacion' ? 'clasificacion' : 'inicio'
   })
-  const [selectedRound, setSelectedRound] = useState('1')
+  const [selectedRound, setSelectedRound] = useState('')
   const [roundDate, setRoundDate] = useState('')
   const [generating, setGenerating] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
@@ -2254,7 +2254,7 @@ export default function TournamentPage() {
           matches={matches}
           tournamentId={tournamentId}
           onClose={() => setShowReorderModal(false)}
-          onSuccess={() => { setShowReorderModal(false); fetchData(); }}
+          onSuccess={() => { setShowReorderModal(false); setSelectedRound(''); fetchData(); }}
         />
       )}
 
