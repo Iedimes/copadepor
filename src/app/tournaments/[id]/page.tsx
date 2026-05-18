@@ -128,6 +128,21 @@ export default function TournamentPage() {
    ])
    const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null)
   const [showRoundActions, setShowRoundActions] = useState(false)
+  const roundActionsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (roundActionsRef.current && !roundActionsRef.current.contains(event.target as Node)) {
+        setShowRoundActions(false)
+      }
+    }
+    if (showRoundActions) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showRoundActions])
   const [showReorderModal, setShowReorderModal] = useState(false)
   const [showReorderTeamsModal, setShowReorderTeamsModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
@@ -1363,7 +1378,7 @@ export default function TournamentPage() {
                   </div>
 
                   {/* CENTRAL ACTION BUTTON (+) */}
-                  <div className="relative flex justify-center -mt-px z-20">
+                  <div className="relative flex justify-center -mt-px z-20" ref={roundActionsRef}>
                     <div className="bg-[#0F172A] px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:bg-slate-800 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)}>
                       <span className="text-white font-black text-lg group-hover:scale-110 transition-transform">+</span>
                     </div>
