@@ -1305,7 +1305,7 @@ export default function TournamentPage() {
                       </select>
                       {matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase).length > 0 && (
                         <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
-                          {Array.from(new Set(matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase).map((m: any) => String(m.roundName))))
+                          {Array.from(new Set([...matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase).map((m: any) => String(m.roundName)), selectedRound]))
                             .filter(Boolean)
                             .sort((a, b) => {
                               const numA = parseInt(a);
