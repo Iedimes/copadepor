@@ -101,6 +101,8 @@ export default function TournamentPage() {
   const [showConfigMenu, setShowConfigMenu] = useState(false)
   const [showFixtureMenu, setShowFixtureMenu] = useState(false)
   const [showAddMatchModal, setShowAddMatchModal] = useState(false)
+  const [showEditRoundModal, setShowEditRoundModal] = useState(false)
+  const [editingRoundName, setEditingRoundName] = useState('')
   const [showMatchMenu, setShowMatchMenu] = useState(false)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
    const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
@@ -503,6 +505,34 @@ export default function TournamentPage() {
     const nextRound = String(nextNum)
     setSelectedRound(nextRound)
     setShowRoundActions(false)
+  }
+
+  const handleRenameRound = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingRoundName.trim() || editingRoundName === selectedRound) {
+      setShowEditRoundModal(false)
+      return
+    }
+
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=renameRound`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phaseName: selectedPhase,
+        oldRoundName: selectedRound,
+        newRoundName: editingRoundName.trim(),
+      }),
+    })
+
+    if (res.ok) {
+      setSelectedRound(editingRoundName.trim())
+      await fetchData()
+      setShowEditRoundModal(false)
+    } else {
+      const data = await res.json()
+      alert('Error al renombrar la fecha: ' + (data.error || 'Error desconocido'))
+    }
   }
 
   const handleDeletePhase = async (phaseId: string) => {
@@ -1344,7 +1374,7 @@ export default function TournamentPage() {
                             else setShowGenType(true);
                             setShowRoundActions(false); 
                           }} />
-                          <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setShowRoundActions(false); }} />
+                          <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setEditingRoundName(selectedRound); setShowEditRoundModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowReorderModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); setExportView('menu'); setShowExportModal(true); }} />
                           <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
@@ -1868,6 +1898,57 @@ export default function TournamentPage() {
       )}
 
       {/* MANUAL ADD MATCH MODAL */}
+      {showEditRoundModal && (
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[130] p-4 backdrop-blur-sm" onClick={() => setShowEditRoundModal(false)}>
+          <div className="bg-[#f4eff4] rounded-sm p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-2xl text-slate-800 mb-6">Editar Fecha</h3>
+            
+            <form onSubmit={handleRenameRound} className="space-y-6">
+              <div>
+                <label className="block text-slate-600 text-sm mb-1">Título</label>
+                <input
+                  type="text"
+                  value={editingRoundName}
+                  onChange={e => setEditingRoundName(e.target.value)}
+                  className="w-full bg-transparent border-b border-slate-400 py-1 text-slate-800 outline-none focus:border-blue-500 transition-colors"
+                  required
+                />
+              </div>
+
+              <div className="space-y-4 opacity-50 pointer-events-none">
+                <label className="flex items-center gap-3">
+                  <input type="checkbox" className="w-5 h-5 rounded-sm border-slate-400" />
+                  <span className="text-sm text-slate-600">Ocultar juegos de ronda para seguidores</span>
+                </label>
+                <label className="flex items-start gap-3">
+                  <input type="checkbox" className="w-5 h-5 rounded-sm border-slate-400 mt-0.5" />
+                  <div className="flex flex-col">
+                    <span className="text-sm text-slate-600">Permitir a los usuarios enviar resultados</span>
+                    <span className="text-[10px] text-slate-500">Resultado publicado después de la aprobación</span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-6 pt-4">
+                <button 
+                  type="button"
+                  onClick={() => setShowEditRoundModal(false)}
+                  className="text-red-500 font-bold hover:text-red-600 transition-colors"
+                >
+                  Quitar
+                </button>
+                <button 
+                  type="submit"
+                  className="text-blue-500 font-bold hover:text-blue-600 transition-colors"
+                >
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showAddMatchModal && (
         <AddMatchModal 
           teams={tournamentTeams} 

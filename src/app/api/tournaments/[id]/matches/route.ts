@@ -759,3 +759,51 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: 'Error al crear partido' }, { status: 500 })
   }
 }
+
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const token = getAuthToken(request)
+  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const payload = verifyToken(token)
+  if (!payload) return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+
+  try {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!tournament || (tournament.organizerId !== payload.userId && payload.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+
+    const url = new URL(request.url)
+    const action = url.searchParams.get('action')
+
+    if (action === 'renameRound') {
+      const body = await request.json()
+      const { phaseName, oldRoundName, newRoundName } = body
+
+      if (!phaseName || !oldRoundName || !newRoundName) {
+        return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
+      }
+
+      const updatedCount = await prisma.match.updateMany({
+        where: {
+          tournamentId: params.id,
+          phaseName: phaseName,
+          roundName: oldRoundName,
+        },
+        data: {
+          roundName: newRoundName,
+        },
+      })
+
+      return NextResponse.json({ message: 'Ronda renombrada con éxito', updatedCount: updatedCount.count })
+    }
+
+    return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+  } catch (error) {
+    console.error('Update matches error:', error)
+    return NextResponse.json({ error: 'Error al actualizar partidos' }, { status: 500 })
+  }
+}
