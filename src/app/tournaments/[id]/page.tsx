@@ -3396,60 +3396,39 @@ function RoundStatistics({ matches }: { matches: any[] }) {
 
 function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSuccess }: any) {
   const [rounds, setRounds] = useState<string[]>([])
-  const [roundsData, setRoundsData] = useState<any[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     const firstPhaseName = '1° Fase'
     const phaseMatches = matches.filter((m: any) => (m.phaseName || firstPhaseName) === phaseName)
-    const rounds = Array.from(new Set(phaseMatches.map((m: any) => String(m.roundName))))
-      .sort((a, b) => {
-        const numA = parseInt(a);
-        const numB = parseInt(b);
-        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-        if (!isNaN(numA)) return -1;
-        if (!isNaN(numB)) return 1;
-        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-      })
-      .sort((a, b) => {
-        const numA = parseInt(a);
-        const numB = parseInt(b);
-        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-        if (!isNaN(numA)) return -1;
-        if (!isNaN(numB)) return 1;
-        return a.localeCompare(b);
-      })
+    const sortedRounds = Array.from(new Set(phaseMatches.map((m: any) => String(m.roundName))))
       .map(r => {
-      const rMatches = phaseMatches.filter((m: any) => String(m.roundName) === r)
-      const minDate = rMatches.length > 0 ? new Date(Math.min(...rMatches.map((m: any) => new Date(m.matchDate).getTime()))) : null
-      return { name: r, date: minDate, order: rMatches[0]?.roundOrder || 0 }
-    }).sort((a: any, b: any) => {
-      if (a.order !== b.order) return a.order - b.order
-      return a.name.localeCompare(b.name)
-    })
-    setRounds(roundsWithDates.map(r => r.name))
-    setRoundsData(roundsWithDates)
+        const rMatches = phaseMatches.filter((m: any) => String(m.roundName) === r)
+        return { name: r, order: rMatches[0]?.roundOrder || 0 }
+      })
+      .sort((a: any, b: any) => {
+        if (a.order !== b.order) return a.order - b.order
+        const numA = parseInt(a.name);
+        const numB = parseInt(b.name);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.name.localeCompare(b.name)
+      })
+    
+    setRounds(sortedRounds.map(r => r.name))
   }, [matches, phaseName])
 
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index)
-  }
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-  }
-
+  const handleDragStart = (index: number) => setDraggedIndex(index)
+  const handleDragOver = (e: React.DragEvent, index: number) => e.preventDefault()
+  
   const handleDrop = (index: number) => {
-    if (draggedIndex === null) return
-    if (draggedIndex === index) return
+    if (draggedIndex === null || draggedIndex === index) return
     const newRounds = [...rounds]
     const item = newRounds.splice(draggedIndex, 1)[0]
     newRounds.splice(index, 0, item)
     setRounds(newRounds)
     setDraggedIndex(null)
   }
-
-  const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -3462,13 +3441,7 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
       })
       const data = await res.json()
       if (res.ok) {
-        console.log('Reorder success:', data)
-        const total = data.summary?.reduce((acc: number, curr: any) => acc + curr.updated, 0) || 0
-        if (total === 0) {
-          alert('No se encontraron partidos para reordenar. Verifica que la fase sea la correcta.')
-        } else {
-          onSuccess()
-        }
+        onSuccess()
       } else {
         alert(data.error || 'Error al reordenar')
       }
@@ -3481,15 +3454,12 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-[200] p-4" onClick={onClose}>
-      <div className="bg-[#F1F3F9] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-        <div className="p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-black text-slate-800">Reordenar rondas</h3>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-all text-xl">✕</button>
-          </div>
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[200] p-4" onClick={onClose}>
+      <div className="bg-[#f4eff4] rounded-sm w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="p-6">
+          <h3 className="text-2xl text-slate-800 mb-6">Reordenar rondas</h3>
           
-          <div className="space-y-2 mb-10 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-0 mb-8 max-h-[50vh] overflow-y-auto custom-scrollbar pr-2">
             {rounds.map((r, i) => (
               <div 
                 key={r} 
@@ -3497,41 +3467,26 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
                 onDragStart={() => handleDragStart(i)}
                 onDragOver={(e) => handleDragOver(e, i)}
                 onDrop={() => handleDrop(i)}
-                className={`bg-white p-4 rounded-2xl flex items-center justify-between shadow-sm border border-slate-100 group cursor-move transition-all ${draggedIndex === i ? 'opacity-40 scale-95 border-blue-200' : 'hover:border-blue-200'}`}
+                className={`flex items-center justify-between py-4 cursor-move transition-all ${draggedIndex === i ? 'opacity-40' : ''}`}
               >
-                <div className="flex flex-col">
-                  <span className="font-bold text-slate-700">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</span>
-                  {roundsData.find(rd => rd.name === r)?.date && (
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                      {new Date(roundsData.find(rd => rd.name === r).date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="text-slate-300 font-black tracking-tighter">≡</div>
+                <span className="text-slate-700 text-base">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</span>
+                <div className="flex flex-col gap-[4px] px-2 py-1">
+                  <div className="w-5 h-[2px] bg-slate-800"></div>
+                  <div className="w-5 h-[2px] bg-slate-800"></div>
                 </div>
               </div>
             ))}
           </div>
           
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center mb-8">Arrastra las fechas para cambiar su orden</p>
+          <p className="text-xs text-slate-400 mb-8">Mantenga presionado y arrastre para cambiar</p>
           
-          <div className="flex gap-4">
-            <button 
-              onClick={onClose}
-              disabled={isSaving}
-              className="flex-1 bg-slate-200 text-slate-500 font-black py-4 rounded-2xl hover:bg-slate-300 transition-all uppercase tracking-widest disabled:opacity-50"
-            >
-              Cancelar
-            </button>
+          <div className="flex justify-end pt-2">
             <button 
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-1 bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all uppercase tracking-widest flex items-center justify-center disabled:opacity-50"
+              className="text-blue-500 font-bold text-lg hover:text-blue-600 transition-colors disabled:opacity-50"
             >
-              {isSaving ? (
-                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-              ) : 'Guardar'}
+              {isSaving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
         </div>
