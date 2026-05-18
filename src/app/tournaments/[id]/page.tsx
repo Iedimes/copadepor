@@ -1337,21 +1337,26 @@ export default function TournamentPage() {
                         <select value={selectedRound} onChange={e => setSelectedRound(e.target.value)} className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none appearance-none cursor-pointer text-center" style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}>
                           {Array.from(new Set([...matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase).map((m: any) => String(m.roundName)), selectedRound]))
                             .filter(Boolean)
+                            .map(r => {
+                              const rMatch = matches.find((m: any) => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === r);
+                              return { name: r, order: rMatch?.roundOrder || 0 };
+                            })
                             .sort((a, b) => {
-                              const numA = parseInt(a);
-                              const numB = parseInt(b);
+                              if (a.order !== b.order) return a.order - b.order;
+                              const numA = parseInt(a.name);
+                              const numB = parseInt(b.name);
                               if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
                               if (!isNaN(numA)) return -1;
                               if (!isNaN(numB)) return 1;
                               const playoffOrder = ['Eliminatoria', 'Octavos de final', 'Cuartos de final', 'Cuartos', 'Semifinal', 'Semi Final', 'Tercer Puesto', 'Final'];
-                              const idxA = playoffOrder.indexOf(a);
-                              const idxB = playoffOrder.indexOf(b);
+                              const idxA = playoffOrder.indexOf(a.name);
+                              const idxB = playoffOrder.indexOf(b.name);
                               if (idxA !== -1 && idxB !== -1) return idxA - idxB;
                               if (idxA !== -1) return -1;
                               if (idxB !== -1) return 1;
-                              return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                              return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
                             })
-                            .map(r => <option key={r} value={r} className="text-black">{!isNaN(Number(r)) ? `${r}º Fecha` : r}</option>)}
+                            .map(r => <option key={r.name} value={r.name} className="text-black">{!isNaN(Number(r.name)) ? `${r.name}º Fecha` : r.name}</option>)}
                         </select>
                       )}
                     </div>
