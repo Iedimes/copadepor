@@ -52,6 +52,35 @@ interface TournamentTeam {
 
 type MenuType = 'inicio' | 'clasificacion' | 'estadisticas'
 
+const LiveMatchTimer = ({ notes }: { notes: string }) => {
+  const [str, setStr] = useState('')
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    const update = () => {
+      try {
+        const p = JSON.parse(notes)
+        if (p?.timer) {
+          let m = p.timer.m; let s = p.timer.s;
+          if (p.timer.run) {
+            const diff = Math.floor((Date.now() - p.timer.ts) / 1000)
+            const t = m * 60 + s + diff
+            m = Math.floor(t / 60); s = t % 60;
+          }
+          setStr(`${p.timer.p}° ${m}:${s.toString().padStart(2, '0')}`)
+        } else setStr('')
+      } catch { setStr('') }
+    }
+    update()
+    if (notes && notes.includes('"run":true')) {
+      interval = setInterval(update, 1000)
+    }
+    return () => { if (interval) clearInterval(interval) }
+  }, [notes])
+
+  if (!str) return null
+  return <span className="text-[10px] font-black text-slate-700 font-mono tracking-widest">{str}</span>
+}
+
 export default function TournamentPage() {
   const params = useParams()
   const router = useRouter()
@@ -186,6 +215,7 @@ export default function TournamentPage() {
     const hS = isE ? editingMatchData.homeScore : m.homeScore;
     const aS = isE ? editingMatchData.awayScore : m.awayScore;
     const st = isE ? editingMatchData.status : m.status;
+    const matchNotes = isE ? ((editingMatchData as any).notes !== undefined ? (editingMatchData as any).notes : m.notes) : m.notes;
 
     return (
       <div 
@@ -216,8 +246,11 @@ export default function TournamentPage() {
               )}
             </div>
             {st !== 'NO_REALIZADO' && (
-              <div className={`text-[8px] font-black px-3 py-0.5 rounded-md mt-1 uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
-                {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
+              <div className="flex flex-col items-center mt-1 gap-1">
+                <div className={`text-[8px] font-black px-3 py-0.5 rounded-md uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
+                  {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
+                </div>
+                {st === 'EN_VIVO' && matchNotes && matchNotes.startsWith('{') && <LiveMatchTimer notes={matchNotes} />}
               </div>
             )}
           </div>
@@ -936,7 +969,12 @@ export default function TournamentPage() {
           </div>
           <div className="font-black text-slate-900 text-lg">{match.status === 'NO_REALIZADO' ? '-' : match.awayScore}</div>
         </div>
-        {match.status === 'EN_VIVO' && <div className="mt-4 text-center"><span className="bg-yellow-400 text-slate-900 px-3 py-1 rounded-full text-[8px] font-black uppercase animate-pulse">En Vivo</span></div>}
+        {match.status === 'EN_VIVO' && (
+          <div className="mt-4 flex items-center justify-center">
+            <span className="bg-yellow-400 text-slate-900 px-3 py-1 rounded-full text-[8px] font-black uppercase animate-pulse">En Vivo</span>
+            {match.notes && match.notes.startsWith('{') && <LiveMatchTimer notes={match.notes} />}
+          </div>
+        )}
       </div>
     )
   }
@@ -2762,6 +2800,30 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
   const [manualHomeScore, setManualHomeScore] = useState<number>(0)
   const [manualAwayScore, setManualAwayScore] = useState<number>(0)
 
+  // Timer States
+  const [showTimerModal, setShowTimerModal] = useState(false)
+  const [timerPeriod, setTimerPeriod] = useState<number>(1)
+  const [timerMinutes, setTimerMinutes] = useState<number>(0)
+  const [timerSeconds, setTimerSeconds] = useState<number>(0)
+  const [timerRunning, setTimerRunning] = useState<boolean>(false)
+
+  // Timer Effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (timerRunning) {
+      interval = setInterval(() => {
+        setTimerSeconds(s => {
+          if (s === 59) {
+            setTimerMinutes(m => m + 1)
+            return 0
+          }
+          return s + 1
+        })
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [timerRunning])
+
   useEffect(() => { fetchMatch() }, [matchId])
   useEffect(() => { 
     if (match) {
@@ -2770,10 +2832,10 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
         awayScore: isWO ? manualAwayScore : (aG.length + hO.length), 
         status: st, 
         advantageTeamId: isWO ? woWinnerId : advancingTeamId, 
-        notes: isWO ? 'W.O' : null 
+        notes: isWO ? 'W.O' : (st === 'EN_VIVO' ? JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now() } }) : null)
       })
     }
-  }, [hG.length, aG.length, aO.length, hO.length, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId])
+  }, [hG.length, aG.length, aO.length, hO.length, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId, timerPeriod, timerMinutes, timerSeconds, timerRunning])
 
   // Calculate advancing team
   useEffect(() => {
@@ -2816,6 +2878,23 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
         setWoWinnerId(data.advantageTeamId || data.homeTeam?.id || '')
         setManualHomeScore(data.homeScore || 0)
         setManualAwayScore(data.awayScore || 0)
+      } else if (data.notes && data.notes.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(data.notes)
+          if (parsed.timer) {
+            setTimerPeriod(parsed.timer.p)
+            setTimerRunning(parsed.timer.run)
+            if (parsed.timer.run) {
+              const diffSecs = Math.floor((Date.now() - parsed.timer.ts) / 1000)
+              const totalSecs = (parsed.timer.m * 60) + parsed.timer.s + diffSecs
+              setTimerMinutes(Math.floor(totalSecs / 60))
+              setTimerSeconds(totalSecs % 60)
+            } else {
+              setTimerMinutes(parsed.timer.m)
+              setTimerSeconds(parsed.timer.s)
+            }
+          }
+        } catch(e) {}
       }
       setHomePenalties(data.homePenaltyScore ?? '')
       setAwayPenalties(data.awayPenaltyScore ?? '')
@@ -2917,7 +2996,7 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
           homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
           awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
           advancingTeamId: isWO ? woWinnerId : (advancingTeamId || null),
-          notes: isWO ? 'W.O' : null,
+          notes: isWO ? 'W.O' : JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now() } }),
           events: all 
         })
       })
@@ -2933,13 +3012,58 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
   if (loading) return null
 
   return (
-    <div className="bg-white rounded-[3rem] w-full max-w-5xl h-[85vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-500">
+    <div className="bg-white rounded-[3rem] w-full max-w-5xl h-[85vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-500 relative">
+      
+      {/* Timer Modal */}
+      {showTimerModal && (
+        <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center z-[110] backdrop-blur-sm rounded-[3rem]" onClick={() => setShowTimerModal(false)}>
+          <div className="bg-[#F8F9FA] rounded-[2rem] p-6 max-w-xs w-full shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Tiempo</h3>
+            
+            <div className="flex flex-col items-center gap-6 w-full mb-8">
+              <div className="flex gap-2">
+                {[1, 2, 3, 4].map(p => (
+                  <button key={p} onClick={() => setTimerPeriod(p)} className={`w-10 h-10 rounded-full font-black text-sm flex items-center justify-center transition-all ${timerPeriod === p ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200 hover:border-blue-400'}`}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-6 w-full justify-center">
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Minutos</span>
+                  <input type="number" min="0" value={timerMinutes} onChange={e => setTimerMinutes(Number(e.target.value))} className="w-16 h-16 bg-white text-3xl font-black text-slate-700 text-center rounded-2xl border border-slate-200 shadow-sm focus:border-blue-500 outline-none" />
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Segundos</span>
+                  <input type="number" min="0" max="59" value={timerSeconds} onChange={e => setTimerSeconds(Number(e.target.value))} className="w-16 h-16 bg-white text-3xl font-black text-slate-700 text-center rounded-2xl border border-slate-200 shadow-sm focus:border-blue-500 outline-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex w-full gap-3">
+              <button onClick={() => setTimerRunning(false)} className="flex-1 py-3 text-red-500 font-black text-sm hover:bg-red-50 rounded-xl transition-all">Parar</button>
+              <button onClick={() => { setTimerRunning(true); setShowTimerModal(false); setSt('EN_VIVO'); }} className="flex-1 py-3 text-blue-500 font-black text-sm hover:bg-blue-50 rounded-xl transition-all">Iniciar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Slim Header */}
       <div className="bg-slate-900 px-8 py-5 text-white flex justify-between items-center shrink-0">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-black tracking-tight">{match.homeTeam.name} <span className="text-blue-400 mx-2">{isWO ? manualHomeScore : (hG.length + aO.length)} : {isWO ? manualAwayScore : (aG.length + hO.length)}</span> {match.awayTeam.name}</h2>
         </div>
         <div className="flex items-center gap-6">
+          {st === 'EN_VIVO' && (
+            <button onClick={() => setShowTimerModal(true)} className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl border border-slate-700 transition-all shadow-inner group">
+              <span className="text-lg">⏱</span>
+              <div className="flex flex-col items-start leading-none">
+                <span className="text-[9px] text-blue-400 font-black tracking-widest uppercase">{timerPeriod}° Tiempo</span>
+                <span className="text-sm font-black text-white font-mono tracking-wider">{timerMinutes}:{timerSeconds.toString().padStart(2, '0')}</span>
+              </div>
+            </button>
+          )}
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado:</span>
             <select value={st} onChange={e => setSt(e.target.value)} className="bg-slate-800 text-[10px] font-black rounded-xl px-4 py-2 outline-none border border-slate-700 hover:border-blue-500 transition-all">
