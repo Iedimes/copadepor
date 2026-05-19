@@ -777,13 +777,21 @@ export default function TournamentPage() {
       const hS = isE ? editingMatchData.homeScore : m.homeScore
       const aS = isE ? editingMatchData.awayScore : m.awayScore
       const st = isE ? editingMatchData.status : m.status
+      const isWO = isE ? (editingMatchData as any).notes === 'W.O' : m.notes === 'W.O'
+      const advTeam = isE ? (editingMatchData as any).advantageTeamId : m.advantageTeamId
       if (hS !== null && aS !== null && st !== 'NO_REALIZADO') {
         const h = stats[m.homeTeam.id]; const a = stats[m.awayTeam.id];
         if (h && a) {
           h.played++; a.played++; h.gf += hS; h.ga += aS; a.gf += aS; a.ga += hS
-          if (hS > aS) { h.won++; a.lost++; h.points += 3 }
-          else if (hS < aS) { a.won++; h.lost++; a.points += 3 }
-          else { h.drawn++; a.drawn++; h.points++; a.points++ }
+          if (isWO && advTeam) {
+            if (advTeam === m.homeTeam.id) { h.won++; a.lost++; h.points += 3 }
+            else if (advTeam === m.awayTeam.id) { a.won++; h.lost++; a.points += 3 }
+            else { h.drawn++; a.drawn++; h.points++; a.points++ }
+          } else {
+            if (hS > aS) { h.won++; a.lost++; h.points += 3 }
+            else if (hS < aS) { a.won++; h.lost++; a.points += 3 }
+            else { h.drawn++; a.drawn++; h.points++; a.points++ }
+          }
         }
       }
       // Count cards for the standings tie-breakers
@@ -2446,9 +2454,17 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, onC
       const h = stats[m.homeTeam.id]; const a = stats[m.awayTeam.id]
       if (!h || !a) return
       h.played++; a.played++; h.gf += (m.homeScore || 0); h.ga += (m.awayScore || 0); a.gf += (m.awayScore || 0); a.ga += (m.homeScore || 0)
-      if (m.homeScore > m.awayScore) { h.points += 3; h.won++; a.lost++ }
-      else if (m.homeScore < m.awayScore) { a.points += 3; a.won++; h.lost++ }
-      else { h.points++; a.points++; h.drawn++; a.drawn++ }
+      
+      const isWO = m.notes === 'W.O'
+      if (isWO && m.advantageTeamId) {
+        if (m.advantageTeamId === m.homeTeam.id) { h.points += 3; h.won++; a.lost++ }
+        else if (m.advantageTeamId === m.awayTeam.id) { a.points += 3; a.won++; h.lost++ }
+        else { h.points++; a.points++; h.drawn++; a.drawn++ }
+      } else {
+        if (m.homeScore > m.awayScore) { h.points += 3; h.won++; a.lost++ }
+        else if (m.homeScore < m.awayScore) { a.points += 3; a.won++; h.lost++ }
+        else { h.points++; a.points++; h.drawn++; a.drawn++ }
+      }
     })
     return Object.values(stats).sort((a: any, b: any) => b.points - a.points || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf)
   }
@@ -2740,9 +2756,24 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
   const [awayPenalties, setAwayPenalties] = useState<number | ''>('')
   const [useAdvantage, setUseAdvantage] = useState<boolean>(true)
   const [advancingTeamId, setAdvancingTeamId] = useState<string>('')
+  
+  const [isWO, setIsWO] = useState(false)
+  const [woWinnerId, setWoWinnerId] = useState<string>('')
+  const [manualHomeScore, setManualHomeScore] = useState<number>(0)
+  const [manualAwayScore, setManualAwayScore] = useState<number>(0)
 
   useEffect(() => { fetchMatch() }, [matchId])
-  useEffect(() => { if (match) onUpdate({ homeScore: hG.length, awayScore: aG.length, status: st }) }, [hG.length, aG.length, st])
+  useEffect(() => { 
+    if (match) {
+      onUpdate({ 
+        homeScore: isWO ? manualHomeScore : (hG.length + aO.length), 
+        awayScore: isWO ? manualAwayScore : (aG.length + hO.length), 
+        status: st, 
+        advantageTeamId: isWO ? woWinnerId : advancingTeamId, 
+        notes: isWO ? 'W.O' : null 
+      })
+    }
+  }, [hG.length, aG.length, aO.length, hO.length, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId])
 
   // Calculate advancing team
   useEffect(() => {
@@ -2780,6 +2811,12 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
       
       setMatch(data); 
       setSt(data.status || 'NO_REALIZADO')
+      if (data.notes === 'W.O') {
+        setIsWO(true)
+        setWoWinnerId(data.advantageTeamId || data.homeTeam?.id || '')
+        setManualHomeScore(data.homeScore || 0)
+        setManualAwayScore(data.awayScore || 0)
+      }
       setHomePenalties(data.homePenaltyScore ?? '')
       setAwayPenalties(data.awayPenaltyScore ?? '')
       
@@ -2868,16 +2905,19 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
       ].filter(e => e.type)
 
       const isNR = st === 'NO_REALIZADO'
+      const finalHomeScore = isWO ? manualHomeScore : (hG.length + aO.length)
+      const finalAwayScore = isWO ? manualAwayScore : (aG.length + hO.length)
       const res = await fetch(`/api/matches/${matchId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ 
           status: st, 
-          homeScore: isNR ? null : (hG.length + aO.length), 
-          awayScore: isNR ? null : (aG.length + hO.length), 
+          homeScore: isNR ? null : finalHomeScore, 
+          awayScore: isNR ? null : finalAwayScore, 
           homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
           awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
-          advancingTeamId: advancingTeamId || null,
+          advancingTeamId: isWO ? woWinnerId : (advancingTeamId || null),
+          notes: isWO ? 'W.O' : null,
           events: all 
         })
       })
@@ -2897,7 +2937,7 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
       {/* Slim Header */}
       <div className="bg-slate-900 px-8 py-5 text-white flex justify-between items-center shrink-0">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-black tracking-tight">{match.homeTeam.name} <span className="text-blue-400 mx-2">{hG.length + aO.length} : {aG.length + hO.length}</span> {match.awayTeam.name}</h2>
+          <h2 className="text-xl font-black tracking-tight">{match.homeTeam.name} <span className="text-blue-400 mx-2">{isWO ? manualHomeScore : (hG.length + aO.length)} : {isWO ? manualAwayScore : (aG.length + hO.length)}</span> {match.awayTeam.name}</h2>
         </div>
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
@@ -2910,8 +2950,33 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
         </div>
       </div>
 
+      {/* W.O Section */}
+      <div className="bg-slate-100/80 px-8 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <input type="checkbox" id="woCheck" checked={isWO} onChange={e => { setIsWO(e.target.checked); if (!e.target.checked) { setWoWinnerId(''); setManualHomeScore(0); setManualAwayScore(0); } else { setWoWinnerId(match.homeTeam.id); setManualHomeScore(3); setManualAwayScore(0); setSt('FINALIZADO'); } }} className="w-5 h-5 rounded accent-blue-600 cursor-pointer" />
+          <label htmlFor="woCheck" className="text-sm font-black text-slate-700 cursor-pointer uppercase tracking-widest">Aplicar W.O.</label>
+        </div>
+        {isWO && (
+          <div className="flex items-center gap-6 animate-in fade-in slide-in-from-left-4">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ganador:</span>
+              <select value={woWinnerId} onChange={e => { setWoWinnerId(e.target.value); if (e.target.value === match.homeTeam.id) { setManualHomeScore(3); setManualAwayScore(0); } else { setManualHomeScore(0); setManualAwayScore(3); } }} className="bg-white text-xs font-bold rounded-lg px-3 py-2 outline-none border border-slate-300 shadow-sm focus:border-blue-500">
+                <option value={match.homeTeam.id}>{match.homeTeam.name}</option>
+                <option value={match.awayTeam.id}>{match.awayTeam.name}</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Marcador:</span>
+              <input type="number" value={manualHomeScore} onChange={e => setManualHomeScore(Number(e.target.value))} className="w-14 bg-white text-center rounded-lg border border-slate-300 text-sm font-black py-1.5 shadow-sm focus:border-blue-500 outline-none" />
+              <span className="text-slate-400 font-bold">-</span>
+              <input type="number" value={manualAwayScore} onChange={e => setManualAwayScore(Number(e.target.value))} className="w-14 bg-white text-center rounded-lg border border-slate-300 text-sm font-black py-1.5 shadow-sm focus:border-blue-500 outline-none" />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Main Body - Row for Each Team */}
-      <div className="flex-1 overflow-y-auto px-8 pt-5 pb-4 bg-[#FDFDFD] space-y-4 custom-scrollbar">
+      <div className={`flex-1 overflow-y-auto px-8 pt-5 pb-4 bg-[#FDFDFD] space-y-4 custom-scrollbar ${isWO ? 'opacity-40 pointer-events-none' : ''}`}>
         <TeamRowSection team={match.homeTeam} goals={hG} setGoals={setHG} cards={hC} setCards={setHC} fouls={hF} setFouls={setHF} subs={hS} setSubs={setHS} own={hO} setOwn={setHO} gk={hK} setGk={setHK} hi={hHi} setHi={setHHi} lin={hL} setLin={setHL} color="blue" />
         <div className="flex items-center gap-4">
           <div className="flex-1 h-px bg-slate-100"></div>

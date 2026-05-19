@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   try {
     const body = await request.json()
-    const { homeScore, awayScore, homeTeamId, awayTeamId, homePenaltyScore, awayPenaltyScore, advancingTeamId, location, referee, matchDate, status, events } = body
+    const { homeScore, awayScore, homeTeamId, awayTeamId, homePenaltyScore, awayPenaltyScore, advancingTeamId, location, referee, matchDate, status, events, notes } = body
 
     // Map frontend status to database enum
     const statusMap: Record<string, string> = {
@@ -76,6 +76,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         ...(referee !== undefined && { referee }),
         ...(matchDate !== undefined && { matchDate: new Date(matchDate) }),
         ...(status !== undefined && { status: dbStatus }),
+        ...(notes !== undefined && { notes: notes === null ? null : notes }),
       },
     })
 
