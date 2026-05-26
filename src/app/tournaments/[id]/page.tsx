@@ -796,11 +796,12 @@ export default function TournamentPage() {
     }
   }
 
-  const getStandings = (forceFlat: boolean = false) => {
+  const getStandings = (forceFlat: boolean = false, targetPhaseName?: string) => {
+    const activePhaseName = targetPhaseName || selectedPhase
     const stats: Record<string, any> = {}
     
     // Find current phase object to get its specific teams
-    const currentPhaseObj = phases.find(p => p.name === selectedPhase)
+    const currentPhaseObj = phases.find(p => p.name === activePhaseName)
     let phaseTeamIds: string[] | null = null
     if (currentPhaseObj?.teams) {
       try {
@@ -819,7 +820,7 @@ export default function TournamentPage() {
     })
     
     // Gather all phases to include
-    const phaseNamesToInclude = [selectedPhase]
+    const phaseNamesToInclude = [activePhaseName]
     let currentIterPhase = currentPhaseObj
     while (currentIterPhase && currentIterPhase.continueFromId) {
       const parentPhase = phases.find((p: any) => p.id === currentIterPhase!.continueFromId)
@@ -905,6 +906,16 @@ export default function TournamentPage() {
     })
 
     if (groupByGroup && !forceFlat) {
+      const groupPhases = phases.filter(p => p.name.startsWith('Grupo '))
+      if (groupPhases.length > 0) {
+        const grouped: Record<string, any[]> = {}
+        groupPhases.forEach(gp => {
+          const letter = gp.name.replace('Grupo ', '')
+          grouped[letter] = getStandings(true, gp.name)
+        })
+        return grouped
+      }
+
       const grouped: Record<string, any[]> = {}
       sortedStandings.forEach(s => {
         const gn = s.groupName || 'Sin Grupo'
