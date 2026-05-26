@@ -115,8 +115,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
+    const { searchParams } = new URL(request.url)
+    const categoryId = searchParams.get('categoryId')
+
+    const where: any = { tournamentId: params.id }
+    if (categoryId && categoryId !== 'null' && categoryId !== 'undefined' && categoryId.trim() !== '') {
+      where.categoryId = categoryId
+    }
+
     const matches = await prisma.match.findMany({
-      where: { tournamentId: params.id },
+      where,
       include: {
         homeTeam: { 
           select: { 
@@ -160,7 +168,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Error al obtener partidos' }, { status: 500 })
   }
 }
-
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   const token = getAuthToken(request)
   if (!token) {
@@ -183,10 +190,14 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     const url = new URL(request.url)
     const action = url.searchParams.get('action')
+    const categoryId = url.searchParams.get('categoryId')
 
     if (action === 'deleteAll') {
       await prisma.match.deleteMany({
-        where: { tournamentId: params.id },
+        where: { 
+          tournamentId: params.id,
+          ...(categoryId && { categoryId })
+        },
       })
       return NextResponse.json({ message: 'Todos los partidos eliminados' })
     }
@@ -200,6 +211,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
           tournamentId: params.id,
           roundName: stageName,
           ...(phaseName ? { phaseName } : {}),
+          ...(categoryId && { categoryId })
         },
       })
       return NextResponse.json({ message: `Partidos de ${stageName} eliminados` })
@@ -212,6 +224,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         where: {
           tournamentId: params.id,
           phaseName: phaseName,
+          ...(categoryId && { categoryId })
         },
       })
       return NextResponse.json({ message: `Partidos de la fase ${phaseName} eliminados` })
@@ -227,7 +240,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         matchIds = [matchId]
       } else if (action === 'resetPhaseResults' && phaseName) {
         const phaseMatches = await prisma.match.findMany({
-          where: { tournamentId: params.id, phaseName },
+          where: { 
+            tournamentId: params.id, 
+            phaseName,
+            ...(categoryId && { categoryId })
+          },
           select: { id: true }
         })
         matchIds = phaseMatches.map(m => m.id)
@@ -247,7 +264,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         count: matchIds.length 
       })
     }
-
 
     return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
   } catch (error) {
@@ -279,6 +295,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const body = await request.json()
     const url = new URL(request.url)
     const action = url.searchParams.get('action')
+    const categoryId = url.searchParams.get('categoryId') || body.categoryId || null
 
     if (action === 'generate') {
       const roundDateStr = body.roundDate || new Date().toISOString()
@@ -293,7 +310,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
       // 1. Get Phase to know which teams are participating
       const phase = await prisma.phase.findFirst({
-        where: { tournamentId: params.id, name: phaseName }
+        where: { 
+          tournamentId: params.id, 
+          name: phaseName,
+          ...(categoryId && { categoryId })
+        }
       })
 
       let participatingTeamIds: string[] = []
@@ -309,7 +330,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const allTournamentTeams = await prisma.tournamentTeam.findMany({
         where: { 
           tournamentId: params.id,
-          ...(participatingTeamIds.length > 0 ? { teamId: { in: participatingTeamIds } } : {})
+          ...(participatingTeamIds.length > 0 ? { teamId: { in: participatingTeamIds } } : {}),
+          ...(categoryId && { categoryId })
         },
       })
 
@@ -335,7 +357,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         }
 
         // Generate matches between Group 1 and Group 2, etc.
-        // Simplified: Round Robin between groups
         let roundIdx = 1
         for (let i = 0; i < groupNames.length; i++) {
           for (let j = i + 1; j < groupNames.length; j++) {
@@ -348,8 +369,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
                 if (matchType === 'idayvuelta') {
                   matches.push({ homeTeamId: teamB, awayTeamId: teamA, roundName: String(roundIdx + 1) })
                 }
-                // For simplicity, we just increment roundIdx or keep them in the same round if many matches
-                // In a real tournament, you'd want to distribute them better.
               }
               roundIdx++
             }
@@ -364,7 +383,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           }
         }
       } else {
-        // STANDARD Round Robin (Existing logic)
+        // STANDARD Round Robin
         const shuffledIds = [...teamIds].sort(() => Math.random() - 0.5)
         const n = shuffledIds.length
         const numRounds = n % 2 === 0 ? n - 1 : n
@@ -405,13 +424,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
 
       try {
-        const phaseName = body.phaseName || '1° Fase'
         let count = 0
         for (let i = 0; i < matches.length; i++) {
           const m = matches[i]
           await prisma.match.create({
             data: {
               tournamentId: params.id,
+              categoryId: categoryId || phase?.categoryId || null,
               homeTeamId: m.homeTeamId,
               awayTeamId: m.awayTeamId,
               matchDate: roundDate,
@@ -440,16 +459,26 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         const roundDateStr = body.roundDate || new Date().toISOString()
         const roundDate = new Date(roundDateStr)
         
+        const phase = await prisma.phase.findFirst({
+          where: {
+            tournamentId: params.id,
+            name: phaseName || 'Fase Final',
+            ...(categoryId && { categoryId })
+          }
+        })
+
         let createdCount = 0
         for (let i = 0; i < numMatches; i++) {
           await prisma.match.create({
             data: {
               tournamentId: params.id,
-              homeTeamId: '', // Placeholder or empty
-              awayTeamId: '', // Placeholder or empty
+              categoryId: categoryId || phase?.categoryId || null,
+              homeTeamId: '', 
+              awayTeamId: '', 
               matchDate: roundDate,
               roundName: stageName,
               phaseName: phaseName || 'Fase Final',
+              phaseId: phase?.id || null,
               status: 'SCHEDULED',
             },
           })
@@ -462,12 +491,28 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     } else if (action === 'generateAdvantagePlayoff') {
       try {
+        const phaseName = body.phaseName || 'Fase Final'
+        const phase = await prisma.phase.findFirst({
+          where: {
+            tournamentId: params.id,
+            name: phaseName,
+            ...(categoryId && { categoryId })
+          }
+        })
+
         const matches = await prisma.match.findMany({
-          where: { tournamentId: params.id, status: 'COMPLETED' },
+          where: { 
+            tournamentId: params.id, 
+            status: 'COMPLETED',
+            ...(categoryId && { categoryId })
+          },
         })
 
         const tournamentTeams = await prisma.tournamentTeam.findMany({
-          where: { tournamentId: params.id },
+          where: { 
+            tournamentId: params.id,
+            ...(categoryId && { categoryId })
+          },
           include: { team: true }
         })
 
@@ -515,11 +560,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           await prisma.match.create({
             data: {
               tournamentId: params.id,
+              categoryId: categoryId || phase?.categoryId || null,
               homeTeamId: top4[i].teamId,
               awayTeamId: shuffledNext4[i].teamId,
               matchDate: roundDate,
               roundName: 'Cuartos',
-              phaseName: body.phaseName || 'Fase Final',
+              phaseName: phaseName,
+              phaseId: phase?.id || null,
               status: 'SCHEDULED',
               advantageTeamId: top4[i].teamId,
               notes: 'Ventaja deportiva para ' + top4[i].name
@@ -536,8 +583,21 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     } else if (action === 'generateSemifinals') {
       try {
         const phaseName = body.phaseName || 'Fase Final'
+        const phase = await prisma.phase.findFirst({
+          where: {
+            tournamentId: params.id,
+            name: phaseName,
+            ...(categoryId && { categoryId })
+          }
+        })
+
         const cuartosMatches = await prisma.match.findMany({
-          where: { tournamentId: params.id, roundName: 'Cuartos', phaseName },
+          where: { 
+            tournamentId: params.id, 
+            roundName: 'Cuartos', 
+            phaseName,
+            ...(categoryId && { categoryId })
+          },
           orderBy: { createdAt: 'asc' }
         })
 
@@ -559,7 +619,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           } else if (m.awayScore > m.homeScore) {
             winners.push(m.awayTeamId)
           } else {
-            // Empate
             if (m.advantageTeamId) {
               winners.push(m.advantageTeamId)
             } else {
@@ -570,7 +629,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
         // Eliminar Semifinales existentes si las hubiera
         await prisma.match.deleteMany({
-          where: { tournamentId: params.id, roundName: 'Semi Final', phaseName }
+          where: { 
+            tournamentId: params.id, 
+            roundName: 'Semi Final', 
+            phaseName,
+            ...(categoryId && { categoryId })
+          }
         })
 
         const roundDate = new Date()
@@ -579,22 +643,26 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         await prisma.match.create({
           data: {
             tournamentId: params.id,
+            categoryId: categoryId || phase?.categoryId || null,
             homeTeamId: winners[0],
             awayTeamId: winners[1],
             matchDate: roundDate,
             roundName: 'Semi Final',
             phaseName,
+            phaseId: phase?.id || null,
             status: 'SCHEDULED'
           }
         })
         await prisma.match.create({
           data: {
             tournamentId: params.id,
+            categoryId: categoryId || phase?.categoryId || null,
             homeTeamId: winners[2],
             awayTeamId: winners[3],
             matchDate: roundDate,
             roundName: 'Semi Final',
             phaseName,
+            phaseId: phase?.id || null,
             status: 'SCHEDULED'
           }
         })
@@ -606,9 +674,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     } else if (action === 'generateKnockoutTree') {
       try {
-        const { teamIds, phaseName, matchType, selectionMode, generationMode } = body
+        const { teamIds, phaseName, matchType, selectionMode } = body
         const count = teamIds ? teamIds.length : 0
         
+        const phase = await prisma.phase.findFirst({
+          where: {
+            tournamentId: params.id,
+            name: phaseName,
+            ...(categoryId && { categoryId })
+          }
+        })
+
         // Determinar ronda inicial
         let startRound = ''
         let roundsToCreate: string[] = []
@@ -624,7 +700,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           const dbTeams = await prisma.tournamentTeam.findMany({
             where: {
               tournamentId: params.id,
-              teamId: { in: finalTeamIds }
+              teamId: { in: finalTeamIds },
+              ...(categoryId && { categoryId })
             }
           })
 
@@ -635,7 +712,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               where: {
                 tournamentId: params.id,
                 phaseName: { startsWith: 'Grupo ' },
-                status: 'COMPLETED'
+                status: 'COMPLETED',
+                ...(categoryId && { categoryId })
               }
             })
 
@@ -690,9 +768,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               })
 
             if (groupATeams.length === 2 && groupBTeams.length === 2) {
-              // Crossover pairings:
-              // Match 1: 1st of A vs 2nd of B
-              // Match 2: 1st of B vs 2nd of A
+              // Crossover pairings
               finalTeamIds[0] = groupATeams[0]
               finalTeamIds[1] = groupBTeams[1]
               finalTeamIds[2] = groupBTeams[0]
@@ -703,7 +779,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
         // Limpiar partidos existentes en esta fase
         await prisma.match.deleteMany({
-          where: { tournamentId: params.id, phaseName }
+          where: { 
+            tournamentId: params.id, 
+            phaseName,
+            ...(categoryId && { categoryId })
+          }
         })
 
         const roundDate = new Date()
@@ -717,12 +797,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           
           const matchData = {
             tournamentId: params.id,
+            categoryId: categoryId || phase?.categoryId || null,
             homeTeamId: homeId,
             awayTeamId: awayId,
             matchDate: roundDate,
             roundName: startRound,
             groupName: `#${i + 1}`,
             phaseName,
+            phaseId: phase?.id || null,
             status: 'SCHEDULED',
             advantageTeamId: (selectionMode === 'clasificacion' && homeId) ? homeId : null,
           }
@@ -746,6 +828,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             await prisma.match.create({
               data: {
                 tournamentId: params.id,
+                categoryId: categoryId || phase?.categoryId || null,
                 homeTeamId: null,
                 awayTeamId: null,
                 matchDate: roundDate,
@@ -754,6 +837,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
                 homePlaceholder: `Ganador ${prevRoundName} #${i * 2 + 1}`,
                 awayPlaceholder: `Ganador ${prevRoundName} #${i * 2 + 2}`,
                 phaseName,
+                phaseId: phase?.id || null,
                 status: 'SCHEDULED'
               }
             })
@@ -771,7 +855,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         if (!phaseName) return NextResponse.json({ error: 'phaseName requerido' }, { status: 400 })
 
         const matches = await prisma.match.findMany({
-          where: { tournamentId: params.id, phaseName },
+          where: { 
+            tournamentId: params.id, 
+            phaseName,
+            ...(categoryId && { categoryId })
+          },
           orderBy: { createdAt: 'asc' }
         })
 
@@ -784,12 +872,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           const newName = String(i + 1)
           if (oldName !== newName) {
             await prisma.match.updateMany({
-              where: { tournamentId: params.id, phaseName, roundName: oldName },
+              where: { 
+                tournamentId: params.id, 
+                phaseName, 
+                roundName: oldName,
+                ...(categoryId && { categoryId })
+              },
               data: { roundName: newName }
             })
             updatedCount++
           }
         }
+
         return NextResponse.json({ message: 'Rondas reordenadas con éxito', updatedCount })
       } catch (error) {
         console.error('Reorder rounds error:', error)
@@ -806,7 +900,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           const results = []
           for (let i = 0; i < roundSequence.length; i++) {
             const count = await tx.match.updateMany({
-              where: { tournamentId: params.id, phaseName, roundName: String(roundSequence[i]) },
+              where: { 
+                tournamentId: params.id, 
+                phaseName, 
+                roundName: String(roundSequence[i]),
+                ...(categoryId && { categoryId })
+              },
               data: { roundOrder: i + 1 }
             })
             results.push({ round: roundSequence[i], order: i + 1, updated: count.count })
@@ -827,8 +926,21 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     } else if (action === 'generateFinal') {
       try {
         const phaseName = body.phaseName || 'Fase Final'
+        const phase = await prisma.phase.findFirst({
+          where: {
+            tournamentId: params.id,
+            name: phaseName,
+            ...(categoryId && { categoryId })
+          }
+        })
+
         const semiMatches = await prisma.match.findMany({
-          where: { tournamentId: params.id, roundName: 'Semi Final', phaseName },
+          where: { 
+            tournamentId: params.id, 
+            roundName: 'Semi Final', 
+            phaseName,
+            ...(categoryId && { categoryId })
+          },
           orderBy: { createdAt: 'asc' }
         })
 
@@ -856,7 +968,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
         // Eliminar Final existente si la hubiera
         await prisma.match.deleteMany({
-          where: { tournamentId: params.id, roundName: 'Final', phaseName }
+          where: { 
+            tournamentId: params.id, 
+            roundName: 'Final', 
+            phaseName,
+            ...(categoryId && { categoryId })
+          }
         })
 
         const roundDate = new Date()
@@ -864,11 +981,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         await prisma.match.create({
           data: {
             tournamentId: params.id,
+            categoryId: categoryId || phase?.categoryId || null,
             homeTeamId: winners[0],
             awayTeamId: winners[1],
             matchDate: roundDate,
             roundName: 'Final',
             phaseName,
+            phaseId: phase?.id || null,
             status: 'SCHEDULED'
           }
         })
@@ -881,15 +1000,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const validated = matchSchema.parse(body)
+    const phase = await prisma.phase.findFirst({
+      where: {
+        tournamentId: params.id,
+        name: validated.phaseName || 'Primera Fase',
+        ...(categoryId && { categoryId })
+      }
+    })
     
     const match = await prisma.match.create({
       data: {
         tournamentId: params.id,
+        categoryId: categoryId || phase?.categoryId || null,
         homeTeamId: validated.homeTeamId,
         awayTeamId: validated.awayTeamId,
         matchDate: validated.matchDate,
         roundName: validated.roundName || '1ª Fecha',
         phaseName: validated.phaseName || 'Primera Fase',
+        phaseId: phase?.id || null,
         status: 'SCHEDULED',
         advantageTeamId: validated.advantageTeamId,
       },
@@ -930,7 +1058,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (action === 'renameRound') {
       const body = await request.json()
-      const { phaseName, oldRoundName, newRoundName } = body
+      const { phaseName, oldRoundName, newRoundName, categoryId } = body
 
       if (!phaseName || !oldRoundName || !newRoundName) {
         return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
@@ -941,6 +1069,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           tournamentId: params.id,
           phaseName: phaseName,
           roundName: oldRoundName,
+          ...(categoryId && { categoryId })
         },
         data: {
           roundName: newRoundName,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 
 interface Team {
   id: string
@@ -16,6 +16,8 @@ interface AddedTeam {
 export default function AddTeamsPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const categoryId = searchParams.get('categoryId')
   const [addedTeams, setAddedTeams] = useState<AddedTeam[]>([])
   const [newTeamName, setNewTeamName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -26,7 +28,7 @@ export default function AddTeamsPage() {
 
   useEffect(() => {
     fetchAddedTeams()
-  }, [tournamentId])
+  }, [tournamentId, categoryId])
 
   const fetchAddedTeams = async () => {
     setLoading(true)
@@ -37,7 +39,8 @@ export default function AddTeamsPage() {
     }
 
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}/teams`, {
+      const categoryQuery = categoryId ? `?categoryId=${categoryId}` : ''
+      const res = await fetch(`/api/tournaments/${tournamentId}/teams${categoryQuery}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
 
@@ -79,7 +82,10 @@ export default function AddTeamsPage() {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ teamId: team.id }),
+          body: JSON.stringify({ 
+            teamId: team.id,
+            categoryId: categoryId || null
+          }),
         })
 
         setNewTeamName('')

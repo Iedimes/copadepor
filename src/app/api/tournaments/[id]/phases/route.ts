@@ -15,22 +15,38 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (!payload) return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
 
   try {
+    const { searchParams } = new URL(request.url)
+    const categoryId = searchParams.get('categoryId')
+
+    const where: any = { tournamentId: params.id }
+    if (categoryId && categoryId !== 'null' && categoryId !== 'undefined' && categoryId.trim() !== '') {
+      where.categoryId = categoryId
+    }
+
     const phases = await prisma.phase.findMany({
-      where: { tournamentId: params.id },
+      where,
       orderBy: { createdAt: 'asc' },
     })
 
-    // If there are no phases, let's auto-create "Primera Fase" so it matches old behavior
-    if (phases.length === 0) {
-      const defaultPhase = await prisma.phase.create({
-        data: {
-          tournamentId: params.id,
-          name: 'Primera Fase',
-          type: 'LIGA',
-          isClassification: true,
-        }
+    // If there are no phases, and we are NOT in a multiple-category tournament (or if categoryId is not provided)
+    // auto-create "Primera Fase" so it matches old behavior.
+    if (phases.length === 0 && (!categoryId || categoryId === 'null')) {
+      const tournament = await prisma.tournament.findUnique({
+        where: { id: params.id },
+        select: { format: true }
       })
-      return NextResponse.json([defaultPhase])
+
+      if (tournament?.format !== 'categorias') {
+        const defaultPhase = await prisma.phase.create({
+          data: {
+            tournamentId: params.id,
+            name: 'Primera Fase',
+            type: 'LIGA',
+            isClassification: true,
+          }
+        })
+        return NextResponse.json([defaultPhase])
+      }
     }
 
     return NextResponse.json(phases)
@@ -66,6 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         isClassification: body.isClassification !== undefined ? body.isClassification : true,
         continueFromId: body.continueFromId || null,
         teams: body.teams ? JSON.stringify(body.teams) : null,
+        categoryId: body.categoryId || null,
       }
     })
 

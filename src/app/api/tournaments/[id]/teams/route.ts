@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 const teamSchema = z.object({
   teamId: z.string(),
+  categoryId: z.string().optional().nullable(),
 })
 
 function getAuthToken(request: NextRequest): string | null {
@@ -24,12 +25,22 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
-    const teams: any = await prisma.$queryRawUnsafe(`
+    const { searchParams } = new URL(request.url)
+    const categoryId = searchParams.get('categoryId')
+
+    let query = `
       SELECT tt.*, t.name as teamName, t.id as teamIdReal
       FROM TournamentTeam tt
       JOIN Team t ON tt.teamId = t.id
       WHERE tt.tournamentId = ?
-    `, params.id)
+    `
+    const queryParams: any[] = [params.id]
+    if (categoryId && categoryId !== 'null' && categoryId !== 'undefined' && categoryId.trim() !== '') {
+      query += ' AND tt.categoryId = ?'
+      queryParams.push(categoryId)
+    }
+
+    const teams: any = await prisma.$queryRawUnsafe(query, ...queryParams)
 
     const formattedTeams = teams.map((tt: any) => ({
       id: tt.id,
@@ -39,6 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       order: tt.order,
       registeredAt: tt.registeredAt,
       status: tt.status,
+      categoryId: tt.categoryId,
       team: {
         id: tt.teamIdReal,
         name: tt.teamName
@@ -76,7 +88,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const validated = teamSchema.parse(body)
 
     const existing = await prisma.tournamentTeam.findFirst({
-      where: { tournamentId: params.id, teamId: validated.teamId },
+      where: { 
+        tournamentId: params.id, 
+        teamId: validated.teamId,
+        ...(validated.categoryId && { categoryId: validated.categoryId })
+      },
     })
 
     if (existing) {
@@ -87,6 +103,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       data: {
         tournamentId: params.id,
         teamId: validated.teamId,
+        categoryId: validated.categoryId || null,
       },
       include: {
         team: true,

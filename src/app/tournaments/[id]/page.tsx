@@ -109,6 +109,12 @@ export default function TournamentPage() {
    const [genStep, setGenStep] = useState(1)
    const [genFormat, setGenFormat] = useState<'STANDARD' | 'INTERGROUP' | 'SWISS'>('STANDARD')
 
+  const [activeCategory, setActiveCategory] = useState<any | null>(null)
+  const [categories, setCategories] = useState<any[]>([])
+  const [showNewCategoryModal, setShowNewCategoryModal] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [categoryPhasesFormat, setCategoryPhasesFormat] = useState<'todos_contra_todos' | 'liga_eliminacion' | 'eliminacion'>('todos_contra_todos')
+
   useEffect(() => {
     if (showGenType) {
       const hasG = tournamentTeams.some((tt: any) => tt.groupName !== null && tt.groupName !== undefined && tt.groupName.trim() !== '')
@@ -205,7 +211,7 @@ export default function TournamentPage() {
 
   useEffect(() => {
     fetchData()
-  }, [tournamentId, activeMenu])
+  }, [tournamentId, activeMenu, activeCategory])
 
   useEffect(() => {
     if (showGroupsModal) {
@@ -319,49 +325,74 @@ export default function TournamentPage() {
     
     try {
       const tRes = await fetch(`/api/tournaments/${tournamentId}`, { headers: { Authorization: `Bearer ${token}` } })
+      let currentFormat = ''
       if (tRes.ok) {
-        const tData = await tRes.json()
-        setTournament(tData)
+        const tData = await tRes.ok ? await tRes.json() : null
+        if (tData) {
+          setTournament(tData)
+          currentFormat = tData.format
+        }
       }
 
-      if (activeMenu === 'inicio') {
-        const mRes = await fetch(`/api/tournaments/${tournamentId}/messages`, { headers: { Authorization: `Bearer ${token}` } })
-        if (mRes.ok) setMessages(await mRes.json())
-      } else if (activeMenu === 'clasificacion' || activeMenu === 'estadisticas') {
-        const [matchesRes, teamsRes, allTeamsRes, phasesRes] = await Promise.all([
-          fetch(`/api/tournaments/${tournamentId}/matches?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`/api/tournaments/${tournamentId}/teams?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/teams', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`/api/tournaments/${tournamentId}/phases?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` } }),
-        ])
-        
-        if (phasesRes && phasesRes.ok) {
-          const pData = await phasesRes.json()
-          setPhases(pData)
-          if (pData.length > 0 && !pData.some((p: any) => p.name === selectedPhase)) {
-            setSelectedPhase(pData[0].name)
-          }
+      // If format is categories, fetch categories
+      let cats: any[] = []
+      if (currentFormat === 'categorias') {
+        const catRes = await fetch(`/api/categories?tournamentId=${tournamentId}`, { headers: { Authorization: `Bearer ${token}` } })
+        if (catRes.ok) {
+          const cData = await catRes.json()
+          setCategories(cData)
+          cats = cData
         }
-
-        if (matchesRes.ok) {
-          const m = await matchesRes.json()
-          setMatches(m)
-                    const phaseRoundsWithOrder = Array.from(new Set(m.filter((x) => (x.phaseName || firstPhaseName) === selectedPhase).map((x) => String(x.roundName)))).map(r => {
-            const firstMatch = m.find((x) => (x.phaseName || firstPhaseName) === selectedPhase && String(x.roundName) === r)
-            return { name: r, order: firstMatch?.roundOrder || 0 }
-          }).sort((a, b) => {
-            if (a.order !== b.order) return a.order - b.order
-            if (!isNaN(Number(a.name)) && !isNaN(Number(b.name))) return Number(a.name) - Number(b.name)
-            return a.name.localeCompare(b.name)
-          })
-          const phaseRounds = phaseRoundsWithOrder.map(r => r.name)
-          if (phaseRounds.length > 0 && (!selectedRound || !phaseRounds.includes(selectedRound))) {
-            setSelectedRound(phaseRounds[0])
-          }
-        }
-        if (teamsRes.ok) setTournamentTeams(await teamsRes.json())
-        if (allTeamsRes.ok) setAllTeams(await allTeamsRes.json())
       }
+
+      // Fetch messages
+      const mRes = await fetch(`/api/tournaments/${tournamentId}/messages`, { headers: { Authorization: `Bearer ${token}` } })
+      if (mRes.ok) setMessages(await mRes.json())
+
+      // If it's a categories tournament and no category is active, reset matches/teams/phases
+      if (currentFormat === 'categorias' && !activeCategory) {
+        setMatches([])
+        setTournamentTeams([])
+        setPhases([])
+        setLoading(false)
+        return
+      }
+
+      const categoryQueryParam = (currentFormat === 'categorias' && activeCategory) ? `&categoryId=${activeCategory.id}` : ''
+
+      const [matchesRes, teamsRes, allTeamsRes, phasesRes] = await Promise.all([
+        fetch(`/api/tournaments/${tournamentId}/matches?t=${Date.now()}${categoryQueryParam}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/tournaments/${tournamentId}/teams?t=${Date.now()}${categoryQueryParam}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/teams', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`/api/tournaments/${tournamentId}/phases?t=${Date.now()}${categoryQueryParam}`, { headers: { Authorization: `Bearer ${token}` } }),
+      ])
+      
+      if (phasesRes && phasesRes.ok) {
+        const pData = await phasesRes.json()
+        setPhases(pData)
+        if (pData.length > 0 && !pData.some((p: any) => p.name === selectedPhase)) {
+          setSelectedPhase(pData[0].name)
+        }
+      }
+
+      if (matchesRes.ok) {
+        const m = await matchesRes.json()
+        setMatches(m)
+        const phaseRoundsWithOrder = Array.from(new Set(m.filter((x: any) => (x.phaseName || firstPhaseName) === selectedPhase).map((x: any) => String(x.roundName)))).map(r => {
+          const firstMatch = m.find((x: any) => (x.phaseName || firstPhaseName) === selectedPhase && String(x.roundName) === r)
+          return { name: r, order: firstMatch?.roundOrder || 0 }
+        }).sort((a, b) => {
+          if (a.order !== b.order) return a.order - b.order
+          if (!isNaN(Number(a.name)) && !isNaN(Number(b.name))) return Number(a.name) - Number(b.name)
+          return a.name.localeCompare(b.name)
+        })
+        const phaseRounds = phaseRoundsWithOrder.map(r => r.name)
+        if (phaseRounds.length > 0 && (!selectedRound || !phaseRounds.includes(selectedRound))) {
+          setSelectedRound(phaseRounds[0])
+        }
+      }
+      if (teamsRes.ok) setTournamentTeams(await teamsRes.json())
+      if (allTeamsRes.ok) setAllTeams(await allTeamsRes.json())
     } catch (error) {
       console.error(error)
     }
@@ -391,10 +422,11 @@ export default function TournamentPage() {
     const token = localStorage.getItem('token')
 
     try {
+      const categoryQuery = activeCategory ? `&categoryId=${activeCategory.id}` : ''
       // 1. Borrar todos los partidos de la fase actual si los hay (cascade borra eventos, goles, tarjetas)
       const currentPhaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
       if (currentPhaseMatches.length > 0) {
-        const cleanRes = await fetch(`/api/tournaments/${tournamentId}/matches?action=deletePhase&phaseName=${encodeURIComponent(selectedPhase)}`, {
+        const cleanRes = await fetch(`/api/tournaments/${tournamentId}/matches?action=deletePhase&phaseName=${encodeURIComponent(selectedPhase)}${categoryQuery}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         })
@@ -413,6 +445,7 @@ export default function TournamentPage() {
           matchType: type,
           phaseName: selectedPhase,
           genFormat: genFormat,
+          categoryId: activeCategory?.id || null,
         }),
       })
 
@@ -438,7 +471,8 @@ export default function TournamentPage() {
     setGenerating(true)
     const token = localStorage.getItem('token')
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=resetPhaseResults&phaseName=${encodeURIComponent(selectedPhase)}`, {
+      const categoryQuery = activeCategory ? `&categoryId=${activeCategory.id}` : ''
+      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=resetPhaseResults&phaseName=${encodeURIComponent(selectedPhase)}${categoryQuery}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -485,7 +519,10 @@ export default function TournamentPage() {
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateSemifinals`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phaseName: selectedPhase }),
+      body: JSON.stringify({ 
+        phaseName: selectedPhase,
+        categoryId: activeCategory?.id || null,
+      }),
     })
     const data = await res.json()
     if (res.ok) {
@@ -511,7 +548,10 @@ export default function TournamentPage() {
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateFinal`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phaseName: selectedPhase }),
+      body: JSON.stringify({ 
+        phaseName: selectedPhase,
+        categoryId: activeCategory?.id || null,
+      }),
     })
     const data = await res.json()
     if (res.ok) {
@@ -598,6 +638,7 @@ export default function TournamentPage() {
         phaseName: selectedPhase,
         oldRoundName: selectedRound,
         newRoundName: editingRoundName.trim(),
+        categoryId: activeCategory?.id || null,
       }),
     })
 
@@ -694,7 +735,8 @@ export default function TournamentPage() {
     setGenerating(true)
     const token = localStorage.getItem('token')
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=resetMatch&matchId=${matchId}`, {
+      const categoryQuery = activeCategory ? `&categoryId=${activeCategory.id}` : ''
+      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=resetMatch&matchId=${matchId}${categoryQuery}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -706,6 +748,111 @@ export default function TournamentPage() {
         await fetchData()
       }
     } catch (error) {
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      alert('Por favor, ingresa el nombre de la categoría')
+      return
+    }
+
+    setGenerating(true)
+    const token = localStorage.getItem('token')
+
+    try {
+      // 1. Crear la Categoría en el Backend
+      const catRes = await fetch('/api/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          tournamentId,
+          name: newCategoryName,
+          description: `Categoría ${newCategoryName}`
+        })
+      })
+
+      if (!catRes.ok) {
+        const err = await catRes.json()
+        alert(err.error || 'Error al crear categoría')
+        return
+      }
+
+      const savedCategory = await catRes.json()
+
+      // 2. Crear las Fases Iniciales de Forma Automática según el Formato seleccionado
+      if (categoryPhasesFormat === 'todos_contra_todos') {
+        await fetch(`/api/tournaments/${tournamentId}/phases`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: 'Primera Fase',
+            type: 'LIGA',
+            isClassification: true,
+            categoryId: savedCategory.id
+          })
+        })
+      } else if (categoryPhasesFormat === 'liga_eliminacion') {
+        // Crear liga
+        await fetch(`/api/tournaments/${tournamentId}/phases`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: '1ª Fase',
+            type: 'LIGA',
+            isClassification: true,
+            categoryId: savedCategory.id
+          })
+        })
+        // Crear eliminatoria
+        await fetch(`/api/tournaments/${tournamentId}/phases`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: 'Fase Final',
+            type: 'ELIMINATORIA',
+            isClassification: true,
+            categoryId: savedCategory.id
+          })
+        })
+      } else if (categoryPhasesFormat === 'eliminacion') {
+        await fetch(`/api/tournaments/${tournamentId}/phases`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: 'Fase Final',
+            type: 'ELIMINATORIA',
+            isClassification: true,
+            categoryId: savedCategory.id
+          })
+        })
+      }
+
+      // 3. Resetear Inputs y recargar datos de categorías
+      setNewCategoryName('')
+      setCategoryPhasesFormat('todos_contra_todos')
+      setShowNewCategoryModal(false)
+      await fetchData()
+    } catch (error) {
+      console.error(error)
+      alert('Error de red al crear categoría')
     } finally {
       setGenerating(false)
     }
@@ -731,7 +878,8 @@ export default function TournamentPage() {
     
     // If it has matches, delete them via API
     if (roundMatches.length > 0) {
-      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=deleteStage&stageName=${encodeURIComponent(selectedRound)}&phaseName=${encodeURIComponent(selectedPhase)}`, {
+      const categoryQuery = activeCategory ? `&categoryId=${activeCategory.id}` : ''
+      const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=deleteStage&stageName=${encodeURIComponent(selectedRound)}&phaseName=${encodeURIComponent(selectedPhase)}${categoryQuery}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -741,7 +889,10 @@ export default function TournamentPage() {
       await fetch(`/api/tournaments/${tournamentId}/matches?action=reorderRounds`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phaseName: selectedPhase })
+        body: JSON.stringify({ 
+          phaseName: selectedPhase,
+          categoryId: activeCategory?.id || null,
+        })
       })
     }
     
@@ -1080,21 +1231,43 @@ export default function TournamentPage() {
       {/* Sidebar */}
       <div className="w-64 bg-[#0A1128] text-slate-400 flex flex-col h-full z-10 border-r border-white/5">
         <div className="p-8">
-          <div className="flex items-center gap-3 mb-12">
+          <div 
+            onClick={() => {
+              if (tournament?.format === 'categorias') {
+                setActiveCategory(null)
+                setActiveMenu('inicio')
+              }
+            }}
+            className={`flex items-center gap-3 mb-12 ${tournament?.format === 'categorias' ? 'cursor-pointer hover:opacity-80 transition-all' : ''}`}
+          >
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-500/20">🏆</div>
             <h1 className="text-xl font-black text-white tracking-tighter uppercase">{tournament?.name || 'Copa Depor'}</h1>
           </div>
 
           <nav className="space-y-2">
-            <button onClick={() => setActiveMenu('inicio')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'inicio' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
+            <button 
+              onClick={() => {
+                if (tournament?.format === 'categorias') {
+                  setActiveCategory(null)
+                }
+                setActiveMenu('inicio')
+              }} 
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'inicio' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+            >
               <span className="text-lg">🏠</span> Inicio
             </button>
-            <button onClick={() => setActiveMenu('clasificacion')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'clasificacion' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
-              <span className="text-lg">📊</span> Clasificación
-            </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
-              <span className="text-lg">📈</span> Rankings y encuestas
-            </button>
+
+            {(!tournament || tournament.format !== 'categorias' || activeCategory !== null) && (
+              <>
+                <button onClick={() => setActiveMenu('clasificacion')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'clasificacion' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
+                  <span className="text-lg">📊</span> Clasificación
+                </button>
+                <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
+                  <span className="text-lg">📈</span> Rankings y encuestas
+                </button>
+              </>
+            )}
+
             <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
               <span className="text-lg">📸</span> Fotos, vídeos y noticias
             </button>
@@ -1124,16 +1297,132 @@ export default function TournamentPage() {
       </div>
 
       <div className="flex-1 p-8 overflow-y-auto">
-        {activeMenu === 'inicio' ? (
+        {tournament?.format === 'categorias' && !activeCategory ? (
+          <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {/* Banner Portada */}
+            <div className="relative h-64 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
+              <div 
+                className="absolute inset-0 bg-cover bg-center opacity-40" 
+                style={{ backgroundImage: `url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600')` }}
+              ></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
+                <div>
+                  <h1 className="text-4xl font-black text-white mb-2">{tournament.name}</h1>
+                  <p className="text-slate-300 font-medium flex items-center gap-2 italic">Organizado por <span className="text-blue-400 not-italic">{tournament?.organizer?.name}</span></p>
+                </div>
+                <div className="mt-4 md:mt-0 flex gap-3">
+                  <button onClick={() => setShowQR(!showQR)} className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"><span>📤</span> Compartir Link</button>
+                  <span className="bg-blue-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-1">Privado - 0 Seguidores</span>
+                </div>
+              </div>
+            </div>
+
+            {showQR && (
+              <div className="p-6 bg-white rounded-[2rem] border border-slate-200/60 shadow-xl animate-in zoom-in-95">
+                <div className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest text-center">URL Pública</div>
+                <div className="bg-slate-50 p-4 rounded-xl font-mono text-xs text-blue-600 break-all border border-slate-100 shadow-sm text-center">
+                  {shareUrl}
+                </div>
+              </div>
+            )}
+
+            {/* Sección Categorías */}
+            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black text-slate-900">Categorías</h2>
+              </div>
+
+              {/* Botón Nueva Categoría Fila Grande */}
+              <div className="mb-6">
+                <button 
+                  onClick={() => setShowNewCategoryModal(true)}
+                  className="w-full py-4 bg-[#0A1128] hover:bg-[#1e293b] text-white font-black text-xs uppercase tracking-widest rounded-2xl border border-transparent transition-all hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg"
+                >
+                  Nueva categoría
+                </button>
+              </div>
+
+              {/* Lista de Categorías */}
+              {categories.length === 0 ? (
+                <div className="text-center py-12 text-slate-300 font-bold uppercase text-xs tracking-widest italic border-2 border-dashed border-slate-200 rounded-3xl mb-8">
+                  No hay categorías registradas aún.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 animate-in fade-in duration-500">
+                  {categories.map((cat: any) => (
+                    <div 
+                      key={cat.id} 
+                      onClick={() => setActiveCategory(cat)}
+                      className="p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 cursor-pointer transition-all flex justify-between items-center group hover:scale-[1.02]"
+                    >
+                      <div>
+                        <h3 className="font-black text-lg text-slate-800 uppercase tracking-tight">{cat.name}</h3>
+                        <p className="text-xs text-slate-400 mt-1 font-medium">{cat.description || 'Categoría del torneo'}</p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-[#0A1128] group-hover:text-white transition-colors">
+                        ➔
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Tablón de Mensajes */}
+            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
+              <h2 className="text-2xl font-black text-slate-900 mb-6">💬 Tablón de Mensajes</h2>
+              <form onSubmit={handleSendMessage} className="flex gap-3 mb-8">
+                <input 
+                  type="text" 
+                  value={newMessage} 
+                  onChange={e => setNewMessage(e.target.value)} 
+                  placeholder="Publicar un anuncio importante..." 
+                  className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" 
+                />
+                <button type="submit" className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Publicar</button>
+              </form>
+              <div className="space-y-6">
+                {messages.length === 0 && <div className="text-center py-10 text-slate-300 font-black uppercase text-xs tracking-widest italic">No hay mensajes aún</div>}
+                {messages.map(m => (
+                  <div key={m.id} className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-black text-sm text-slate-800">{m.sender.name}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{new Date(m.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-slate-600 text-sm leading-relaxed">{m.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : activeMenu === 'inicio' ? (
           <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
             <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-10 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-5 text-8xl font-black">{sportIcon}</div>
-              <h1 className="text-4xl font-black text-slate-900 mb-2">{tournament.name}</h1>
+              
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h1 className="text-4xl font-black text-slate-900 mb-2">{tournament.name}</h1>
+                  {activeCategory && (
+                    <p className="text-lg font-black text-blue-600 mt-1 uppercase tracking-wider flex items-center gap-2">🏷️ Categoría: {activeCategory.name}</p>
+                  )}
+                </div>
+                {tournament?.format === 'categorias' && (
+                  <button 
+                    onClick={() => setActiveCategory(null)}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm"
+                  >
+                    🗂️ Ver todas
+                  </button>
+                )}
+              </div>
+
               <p className="text-slate-400 font-bold mb-8 flex items-center gap-2 italic">Organizado por <span className="text-blue-600 not-italic">{tournament?.organizer?.name}</span></p>
               
               <div className="flex gap-4 mb-10">
                 <button onClick={() => setShowQR(!showQR)} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg"><span>📤</span> Compartir Link</button>
-                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg">Agregar Equipos</button>
+                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg">Agregar Equipos</button>
                 <button className="bg-slate-50 text-slate-600 px-6 py-3 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all">Configuración</button>
               </div>
 
@@ -1162,7 +1451,22 @@ export default function TournamentPage() {
           </div>
         ) : (activeMenu === 'clasificacion' || activeMenu === 'estadisticas') ? (
           <div className="flex flex-col h-full max-w-[1600px] mx-auto w-full">
-            <h1 className="text-3xl font-black text-[#0A1128] mb-8 tracking-tight">{tournament?.name}</h1>
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h1 className="text-3xl font-black text-[#0A1128] tracking-tight">{tournament?.name}</h1>
+                {activeCategory && (
+                  <p className="text-lg font-black text-blue-600 mt-1 uppercase tracking-wider flex items-center gap-2 animate-in fade-in duration-300">🏷️ Categoría: {activeCategory.name}</p>
+                )}
+              </div>
+              {tournament?.format === 'categorias' && (
+                <button 
+                  onClick={() => setActiveCategory(null)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm"
+                >
+                  🗂️ Ver todas
+                </button>
+              )}
+            </div>
             {tournamentTeams.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-20 relative bg-white/40 rounded-[3rem] border border-dashed border-slate-200 min-h-[500px] animate-in fade-in zoom-in-95 duration-500">
                 {/* Centered Tab Button - Floating */}
@@ -1175,7 +1479,7 @@ export default function TournamentPage() {
                      {/* Dropdown Menu */}
                      <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
                        <div className="py-2">
-                         <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                         <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                            <span className="text-lg">📋</span> Equipos
                          </button>
                          <button onClick={() => setShowGroupsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
@@ -1204,7 +1508,7 @@ export default function TournamentPage() {
                 <div className="text-center">
                   <p className="text-slate-500 font-bold mb-6 italic">Aún no hay equipos</p>
                   <button 
-                    onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)}
+                    onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)}
                     className="bg-[#0A1128] text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:scale-105 transition-all shadow-xl shadow-slate-200"
                   >
                     AGREGAR EQUIPOS
@@ -1242,7 +1546,7 @@ export default function TournamentPage() {
                            {/* Dropdown Menu */}
                            <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
                              <div className="py-2">
-                               <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                               <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">📋</span> Equipos
                                </button>
                                <button onClick={() => setShowGroupsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
@@ -2485,6 +2789,95 @@ export default function TournamentPage() {
           onClose={() => setShowExportModal(false)}
         />
       )}
+
+      {showNewCategoryModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500]" onClick={() => setShowNewCategoryModal(false)}>
+          <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl animate-in zoom-in fade-in" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-black text-slate-800 mb-6 text-center">Nueva categoría</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nombre de la Categoría</label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:border-blue-500 focus:outline-none font-bold text-slate-700 text-sm"
+                  placeholder="Ej: Super Ejecutivo B, Femenino, Libre"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Fases de la Categoría</label>
+                <div className="space-y-3">
+                  <label className="flex items-start p-4 border border-slate-100 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-slate-50 transition-all">
+                    <input
+                      type="radio"
+                      name="catFormat"
+                      value="todos_contra_todos"
+                      checked={categoryPhasesFormat === 'todos_contra_todos'}
+                      onChange={() => setCategoryPhasesFormat('todos_contra_todos')}
+                      className="mr-3 mt-1 cursor-pointer text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <p className="font-black text-xs text-slate-700 uppercase tracking-wide">Todos contra todos</p>
+                      <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">Una única fase donde todos los equipos juegan entre sí</p>
+                    </div>
+                  </label>
+                  <label className="flex items-start p-4 border border-slate-100 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-slate-50 transition-all">
+                    <input
+                      type="radio"
+                      name="catFormat"
+                      value="liga_eliminacion"
+                      checked={categoryPhasesFormat === 'liga_eliminacion'}
+                      onChange={() => setCategoryPhasesFormat('liga_eliminacion')}
+                      className="mr-3 mt-1 cursor-pointer text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <p className="font-black text-xs text-slate-700 uppercase tracking-wide">Todos contra todos + Eliminatoria</p>
+                      <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">Liga inicial seguida de fase eliminatoria con los mejores equipos</p>
+                    </div>
+                  </label>
+                  <label className="flex items-start p-4 border border-slate-100 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-slate-50 transition-all">
+                    <input
+                      type="radio"
+                      name="catFormat"
+                      value="eliminacion"
+                      checked={categoryPhasesFormat === 'eliminacion'}
+                      onChange={() => setCategoryPhasesFormat('eliminacion')}
+                      className="mr-3 mt-1 cursor-pointer text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <p className="font-black text-xs text-slate-700 uppercase tracking-wide">Eliminatoria</p>
+                      <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">Sistema de eliminación directa</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 font-bold italic text-center">
+                * Aún puedes crear y eliminar las fases más tarde.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-8 border-t border-slate-50 pt-6">
+              <button
+                onClick={() => setShowNewCategoryModal(false)}
+                className="px-6 py-3 border-2 border-slate-200 rounded-2xl text-slate-600 hover:bg-slate-50 font-bold text-xs uppercase tracking-widest transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateCategory}
+                disabled={!newCategoryName.trim() || generating}
+                className="px-8 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 font-black text-xs uppercase tracking-widest disabled:opacity-50 transition-all shadow-xl shadow-blue-100"
+              >
+                {generating ? 'Creando...' : 'Crear categoría'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2712,7 +3105,8 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
           phaseName, 
           matchType,
           selectionMode,
-          generationMode
+          generationMode,
+          categoryId: activeCategory?.id || null,
         }),
       })
       if (res.ok) {
@@ -3815,7 +4209,11 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
       const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=reassignRounds`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phaseName, roundSequence: rounds }),
+        body: JSON.stringify({ 
+          phaseName, 
+          roundSequence: rounds,
+          categoryId: activeCategory?.id || null,
+        }),
       })
       const data = await res.json()
       if (res.ok) {

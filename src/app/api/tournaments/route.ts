@@ -91,13 +91,14 @@ export async function POST(request: NextRequest) {
     const tournament = await prisma.tournament.create({
       data: {
         ...tournamentData,
+        format: format === 'categorias' ? 'categorias' : 'unico',
         classificationCriteria: classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O',
         phaseSystem: phaseSystemMap[format] || 'TODOS_CONTRA_TODOS',
         organizerId: payload.userId,
         categories: categories ? {
           create: categories
         } : undefined,
-        phases: {
+        phases: format === 'categorias' ? undefined : {
           create: format === 'liga_eliminacion' ? [
             { name: '1° Fase', type: 'LIGA', order: 1 },
             { name: '2° Fase', type: 'ELIMINATORIA', order: 2 }

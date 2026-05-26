@@ -135,9 +135,11 @@ model Phase {
   teams           String?  @db.Text // JSON list of team ids participating, optional
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  categoryId      String?
 
   tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   matches         Match[]
+  category        Category?  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
 model Category {
@@ -149,8 +151,10 @@ model Category {
   tournamentId  String
   tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   
-  matches   Match[]
-  standings Standings[]
+  matches         Match[]
+  standings       Standings[]
+  phases          Phase[]
+  tournamentTeams TournamentTeam[]
 }
 
 model TournamentTeam {
@@ -161,9 +165,11 @@ model TournamentTeam {
   order        Int        @default(0)
   registeredAt DateTime   @default(now())
   status       String     @default("active")
+  categoryId   String?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   team       Team       @relation(fields: [teamId], references: [id])
+  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
 model Team {

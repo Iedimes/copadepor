@@ -116,12 +116,7 @@ export default function DashboardPage() {
   const handleTypeSelect = (type: 'single' | 'multiple') => {
     setSelectedChampionshipType(type)
     setShowTypeModal(false)
-
-    if (type === 'single') {
-      setTimeout(() => setShowSportModal(true), 100)
-    } else {
-      router.push('/tournaments/new?type=multiple')
-    }
+    setTimeout(() => setShowSportModal(true), 100)
   }
 
   const handleSportSelect = (sportId: string) => {
@@ -197,7 +192,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           name: championshipName,
           sportType: selectedSport,
-          format: championshipFormat,
+          format: selectedChampionshipType === 'multiple' ? 'categorias' : championshipFormat,
           classificationCriteria: classificationCriteria.join(','),
           startDate: new Date().toISOString().split('T')[0],
           endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -421,57 +416,65 @@ export default function DashboardPage() {
                 />
               </div>
 
-               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Fases del Campeonato</label>
-                <div className="space-y-2">
-                  <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
-                    <input
-                      type="radio"
-                      name="format"
-                      value="todos_contra_todos"
-                      checked={championshipFormat === 'todos_contra_todos'}
-                      onChange={(e) => setChampionshipFormat(e.target.value)}
-                      className="mr-3 mt-1"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">Todos contra todos</p>
-                      <p className="text-xs text-gray-500">Una única fase donde todos los equipos juegan entre sí</p>
-                    </div>
-                  </label>
-                  <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
-                    <input
-                      type="radio"
-                      name="format"
-                      value="liga_eliminacion"
-                      checked={championshipFormat === 'liga_eliminacion'}
-                      onChange={(e) => setChampionshipFormat(e.target.value)}
-                      className="mr-3 mt-1"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">Todos contra todos + Eliminatoria</p>
-                      <p className="text-xs text-gray-500">Liga inicial seguida de fase eliminatoria con los mejores equipos</p>
-                    </div>
-                  </label>
-                  <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
-                    <input
-                      type="radio"
-                      name="format"
-                      value="eliminacion"
-                      checked={championshipFormat === 'eliminacion'}
-                      onChange={(e) => setChampionshipFormat(e.target.value)}
-                      className="mr-3 mt-1"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">Eliminatoria</p>
-                      <p className="text-xs text-gray-500">Sistema de eliminación directa</p>
-                    </div>
-                  </label>
+              {selectedChampionshipType !== 'multiple' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fases del Campeonato</label>
+                  <div className="space-y-2">
+                    <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
+                      <input
+                        type="radio"
+                        name="format"
+                        value="todos_contra_todos"
+                        checked={championshipFormat === 'todos_contra_todos'}
+                        onChange={(e) => setChampionshipFormat(e.target.value)}
+                        className="mr-3 mt-1"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">Todos contra todos</p>
+                        <p className="text-xs text-gray-500">Una única fase donde todos los equipos juegan entre sí</p>
+                      </div>
+                    </label>
+                    <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
+                      <input
+                        type="radio"
+                        name="format"
+                        value="liga_eliminacion"
+                        checked={championshipFormat === 'liga_eliminacion'}
+                        onChange={(e) => setChampionshipFormat(e.target.value)}
+                        className="mr-3 mt-1"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">Todos contra todos + Eliminatoria</p>
+                        <p className="text-xs text-gray-500">Liga inicial seguida de fase eliminatoria con los mejores equipos</p>
+                      </div>
+                    </label>
+                    <label className="flex items-start p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition">
+                      <input
+                        type="radio"
+                        name="format"
+                        value="eliminacion"
+                        checked={championshipFormat === 'eliminacion'}
+                        onChange={(e) => setChampionshipFormat(e.target.value)}
+                        className="mr-3 mt-1"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">Eliminatoria</p>
+                        <p className="text-xs text-gray-500">Sistema de eliminación directa</p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <p className="text-sm text-gray-500 italic">
-                * Se pueden crear o eliminar fases más tarde
-              </p>
+              {selectedChampionshipType !== 'multiple' ? (
+                <p className="text-sm text-gray-500 italic">
+                  * Se pueden crear o eliminar fases más tarde
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  * Podrás crear y configurar las categorías y sus fases en el panel de inicio del campeonato.
+                </p>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
