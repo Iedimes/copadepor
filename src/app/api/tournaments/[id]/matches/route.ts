@@ -23,6 +23,86 @@ function getAuthToken(request: NextRequest): string | null {
   return authHeader?.replace('Bearer ', '') || null
 }
 
+async function cascadeResetMatches(matchIds: string[], tournamentId: string) {
+  if (matchIds.length === 0) return
+
+  // 1. Fetch matches to know their roundNames and groupNames so we can compute their placeholders
+  const matches = await prisma.match.findMany({
+    where: { id: { in: matchIds } },
+    select: { id: true, roundName: true, groupName: true, phaseName: true }
+  })
+
+  // 2. Perform deep cleaning for these matches
+  await prisma.matchEvent.deleteMany({ where: { matchId: { in: matchIds } } })
+  await prisma.goal.deleteMany({ where: { matchId: { in: matchIds } } })
+  await prisma.matchReport.deleteMany({ where: { matchId: { in: matchIds } } })
+
+  // 3. Reset status and scores for these matches
+  await prisma.match.updateMany({
+    where: { id: { in: matchIds } },
+    data: {
+      homeScore: null,
+      awayScore: null,
+      homePenaltyScore: null,
+      awayPenaltyScore: null,
+      status: 'SCHEDULED',
+      notes: null
+    }
+  })
+
+  // 4. Find all dependent matches in the same phase and tournament
+  const dependentMatchIdsToReset: string[] = []
+
+  for (const m of matches) {
+    if (!m.roundName || !m.groupName) continue
+    const matchLabel = `Ganador ${m.roundName} ${m.groupName}`
+
+    // Find if any match has this label as homePlaceholder
+    const nextHomeMatches = await prisma.match.findMany({
+      where: {
+        tournamentId,
+        phaseName: m.phaseName,
+        homePlaceholder: matchLabel
+      },
+      select: { id: true }
+    })
+
+    if (nextHomeMatches.length > 0) {
+      const ids = nextHomeMatches.map(nm => nm.id)
+      await prisma.match.updateMany({
+        where: { id: { in: ids } },
+        data: { homeTeamId: null }
+      })
+      dependentMatchIdsToReset.push(...ids)
+    }
+
+    // Find if any match has this label as awayPlaceholder
+    const nextAwayMatches = await prisma.match.findMany({
+      where: {
+        tournamentId,
+        phaseName: m.phaseName,
+        awayPlaceholder: matchLabel
+      },
+      select: { id: true }
+    })
+
+    if (nextAwayMatches.length > 0) {
+      const ids = nextAwayMatches.map(nm => nm.id)
+      await prisma.match.updateMany({
+        where: { id: { in: ids } },
+        data: { awayTeamId: null }
+      })
+      dependentMatchIdsToReset.push(...ids)
+    }
+  }
+
+  // 5. Recursively reset any dependent matches that we cleared
+  if (dependentMatchIdsToReset.length > 0) {
+    const uniqueIds = Array.from(new Set(dependentMatchIdsToReset))
+    await cascadeResetMatches(uniqueIds, tournamentId)
+  }
+}
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const token = getAuthToken(request)
   if (!token) {
@@ -159,23 +239,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         return NextResponse.json({ message: 'No se encontraron partidos' })
       }
 
-      // Limpieza profunda
-      await prisma.matchEvent.deleteMany({ where: { matchId: { in: matchIds } } })
-      await prisma.goal.deleteMany({ where: { matchId: { in: matchIds } } })
-      await prisma.matchReport.deleteMany({ where: { matchId: { in: matchIds } } })
-
-      // Reset de estados y scores
-      await prisma.match.updateMany({
-        where: { id: { in: matchIds } },
-        data: {
-          homeScore: null,
-          awayScore: null,
-          homePenaltyScore: null,
-          awayPenaltyScore: null,
-          status: 'SCHEDULED',
-          notes: null
-        }
-      })
+      // Ejecutar la limpieza y reset en cascada recursiva
+      await cascadeResetMatches(matchIds, params.id)
 
       return NextResponse.json({ 
         message: action === 'resetMatch' ? 'Partido restaurado' : 'Fase restaurada', 

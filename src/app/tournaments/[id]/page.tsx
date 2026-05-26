@@ -239,11 +239,17 @@ export default function TournamentPage() {
     const st = isE ? editingMatchData.status : m.status;
     const matchNotes = isE ? ((editingMatchData as any).notes !== undefined ? (editingMatchData as any).notes : m.notes) : m.notes;
 
+    const hasTeams = m.homeTeam && m.awayTeam;
+
     return (
       <div 
         key={m.id} 
-        onClick={() => handleOpenMatchModal(m)} 
-        className={`relative flex items-center justify-between p-4 group cursor-pointer transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 rounded-[2rem] border border-transparent hover:border-slate-100 ${isE ? 'scale-[1.02] bg-white shadow-2xl border-blue-100' : ''}`}
+        onClick={() => hasTeams && handleOpenMatchModal(m)} 
+        className={`relative flex items-center justify-between p-4 group transition-all rounded-[2rem] border border-transparent ${
+          hasTeams 
+            ? 'cursor-pointer hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-100' 
+            : 'cursor-not-allowed opacity-75'
+        } ${isE ? 'scale-[1.02] bg-white shadow-2xl border-blue-100' : ''}`}
       >
         {/* Home Team */}
         <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
@@ -641,6 +647,7 @@ export default function TournamentPage() {
 
 
   const handleOpenMatchModal = (m: any) => {
+    if (!m.homeTeam || !m.awayTeam) return
     const homePlayers = m.homeTeam._count?.teamMembers || 0
     const awayPlayers = m.awayTeam._count?.teamMembers || 0
 
@@ -1027,8 +1034,16 @@ export default function TournamentPage() {
   const MatchCard = ({ match }: { match: any }) => {
     const hTeamName = match.homeTeam?.name || match.homePlaceholder || 'Por definir'
     const aTeamName = match.awayTeam?.name || match.awayPlaceholder || 'Por definir'
+    const hasTeams = match.homeTeam && match.awayTeam
     return (
-      <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer" onClick={() => handleOpenMatchModal(match)}>
+      <div 
+        className={`bg-white rounded-3xl p-5 border border-slate-100 shadow-sm transition-all ${
+          hasTeams 
+            ? 'cursor-pointer hover:shadow-md' 
+            : 'cursor-not-allowed opacity-75'
+        }`} 
+        onClick={() => hasTeams && handleOpenMatchModal(match)}
+      >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm">🏆</div>
