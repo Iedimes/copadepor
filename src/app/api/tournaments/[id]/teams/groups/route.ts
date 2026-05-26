@@ -25,8 +25,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const { numGroups, seedTeamIds } = await request.json()
 
-    if (!numGroups || numGroups < 1) {
+    if (numGroups === undefined || numGroups === null || numGroups < 0) {
       return NextResponse.json({ error: 'Número de grupos inválido' }, { status: 400 })
+    }
+
+    // numGroups === 0 means "remove all groups"
+    if (numGroups === 0) {
+      await prisma.$executeRawUnsafe(
+        'UPDATE TournamentTeam SET groupName = NULL WHERE tournamentId = ?',
+        params.id
+      )
+      return NextResponse.json({ message: 'Grupos eliminados correctamente' })
     }
 
     const allTournamentTeams = await prisma.tournamentTeam.findMany({

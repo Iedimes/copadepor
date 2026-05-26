@@ -104,10 +104,20 @@ export default function TournamentPage() {
   const [showGenType, setShowGenType] = useState(false)
   const [selectedPhase, setSelectedPhase] = useState('1° Fase')
   const [phases, setPhases] = useState<any[]>([])
-  const firstPhaseName = phases.length > 0 ? phases[0].name : '1° Fase';
+    const firstPhaseName = phases.length > 0 ? phases[0].name : '1° Fase';
    const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
    const [genStep, setGenStep] = useState(1)
    const [genFormat, setGenFormat] = useState<'STANDARD' | 'INTERGROUP' | 'SWISS'>('STANDARD')
+
+  useEffect(() => {
+    if (showGenType) {
+      const hasG = tournamentTeams.some((tt: any) => tt.groupName !== null && tt.groupName !== undefined && tt.groupName.trim() !== '')
+      if (!hasG) {
+        setGenFormat('STANDARD')
+      }
+      setGenStep(1)
+    }
+  }, [showGenType, tournamentTeams])
 
   // Fases Modals State
   const [showPhasesList, setShowPhasesList] = useState(false)
@@ -760,7 +770,7 @@ export default function TournamentPage() {
       setShowGroupsModal(false)
       setShowSeedConfirm(false)
       setShowSeedSelection(false)
-      setGroupByGroup(true)
+      setGroupByGroup(numGroups > 0)
     } else {
       const err = await res.json()
       alert(err.error || 'Error al generar grupos')
@@ -1361,7 +1371,7 @@ export default function TournamentPage() {
                           )
                         })()}
 
-                        {(selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria')) && (
+                        {phases.find((p: any) => p.name === selectedPhase)?.type === 'ELIMINATORIA' && (
                           <>
                             <div className="flex justify-between items-center mb-10 border-t border-slate-100 pt-10">
                               <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">🌳 Cuadro de Llaves</h2>
@@ -1651,6 +1661,7 @@ export default function TournamentPage() {
         const phaseHasResults = phaseMatches.some(m => m.status === 'EN_VIVO' || m.status === 'FINALIZADO')
         const phaseHasMatches = phaseMatches.length > 0
         const noTeams = tournamentTeams.length === 0
+        const hasGroups = tournamentTeams.some((tt: any) => tt.groupName !== null && tt.groupName !== undefined && tt.groupName.trim() !== '')
 
         return (
           <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !generating && setShowGenType(false)}>
@@ -1727,14 +1738,42 @@ export default function TournamentPage() {
                   <p className="text-center text-xs text-slate-500 mb-8 leading-relaxed">
                     {phaseHasMatches
                       ? `Se eliminarán los ${phaseMatches.length} partidos actuales y se generará el fixture desde cero.`
-                      : 'Elegí el formato del fixture para esta fase.'}
+                      : (hasGroups ? 'Elegí el formato del fixture para esta fase.' : 'Elegí la modalidad de los partidos para esta fase.')}
                   </p>
                    <div className="space-y-3">
-                    {genStep === 1 ? (
+                    {!hasGroups || genStep === 2 ? (
+                      <>
+                        <button
+                          onClick={() => handleGenerateMatches('ida')}
+                          className="w-full p-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg animate-in slide-in-from-bottom duration-300"
+                        >
+                          ⚽ SOLO IDA
+                        </button>
+                        <button
+                          onClick={() => handleGenerateMatches('idayvuelta')}
+                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 animate-in slide-in-from-bottom duration-300"
+                        >
+                          🔄 IDA Y VUELTA
+                        </button>
+                        {genFormat === 'INTERGROUP' && (
+                          <button
+                            onClick={() => handleGenerateMatches('cruzados' as any)}
+                            className="w-full p-5 bg-blue-50 text-blue-700 rounded-2xl font-black hover:bg-blue-100 transition-all border border-blue-200 animate-in slide-in-from-bottom duration-300"
+                          >
+                            ⚔️ CRUZADOS
+                          </button>
+                        )}
+                        {hasGroups && (
+                          <button onClick={() => setGenStep(1)} className="w-full py-2 text-blue-500 font-bold text-[10px] uppercase tracking-widest hover:underline">
+                            Volver
+                          </button>
+                        )}
+                      </>
+                    ) : (
                       <>
                         <button
                           onClick={() => { setGenFormat('STANDARD'); setGenStep(2); }}
-                          className="w-full p-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg text-left flex justify-between items-center"
+                          className="w-full p-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg text-left flex justify-between items-center animate-in slide-in-from-bottom duration-300"
                         >
                           <div>
                             <p className="text-sm">Grupos entre sí</p>
@@ -1744,7 +1783,7 @@ export default function TournamentPage() {
                         </button>
                         <button
                           onClick={() => { setGenFormat('INTERGROUP'); setGenStep(2); }}
-                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left flex justify-between items-center"
+                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left flex justify-between items-center animate-in slide-in-from-bottom duration-300"
                         >
                           <div>
                             <p className="text-sm">Grupo x Grupo</p>
@@ -1754,39 +1793,13 @@ export default function TournamentPage() {
                         </button>
                         <button
                           onClick={() => { setGenFormat('SWISS'); setGenStep(2); }}
-                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left flex justify-between items-center"
+                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left flex justify-between items-center animate-in slide-in-from-bottom duration-300"
                         >
                           <div>
                             <p className="text-sm">Sistema Suizo</p>
                             <p className="text-[10px] text-slate-400 font-normal normal-case mt-1 tracking-normal">Estilo Champions / Ajedrez</p>
                           </div>
                           <span className="text-xl">🏆</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleGenerateMatches('ida')}
-                          className="w-full p-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg"
-                        >
-                          ⚽ SOLO IDA
-                        </button>
-                        <button
-                          onClick={() => handleGenerateMatches('idayvuelta')}
-                          className="w-full p-5 bg-slate-50 text-slate-800 rounded-2xl font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100"
-                        >
-                          🔄 IDA Y VUELTA
-                        </button>
-                        {genFormat === 'INTERGROUP' && (
-                          <button
-                            onClick={() => handleGenerateMatches('cruzados' as any)}
-                            className="w-full p-5 bg-blue-50 text-blue-700 rounded-2xl font-black hover:bg-blue-100 transition-all border border-blue-200"
-                          >
-                            ⚔️ CRUZADOS
-                          </button>
-                        )}
-                        <button onClick={() => setGenStep(1)} className="w-full py-2 text-blue-500 font-bold text-[10px] uppercase tracking-widest hover:underline">
-                          Volver
                         </button>
                       </>
                     )}
@@ -1878,17 +1891,25 @@ export default function TournamentPage() {
             
             <div className="flex items-center gap-6 mb-12 bg-slate-50 p-6 rounded-3xl border border-slate-100">
               <input 
-                type="range" min="1" max="10" step="1" 
+                type="range" min="0" max="10" step="1" 
                 value={numGroups} 
                 onChange={(e) => setNumGroups(parseInt(e.target.value))}
                 className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
-              <span className="text-2xl font-black text-blue-600 w-8 text-center">{numGroups}</span>
+              <span className={`text-2xl font-black w-8 text-center ${numGroups === 0 ? 'text-red-500' : 'text-blue-600'}`}>{numGroups}</span>
             </div>
+
+            {numGroups === 0 && (
+              <p className="text-xs text-red-500 font-bold text-center -mt-6 mb-6">Se eliminarán todos los grupos existentes</p>
+            )}
 
             <div className="flex gap-4">
               <button onClick={() => setShowGroupsModal(false)} className="flex-1 py-4 text-slate-400 font-black text-xs uppercase tracking-widest">Cancelar</button>
-              <button onClick={() => { setShowGroupsModal(false); setShowSeedConfirm(true); }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Siguiente</button>
+              {numGroups === 0 ? (
+                <button onClick={() => { setShowGroupsModal(false); handleGenerateGroups(); }} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-100">Eliminar grupos</button>
+              ) : (
+                <button onClick={() => { setShowGroupsModal(false); setShowSeedConfirm(true); }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Siguiente</button>
+              )}
             </div>
           </div>
         </div>

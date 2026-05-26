@@ -79,21 +79,29 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validated = tournamentSchema.parse(body)
     
-    const { categories, classificationCriteria, ...tournamentData } = validated
+    const { categories, classificationCriteria, format, ...tournamentData } = validated
+
+    // Mapear format a phaseSystem para la BD
+    const phaseSystemMap: Record<string, string> = {
+      'todos_contra_todos': 'TODOS_CONTRA_TODOS',
+      'liga_eliminacion': 'LIGA_ELIMINATORIA',
+      'eliminacion': 'ELIMINATORIA',
+    }
 
     const tournament = await prisma.tournament.create({
       data: {
         ...tournamentData,
         classificationCriteria: classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O',
+        phaseSystem: phaseSystemMap[format] || 'TODOS_CONTRA_TODOS',
         organizerId: payload.userId,
         categories: categories ? {
           create: categories
         } : undefined,
         phases: {
-          create: validated.format === 'liga_eliminacion' ? [
+          create: format === 'liga_eliminacion' ? [
             { name: '1° Fase', type: 'LIGA', order: 1 },
             { name: '2° Fase', type: 'ELIMINATORIA', order: 2 }
-          ] : (validated.format === 'eliminacion' ? [
+          ] : (format === 'eliminacion' ? [
             { name: '1° Fase', type: 'ELIMINATORIA', order: 1 }
           ] : [
             { name: '1° Fase', type: 'LIGA', order: 1 }
