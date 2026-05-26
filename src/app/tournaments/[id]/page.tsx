@@ -208,9 +208,15 @@ export default function TournamentPage() {
   }, [tournamentId, activeMenu])
 
   useEffect(() => {
+    if (showGroupsModal) {
+      setSelectedSeeds([])
+      setContinueFromPrevPhase(false)
+    }
+  }, [showGroupsModal])
+
+  useEffect(() => {
     setSelectedSeeds([])
-    setContinueFromPrevPhase(false)
-  }, [numGroups, showGroupsModal])
+  }, [numGroups])
 
   const RankingCard = ({ title, label, data, field }: any) => (
     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
