@@ -928,6 +928,24 @@ export default function TournamentPage() {
     return sortedStandings
   }
 
+  const getSuggestedQualifiedTeams = () => {
+    const groupPhases = phases.filter(p => p.name.startsWith('Grupo '))
+    if (groupPhases.length === 0) return []
+
+    const qualifiedTeamIds: string[] = []
+    const sortedGroups = [...groupPhases].sort((a, b) => a.name.localeCompare(b.name))
+    
+    sortedGroups.forEach(gp => {
+      const stats = getStandings(true, gp.name)
+      const topTeams = stats.slice(0, 2)
+      topTeams.forEach((t: any) => {
+        qualifiedTeamIds.push(t.id)
+      })
+    })
+
+    return qualifiedTeamIds
+  }
+
   const getTeamRankings = () => {
     const stats: Record<string, any> = {}
     tournamentTeams.forEach(tt => { 
@@ -2163,7 +2181,20 @@ export default function TournamentPage() {
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">1° Fase</div>
             <div className="space-y-3">
               <button onClick={() => { setEditPhaseData({ name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', type: 'LIGA', order: phases.length, isClassification: true, continueFromId: null, teams: tournamentTeams.map((t: any) => t.team.id) }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
-              <button onClick={() => { setEditPhaseData({ name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', type: 'ELIMINATORIA', order: phases.length, isClassification: true, continueFromId: null, teams: tournamentTeams.map((t: any) => t.team.id) }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Eliminatoria</button>
+              <button onClick={() => { 
+                const suggested = getSuggestedQualifiedTeams();
+                const defaultTeams = suggested.length > 0 ? suggested : tournamentTeams.map((t: any) => t.team.id);
+                setEditPhaseData({ 
+                  name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', 
+                  type: 'ELIMINATORIA', 
+                  order: phases.length, 
+                  isClassification: true, 
+                  continueFromId: null, 
+                  teams: defaultTeams 
+                }); 
+                setShowPhaseType(false); 
+                setShowEditPhase(true); 
+              }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Eliminatoria</button>
             </div>
             <button onClick={() => setShowPhaseType(false)} className="w-full mt-6 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
           </div>
@@ -2412,6 +2443,7 @@ export default function TournamentPage() {
           phaseName={selectedPhase}
           matches={matches}
           tournamentTeams={tournamentTeams}
+          getSuggestedQualifiedTeams={getSuggestedQualifiedTeams}
           onClose={() => setShowPlayoffDraw(false)}
           onSuccess={() => { setShowPlayoffDraw(false); fetchData(); }}
         />
@@ -2580,7 +2612,7 @@ function ReorderTeamsModal({ tournamentTeams, tournamentId, onClose, onSuccess }
   )
 }
 
-function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, onClose, onSuccess }: any) {
+function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, getSuggestedQualifiedTeams, onClose, onSuccess }: any) {
   const [step, setStep] = useState(1)
   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
   const [selectionMode, setSelectionMode] = useState<'clasificacion' | 'aleatorio'>('clasificacion')
@@ -2621,9 +2653,23 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, onC
     if (step === 4) {
       // Initialize selected teams based on count and mode
       if (generationMode === 'seleccion') {
-        const count = teamCount === 'indefinido' ? standings.length : teamCount
-        const initial = standings.map((t, i) => ({ ...t, checked: i < Number(count) }))
-        setSelectedTeams(initial)
+        const suggested = getSuggestedQualifiedTeams ? getSuggestedQualifiedTeams() : [];
+        if (suggested && suggested.length > 0) {
+          const initial = standings.map(t => ({ 
+            ...t, 
+            checked: suggested.includes(t.id) 
+          }))
+          const sortedInitial = [...initial].sort((a, b) => {
+            if (a.checked && !b.checked) return -1;
+            if (!a.checked && b.checked) return 1;
+            return 0;
+          });
+          setSelectedTeams(sortedInitial)
+        } else {
+          const count = teamCount === 'indefinido' ? standings.length : teamCount
+          const initial = standings.map((t, i) => ({ ...t, checked: i < Number(count) }))
+          setSelectedTeams(initial)
+        }
       }
     }
     setStep(step + 1)

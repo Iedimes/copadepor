@@ -553,6 +553,89 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         else if (count <= 16) { startRound = 'Octavos de final'; roundsToCreate = ['Octavos de final', 'Cuartos de final', 'Semifinal', 'Final'] }
         else { startRound = 'Eliminatoria'; roundsToCreate = ['Eliminatoria', 'Octavos de final', 'Cuartos de final', 'Semifinal', 'Final'] }
 
+        let finalTeamIds = teamIds ? [...teamIds] : []
+        if (count === 4 && finalTeamIds.length === 4) {
+          // Fetch groups info to perform the crossover
+          const dbTeams = await prisma.tournamentTeam.findMany({
+            where: {
+              tournamentId: params.id,
+              teamId: { in: finalTeamIds }
+            }
+          })
+
+          const hasGroups = dbTeams.some(t => t.groupName !== null && t.groupName !== undefined)
+          if (hasGroups) {
+            // Calculate standings statistics in group phases for these 4 teams
+            const groupMatches = await prisma.match.findMany({
+              where: {
+                tournamentId: params.id,
+                phaseName: { startsWith: 'Grupo ' },
+                status: 'COMPLETED'
+              }
+            })
+
+            const teamPoints: Record<string, number> = {}
+            const teamGoalDiff: Record<string, number> = {}
+            const teamGoalsFor: Record<string, number> = {}
+            
+            finalTeamIds.forEach(id => {
+              teamPoints[id] = 0
+              teamGoalDiff[id] = 0
+              teamGoalsFor[id] = 0
+            })
+
+            groupMatches.forEach(m => {
+              if (m.homeScore === null || m.awayScore === null || !m.homeTeamId || !m.awayTeamId) return
+              
+              const hPoints = m.homeScore > m.awayScore ? 3 : m.homeScore < m.awayScore ? 0 : 1
+              const aPoints = m.awayScore > m.homeScore ? 3 : m.awayScore < m.homeScore ? 0 : 1
+              
+              if (teamPoints[m.homeTeamId] !== undefined) {
+                teamPoints[m.homeTeamId] += hPoints
+                teamGoalDiff[m.homeTeamId] += (m.homeScore - m.awayScore)
+                teamGoalsFor[m.homeTeamId] += m.homeScore
+              }
+              if (teamPoints[m.awayTeamId] !== undefined) {
+                teamPoints[m.awayTeamId] += aPoints
+                teamGoalDiff[m.awayTeamId] += (m.awayScore - m.homeScore)
+                teamGoalsFor[m.awayTeamId] += m.awayScore
+              }
+            })
+
+            const groupATeams = dbTeams
+              .filter(t => t.groupName === 'A')
+              .map(t => t.teamId)
+              .sort((a, b) => {
+                const pDiff = (teamPoints[b] || 0) - (teamPoints[a] || 0)
+                if (pDiff !== 0) return pDiff
+                const gdDiff = (teamGoalDiff[b] || 0) - (teamGoalDiff[a] || 0)
+                if (gdDiff !== 0) return gdDiff
+                return (teamGoalsFor[b] || 0) - (teamGoalsFor[a] || 0)
+              })
+
+            const groupBTeams = dbTeams
+              .filter(t => t.groupName === 'B')
+              .map(t => t.teamId)
+              .sort((a, b) => {
+                const pDiff = (teamPoints[b] || 0) - (teamPoints[a] || 0)
+                if (pDiff !== 0) return pDiff
+                const gdDiff = (teamGoalDiff[b] || 0) - (teamGoalDiff[a] || 0)
+                if (gdDiff !== 0) return gdDiff
+                return (teamGoalsFor[b] || 0) - (teamGoalsFor[a] || 0)
+              })
+
+            if (groupATeams.length === 2 && groupBTeams.length === 2) {
+              // Crossover pairings:
+              // Match 1: 1st of A vs 2nd of B
+              // Match 2: 1st of B vs 2nd of A
+              finalTeamIds[0] = groupATeams[0]
+              finalTeamIds[1] = groupBTeams[1]
+              finalTeamIds[2] = groupBTeams[0]
+              finalTeamIds[3] = groupATeams[1]
+            }
+          }
+        }
+
         // Limpiar partidos existentes en esta fase
         await prisma.match.deleteMany({
           where: { tournamentId: params.id, phaseName }
@@ -564,8 +647,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         // 1. Generar Primera Ronda (con equipos o vacía)
         const numMatches = Math.floor(count / 2)
         for (let i = 0; i < numMatches; i++) {
-          const homeId = teamIds ? teamIds[i * 2] : null
-          const awayId = teamIds ? teamIds[i * 2 + 1] : null
+          const homeId = finalTeamIds ? finalTeamIds[i * 2] : null
+          const awayId = finalTeamIds ? finalTeamIds[i * 2 + 1] : null
           
           const matchData = {
             tournamentId: params.id,
