@@ -353,6 +353,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               roundName: String(m.roundName),
               roundOrder: Number(m.roundName),
               phaseName,
+              phaseId: phase?.id || null,
               status: 'SCHEDULED',
             },
           })

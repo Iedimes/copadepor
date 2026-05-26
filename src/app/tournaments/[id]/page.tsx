@@ -199,12 +199,18 @@ export default function TournamentPage() {
   const [showSeedSelection, setShowSeedSelection] = useState(false)
   const [selectedSeeds, setSelectedSeeds] = useState<string[]>([])
   const [groupByGroup, setGroupByGroup] = useState(false)
+  const [continueFromPrevPhase, setContinueFromPrevPhase] = useState(false)
 
   const tournamentId = params.id as string
 
   useEffect(() => {
     fetchData()
   }, [tournamentId, activeMenu])
+
+  useEffect(() => {
+    setSelectedSeeds([])
+    setContinueFromPrevPhase(false)
+  }, [numGroups, showGroupsModal])
 
   const RankingCard = ({ title, label, data, field }: any) => (
     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -760,10 +766,17 @@ export default function TournamentPage() {
 
   const handleGenerateGroups = async () => {
     const token = localStorage.getItem('token')
+    const currentPhaseObj = phases.find(p => p.name === selectedPhase)
+    const continueFromId = continueFromPrevPhase && currentPhaseObj ? currentPhaseObj.id : null
+
     const res = await fetch(`/api/tournaments/${tournamentId}/teams/groups`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numGroups, seedTeamIds: selectedSeeds }),
+      body: JSON.stringify({ 
+        numGroups, 
+        seedTeamIds: selectedSeeds,
+        continueFromId
+      }),
     })
     if (res.ok) {
       await fetchData()
@@ -824,16 +837,32 @@ export default function TournamentPage() {
       const advTeam = isE ? (editingMatchData as any).advantageTeamId : m.advantageTeamId
       if (hS !== null && aS !== null && st !== 'NO_REALIZADO') {
         const h = stats[m.homeTeam.id]; const a = stats[m.awayTeam.id];
-        if (h && a) {
-          h.played++; a.played++; h.gf += hS; h.ga += aS; a.gf += aS; a.ga += hS
+        if (h) {
+          h.played++;
+          h.gf += hS;
+          h.ga += aS;
           if (isWO && advTeam) {
-            if (advTeam === m.homeTeam.id) { h.won++; a.lost++; h.points += 3 }
-            else if (advTeam === m.awayTeam.id) { a.won++; h.lost++; a.points += 3 }
-            else { h.drawn++; a.drawn++; h.points++; a.points++ }
+            if (advTeam === m.homeTeam.id) { h.won++; h.points += 3 }
+            else if (advTeam === m.awayTeam.id) { h.lost++ }
+            else { h.drawn++; h.points++ }
           } else {
-            if (hS > aS) { h.won++; a.lost++; h.points += 3 }
-            else if (hS < aS) { a.won++; h.lost++; a.points += 3 }
-            else { h.drawn++; a.drawn++; h.points++; a.points++ }
+            if (hS > aS) { h.won++; h.points += 3 }
+            else if (hS < aS) { h.lost++ }
+            else { h.drawn++; h.points++ }
+          }
+        }
+        if (a) {
+          a.played++;
+          a.gf += aS;
+          a.ga += hS;
+          if (isWO && advTeam) {
+            if (advTeam === m.awayTeam.id) { a.won++; a.points += 3 }
+            else if (advTeam === m.homeTeam.id) { a.lost++ }
+            else { a.drawn++; a.points++ }
+          } else {
+            if (aS > hS) { a.won++; a.points += 3 }
+            else if (aS < hS) { a.lost++ }
+            else { a.drawn++; a.points++ }
           }
         }
       }
@@ -1889,7 +1918,7 @@ export default function TournamentPage() {
             <h3 className="text-2xl font-black text-slate-900 mb-2">Grupos</h3>
             <p className="text-slate-400 font-bold mb-8 text-sm">Número de grupos</p>
             
-            <div className="flex items-center gap-6 mb-12 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+            <div className="flex items-center gap-6 mb-8 bg-slate-50 p-6 rounded-3xl border border-slate-100">
               <input 
                 type="range" min="0" max="10" step="1" 
                 value={numGroups} 
@@ -1900,7 +1929,27 @@ export default function TournamentPage() {
             </div>
 
             {numGroups === 0 && (
-              <p className="text-xs text-red-500 font-bold text-center -mt-6 mb-6">Se eliminarán todos los grupos existentes</p>
+              <p className="text-xs text-red-500 font-bold text-center -mt-4 mb-6">Se eliminarán todos los grupos existentes</p>
+            )}
+
+            {numGroups > 0 && (
+              <div className="mb-8 p-6 bg-blue-50/50 rounded-3xl border border-blue-100/50 flex flex-col gap-2">
+                <label className="flex items-center justify-between gap-4 cursor-pointer">
+                  <div className="flex-1">
+                    <span className="block font-black text-slate-800 text-sm">Arrastrar puntos</span>
+                    <span className="block text-slate-400 text-xs font-bold leading-tight mt-0.5">Continuar con la tabla de {selectedPhase}</span>
+                  </div>
+                  <div className="relative flex items-center select-none">
+                    <input 
+                      type="checkbox"
+                      checked={continueFromPrevPhase}
+                      onChange={(e) => setContinueFromPrevPhase(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </div>
+                </label>
+              </div>
             )}
 
             <div className="flex gap-4">
@@ -1932,23 +1981,44 @@ export default function TournamentPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[140] p-4" onClick={() => setShowSeedSelection(false)}>
           <div className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
             <h3 className="text-2xl font-black text-slate-900 mb-2">Seleccionar equipos</h3>
-            <p className="text-slate-400 font-bold mb-6 text-sm italic">Seleccioná los cabezas de serie para el sorteo</p>
+            <p className="text-slate-400 font-bold mb-6 text-sm italic">Seleccioná los cabezas de serie para el sorteo (Máximo {numGroups})</p>
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-2 mb-8 custom-scrollbar">
-              {tournamentTeams.map(tt => (
-                <label key={tt.team.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${selectedSeeds.includes(tt.team.id) ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
-                  <input 
-                    type="checkbox" 
-                    className="w-5 h-5 rounded-lg border-2 border-slate-300 text-blue-600 focus:ring-blue-500"
-                    checked={selectedSeeds.includes(tt.team.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedSeeds([...selectedSeeds, tt.team.id])
-                      else setSelectedSeeds(selectedSeeds.filter(id => id !== tt.team.id))
-                    }}
-                  />
-                  <span className="font-black text-slate-700 text-sm uppercase tracking-tight">{tt.team.name}</span>
-                </label>
-              ))}
+              {tournamentTeams.map(tt => {
+                const isSelected = selectedSeeds.includes(tt.team.id);
+                const isLimitReached = selectedSeeds.length >= numGroups;
+                const isDisabled = !isSelected && isLimitReached;
+                
+                return (
+                  <label 
+                    key={tt.team.id} 
+                    className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${
+                      isSelected 
+                        ? 'bg-blue-50 border-blue-200' 
+                        : isDisabled
+                          ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-100'
+                          : 'bg-slate-50 border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 rounded-lg border-2 border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                      checked={isSelected}
+                      disabled={isDisabled}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          if (selectedSeeds.length < numGroups) {
+                            setSelectedSeeds([...selectedSeeds, tt.team.id])
+                          }
+                        } else {
+                          setSelectedSeeds(selectedSeeds.filter(id => id !== tt.team.id))
+                        }
+                      }}
+                    />
+                    <span className="font-black text-slate-700 text-sm uppercase tracking-tight">{tt.team.name}</span>
+                  </label>
+                );
+              })}
             </div>
 
             <div className="flex gap-4">
