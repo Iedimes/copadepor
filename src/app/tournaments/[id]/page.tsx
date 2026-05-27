@@ -3527,6 +3527,10 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   const [match, setMatch] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [st, setSt] = useState('NO_REALIZADO')
+
+  const getBasketballScore = (gList: any[]) => {
+    return gList.reduce((acc, g) => acc + (parseInt(g.detail) || 2), 0)
+  }
   
   const [hG, setHG] = useState<any[]>([]); const [aG, setAG] = useState<any[]>([])
   const [hC, setHC] = useState<any[]>([]); const [aC, setAC] = useState<any[]>([])
@@ -3575,21 +3579,22 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   useEffect(() => { 
     if (match) {
       onUpdate({ 
-        homeScore: isWO ? manualHomeScore : (hG.length + aO.length), 
-        awayScore: isWO ? manualAwayScore : (aG.length + hO.length), 
+        homeScore: isWO ? manualHomeScore : (isBasketball ? getBasketballScore(hG) : (hG.length + aO.length)), 
+        awayScore: isWO ? manualAwayScore : (isBasketball ? getBasketballScore(aG) : (aG.length + hO.length)), 
         status: st, 
         advantageTeamId: isWO ? woWinnerId : advancingTeamId, 
         notes: isWO ? 'W.O' : (st === 'EN_VIVO' ? JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now() } }) : null)
       })
     }
-  }, [hG.length, aG.length, aO.length, hO.length, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId, timerPeriod, timerMinutes, timerSeconds, timerRunning])
+  }, [hG, aG, hO, aO, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId, timerPeriod, timerMinutes, timerSeconds, timerRunning, isBasketball])
 
   // Calculate advancing team
   useEffect(() => {
     if (!match || !match.homeTeam || !match.awayTeam) return
     if (!['Cuartos de final', 'Cuartos', 'Semifinal', 'Final'].includes(match.roundName)) return
 
-    const hS = hG.length; const aS = aG.length;
+    const hS = isBasketball ? getBasketballScore(hG) : hG.length;
+    const aS = isBasketball ? getBasketballScore(aG) : aG.length;
     if (hS > aS) setAdvancingTeamId(match.homeTeam.id)
     else if (aS > hS) setAdvancingTeamId(match.awayTeam.id)
     else { // Tie
@@ -3609,7 +3614,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
          else setAdvancingTeamId('')
       }
     }
-  }, [hG.length, aG.length, homePenalties, awayPenalties, useAdvantage, match])
+  }, [hG, aG, homePenalties, awayPenalties, useAdvantage, match, isBasketball])
 
   const fetchMatch = async () => {
     try {
@@ -3731,8 +3736,8 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       ].filter(e => e.type)
 
       const isNR = st === 'NO_REALIZADO'
-      const finalHomeScore = isWO ? manualHomeScore : (hG.length + aO.length)
-      const finalAwayScore = isWO ? manualAwayScore : (aG.length + hO.length)
+      const finalHomeScore = isWO ? manualHomeScore : (isBasketball ? getBasketballScore(hG) : (hG.length + aO.length))
+      const finalAwayScore = isWO ? manualAwayScore : (isBasketball ? getBasketballScore(aG) : (aG.length + hO.length))
       const res = await fetch(`/api/matches/${matchId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -3799,7 +3804,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       {/* Slim Header */}
       <div className="bg-slate-900 px-8 py-5 text-white flex justify-between items-center shrink-0">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-black tracking-tight">{match.homeTeam.name} <span className="text-blue-400 mx-2">{isWO ? manualHomeScore : (hG.length + aO.length)} : {isWO ? manualAwayScore : (aG.length + hO.length)}</span> {match.awayTeam.name}</h2>
+          <h2 className="text-xl font-black tracking-tight">{match.homeTeam.name} <span className="text-blue-400 mx-2">{isWO ? manualHomeScore : (isBasketball ? getBasketballScore(hG) : (hG.length + aO.length))} : {isWO ? manualAwayScore : (isBasketball ? getBasketballScore(aG) : (aG.length + hO.length))}</span> {match.awayTeam.name}</h2>
         </div>
         <div className="flex items-center gap-6">
           {st === 'EN_VIVO' && (
