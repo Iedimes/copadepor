@@ -2792,7 +2792,7 @@ export default function TournamentPage() {
 
       {showNewCategoryModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500]" onClick={() => setShowNewCategoryModal(false)}>
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl animate-in zoom-in fade-in" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl animate-in zoom-in fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-black text-slate-800 mb-6 text-center">Nueva categoría</h2>
             
             <div className="space-y-6">
@@ -2808,9 +2808,13 @@ export default function TournamentPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Fases de la Categoría</label>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Modalidad</label>
                 <div className="space-y-3">
-                  <label className="flex items-start p-4 border border-slate-100 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-slate-50 transition-all">
+                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${
+                    categoryPhasesFormat === 'todos_contra_todos'
+                      ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
+                      : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
+                  }`}>
                     <input
                       type="radio"
                       name="catFormat"
@@ -2824,7 +2828,11 @@ export default function TournamentPage() {
                       <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">Una única fase donde todos los equipos juegan entre sí</p>
                     </div>
                   </label>
-                  <label className="flex items-start p-4 border border-slate-100 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-slate-50 transition-all">
+                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${
+                    categoryPhasesFormat === 'liga_eliminacion'
+                      ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
+                      : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
+                  }`}>
                     <input
                       type="radio"
                       name="catFormat"
@@ -2838,7 +2846,11 @@ export default function TournamentPage() {
                       <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">Liga inicial seguida de fase eliminatoria con los mejores equipos</p>
                     </div>
                   </label>
-                  <label className="flex items-start p-4 border border-slate-100 rounded-2xl cursor-pointer hover:border-blue-500 hover:bg-slate-50 transition-all">
+                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${
+                    categoryPhasesFormat === 'eliminacion'
+                      ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
+                      : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
+                  }`}>
                     <input
                       type="radio"
                       name="catFormat"
