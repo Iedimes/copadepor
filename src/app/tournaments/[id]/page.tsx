@@ -82,7 +82,7 @@ const LiveMatchTimer = ({ notes }: { notes: string }) => {
 }
 
 const sports = [
-  { id: 'FUTBOL_11', name: 'Fútbol 11', icon: '⚽' },
+  { id: 'FUTBOL_11', name: 'Fútbol', icon: '⚽' },
   { id: 'FUTSAL', name: 'Futsal', icon: '⚽' },
   { id: 'FUTBOL_7', name: 'Fútbol 7', icon: '⚽' },
   { id: 'FUTBOL_SALA', name: 'Fútbol Sala', icon: '⚽' },
@@ -141,6 +141,8 @@ export default function TournamentPage() {
    const [genFormat, setGenFormat] = useState<'STANDARD' | 'INTERGROUP' | 'SWISS'>('STANDARD')
 
   const [activeCategory, setActiveCategory] = useState<any | null>(null)
+  const sportType = activeCategory?.sportType || tournament?.sportType || ''
+  const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
   const [categories, setCategories] = useState<any[]>([])
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -1217,8 +1219,11 @@ export default function TournamentPage() {
           const displayName = pName ? (e.type === 'OWN_GOAL' ? `${pName} (A.G.)` : pName) : (e.type === 'OWN_GOAL' ? 'Autogol' : 'Desconocido')
           const key = e.type === 'OWN_GOAL' ? `AG_${pName || 'anon'}_${e.id}` : (pName || 'Desconocido')
           
+          const isBasketMatch = m.category?.sportType === 'BALONCESTO' || m.category?.sportType === 'BASQUET' || m.tournament?.sportType === 'BALONCESTO' || m.tournament?.sportType === 'BASQUET'
+          const pointsValue = isBasketMatch ? (parseInt(e.detail) || 2) : 1
+          
           if (!scorers[key]) scorers[key] = { name: displayName, team: tName, goals: 0, penalties: 0 }
-          scorers[key].goals++
+          scorers[key].goals += pointsValue
           if (isPenal) scorers[key].penalties++
         }
       })
@@ -1652,7 +1657,7 @@ export default function TournamentPage() {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                           {/* Top Scorers */}
                           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🥅 Goleadores</h3>
+                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">{isBasketball ? '🏀 Anotadores' : '🥅 Goleadores'}</h3>
                             <div className="overflow-hidden rounded-2xl border border-slate-50">
                               <table className="w-full text-xs">
                                 <thead className="bg-slate-900 text-white">
@@ -1660,12 +1665,12 @@ export default function TournamentPage() {
                                     <th className="p-4 text-center w-12">Pos</th>
                                     <th className="p-4 text-left">Jugador</th>
                                     <th className="p-4 text-left">Equipo</th>
-                                    <th className="p-4 text-center">Goles</th>
+                                    <th className="p-4 text-center">{isBasketball ? 'Puntos' : 'Goles'}</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {getTopScorers().length === 0 ? (
-                                    <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">No hay goles registrados aún</td></tr>
+                                    <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">{isBasketball ? 'No hay puntos registrados aún' : 'No hay goles registrados aún'}</td></tr>
                                   ) : getTopScorers().map((p: any, i: number) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-all">
                                       <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
@@ -2008,8 +2013,8 @@ export default function TournamentPage() {
               {/* Top Scorers */}
               <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-50">
                 <div className="flex items-center gap-3 mb-8">
-                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-2xl">🥅</div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Tabla de Goleadores</h3>
+                  <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-2xl">{isBasketball ? '🏀' : '🥅'}</div>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{isBasketball ? 'Tabla de Anotadores' : 'Tabla de Goleadores'}</h3>
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
                   <table className="w-full text-sm">
@@ -2018,12 +2023,12 @@ export default function TournamentPage() {
                         <th className="p-4 text-center">Pos</th>
                         <th className="p-4 text-left">Jugador</th>
                         <th className="p-4 text-left">Equipo</th>
-                        <th className="p-4 text-center">Goles</th>
+                        <th className="p-4 text-center">{isBasketball ? 'Puntos' : 'Goles'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {getTopScorers().length === 0 ? (
-                        <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">No hay goles registrados aún</td></tr>
+                        <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">{isBasketball ? 'No hay puntos registrados aún' : 'No hay goles registrados aún'}</td></tr>
                       ) : getTopScorers().map((p: any, i: number) => (
                         <tr key={i} className="hover:bg-slate-50 transition-all">
                           <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
@@ -3837,13 +3842,13 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
 
       {/* Main Body - Row for Each Team */}
       <div className={`flex-1 overflow-y-auto px-8 pt-5 pb-4 bg-[#FDFDFD] space-y-4 custom-scrollbar ${isWO ? 'opacity-40 pointer-events-none' : ''}`}>
-        <TeamRowSection team={match.homeTeam} goals={hG} setGoals={setHG} cards={hC} setCards={setHC} fouls={hF} setFouls={setHF} subs={hS} setSubs={setHS} own={hO} setOwn={setHO} gk={hK} setGk={setHK} hi={hHi} setHi={setHHi} lin={hL} setLin={setHL} color="blue" />
+        <TeamRowSection isBasketball={isBasketball} team={match.homeTeam} goals={hG} setGoals={setHG} cards={hC} setCards={setHC} fouls={hF} setFouls={setHF} subs={hS} setSubs={setHS} own={hO} setOwn={setHO} gk={hK} setGk={setHK} hi={hHi} setHi={setHHi} lin={hL} setLin={setHL} color="blue" />
         <div className="flex items-center gap-4">
           <div className="flex-1 h-px bg-slate-100"></div>
           <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">vs</span>
           <div className="flex-1 h-px bg-slate-100"></div>
         </div>
-        <TeamRowSection team={match.awayTeam} goals={aG} setGoals={setAG} cards={aC} setCards={setAC} fouls={aF} setFouls={setAF} subs={aS} setSubs={setAS} own={aO} setOwn={setAO} gk={aK} setGk={setAK} hi={aHi} setHi={setAHi} lin={aL} setLin={setAL} color="red" />
+        <TeamRowSection isBasketball={isBasketball} team={match.awayTeam} goals={aG} setGoals={setAG} cards={aC} setCards={setAC} fouls={aF} setFouls={setAF} subs={aS} setSubs={setAS} own={aO} setOwn={setAO} gk={aK} setGk={setAK} hi={aHi} setHi={setAHi} lin={aL} setLin={setAL} color="red" />
       </div>
 
       {/* DESEMPATE / PASE DE RONDA */}
@@ -3893,15 +3898,22 @@ function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onCl
   )
 }
 
-function TeamRowSection({ team, goals, setGoals, cards, setCards, fouls, setFouls, subs, setSubs, own, setOwn, gk, setGk, hi, setHi, lin, setLin, color }: any) {
+function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, fouls, setFouls, subs, setSubs, own, setOwn, gk, setGk, hi, setHi, lin, setLin, color }: any) {
   const [tab, setTab] = useState('goles')
+  
+  const getBasketballScore = (gList: any[]) => {
+    return gList.reduce((acc, g) => acc + (parseInt(g.detail) || 2), 0)
+  }
+
+  const score = isBasketball ? getBasketballScore(goals) : goals.length
+
   const tabs = [
-    { id: 'goles', label: 'Goles', i: '🥅' },
+    { id: 'goles', label: isBasketball ? 'Puntos' : 'Goles', i: isBasketball ? '🏀' : '🥅' },
     { id: 'tarjetas', label: 'Tarjetas', i: '🟨' },
     { id: 'faltas', label: 'Faltas', i: '⚠️' },
     { id: 'subs', label: 'Cambios', i: '🔄' },
     { id: 'otros', label: 'Otros', i: '✨' },
-    { id: 'alineacion', label: 'Cancha', i: '⚽' },
+    ...(!isBasketball ? [{ id: 'alineacion', label: 'Cancha', i: '⚽' }] : []),
   ]
   
   return (
@@ -3910,10 +3922,15 @@ function TeamRowSection({ team, goals, setGoals, cards, setCards, fouls, setFoul
       <div className="flex-1 min-w-0">
         {/* Team header - compact */}
         <div className="flex items-center gap-3 mb-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-md ${color === 'blue' ? 'bg-blue-600' : 'bg-red-600'}`}>{goals.length}</div>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-md ${color === 'blue' ? 'bg-blue-600' : 'bg-red-600'}`}>{score}</div>
           <div>
             <h3 className="font-black text-base text-slate-800 leading-tight">{team.name.toUpperCase()}</h3>
-            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{goals.length} {goals.length === 1 ? 'gol' : 'goles'} registrados</div>
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              {isBasketball 
+                ? `${score} puntos anotados` 
+                : `${goals.length} ${goals.length === 1 ? 'gol' : 'goles'} registrados`
+              }
+            </div>
           </div>
         </div>
         
@@ -3928,7 +3945,21 @@ function TeamRowSection({ team, goals, setGoals, cards, setCards, fouls, setFoul
 
         {/* Content */}
         <div className="min-h-[180px]">
-          {tab === 'goles' && <RowFormSection title="⚽ Goles anotados" evs={goals} setEvs={setGoals} players={team.players || []} color={color} assist={true} type="GOAL" pLabel="Goleador" aLabel="Asistente" isGoalType={true} />}
+          {tab === 'goles' && (
+            <RowFormSection 
+              title={isBasketball ? "🏀 Puntos anotados" : "⚽ Goles anotados"} 
+              evs={goals} 
+              setEvs={setGoals} 
+              players={team.players || []} 
+              color={color} 
+              assist={!isBasketball} 
+              type="GOAL" 
+              pLabel={isBasketball ? "Anotador" : "Goleador"} 
+              aLabel="Asistente" 
+              isGoalType={true} 
+              isBasketball={isBasketball}
+            />
+          )}
           {tab === 'tarjetas' && <RowFormSection title="🟨 Tarjetas disciplinarias" evs={cards} setEvs={setCards} players={team.players || []} color={color} isType={true} type="YELLOW_CARD" opts={[
             { v: 'YELLOW_CARD',        label: '🟨 Amarilla',            hint: '1ª falta' },
             { v: 'DOUBLE_YELLOW_CARD', label: '🟨🟥 2ª Amarilla → Expulsado', hint: 'Acumulación' },
@@ -3942,7 +3973,7 @@ function TeamRowSection({ team, goals, setGoals, cards, setCards, fouls, setFoul
               <RowFormSection title="🧤 Acciones del Portero" evs={gk} setEvs={setGk} players={team.players || []} color={color} detail={true} type="GOALKEEPER" pLabel="Portero" />
             </div>
           )}
-          {tab === 'alineacion' && (
+          {tab === 'alineacion' && !isBasketball && (
             <div className="bg-slate-50 rounded-2xl p-3 text-center">
               <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">La cancha táctica aparece a la derecha →</div>
               <div className="text-slate-300 text-xs">Haz clic sobre la cancha para colocar jugadores</div>
@@ -3952,18 +3983,20 @@ function TeamRowSection({ team, goals, setGoals, cards, setCards, fouls, setFoul
       </div>
 
       {/* Right: Small Pitch */}
-      <div className="w-72 shrink-0">
-        <div className="bg-slate-900 p-3 rounded-[2rem] shadow-xl overflow-hidden">
-          <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center mb-1.5">⚽ Cancha Táctica — clic para añadir</div>
-          <PitchV6 lin={lin} setLin={setLin} players={team.players || []} color={color} />
+      {!isBasketball && (
+        <div className="w-72 shrink-0">
+          <div className="bg-slate-900 p-3 rounded-[2rem] shadow-xl overflow-hidden">
+            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center mb-1.5">⚽ Cancha Táctica — clic para añadir</div>
+            <PitchV6 lin={lin} setLin={setLin} players={team.players || []} color={color} />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
-function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = 'Asistente', pLabel = 'Jugador', isType, opts, detail, type, isGoalType }: any) {
-  const add = () => setEvs([...evs, { id: Date.now().toString(), playerId: '', assistId: '', type, minutes: 0, timeType: '1°', detail: '' }])
+function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = 'Asistente', pLabel = 'Jugador', isType, opts, detail, type, isGoalType, isBasketball }: any) {
+  const add = () => setEvs([...evs, { id: Date.now().toString(), playerId: '', assistId: '', type, minutes: 0, timeType: '1°', detail: isBasketball ? '2' : '' }])
   const up = (id: string, f: string, v: any) => setEvs(evs.map((e: any) => e.id === id ? { ...e, [f]: v } : e))
   const rm = (id: string) => setEvs(evs.filter((e: any) => e.id !== id))
   return (
@@ -4015,10 +4048,18 @@ function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = '
                     className="w-full bg-white border-none rounded-xl px-3 py-1.5 text-[10px] font-bold shadow-sm outline-none text-slate-600" placeholder="Descripción opcional..." />
                 )}
                 {isGoalType && (
-                  <div className="flex gap-2 mt-1">
-                    <button onClick={() => up(e.id, 'detail', 'JUGADA')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${e.detail !== 'PENAL' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'}`}>Jugada</button>
-                    <button onClick={() => up(e.id, 'detail', 'PENAL')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${e.detail === 'PENAL' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'}`}>Penal</button>
-                  </div>
+                  isBasketball ? (
+                    <div className="flex gap-1.5 mt-1 bg-white p-1 rounded-xl border border-slate-100 shadow-sm w-fit">
+                      <button onClick={() => up(e.id, 'detail', '1')} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${e.detail === '1' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>1 Punto</button>
+                      <button onClick={() => up(e.id, 'detail', '2')} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${e.detail === '2' || e.detail === '' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>2 Puntos</button>
+                      <button onClick={() => up(e.id, 'detail', '3')} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${e.detail === '3' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>3 Puntos</button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 mt-1">
+                      <button onClick={() => up(e.id, 'detail', 'JUGADA')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${e.detail !== 'PENAL' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'}`}>Jugada</button>
+                      <button onClick={() => up(e.id, 'detail', 'PENAL')} className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${e.detail === 'PENAL' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'}`}>Penal</button>
+                    </div>
+                  )
                 )}
               </div>
             </div>

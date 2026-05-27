@@ -11,7 +11,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       include: {
         homeTeam: { select: { id: true, name: true } },
         awayTeam: { select: { id: true, name: true } },
-        tournament: { select: { id: true, name: true } },
+        tournament: { select: { id: true, name: true, sportType: true } },
+        category: { select: { id: true, name: true, sportType: true } },
         events: true,
       },
     })

@@ -291,6 +291,104 @@ function PitchLineup({ lineup, setLineup, players }: { lineup: BaseEvent[], setL
       </div>
     </div>
   )
+function BasketballPointsSection({
+  title,
+  goals,
+  setGoals,
+  players,
+  onAddClick,
+  onEditClick
+}: {
+  title: string
+  goals: BaseEvent[]
+  setGoals: React.Dispatch<React.SetStateAction<BaseEvent[]>>
+  players: Player[]
+  onAddClick: () => void
+  onEditClick: (player: Player, p1: number, p2: number, p3: number) => void
+}) {
+  const scorerIds = Array.from(new Set(goals.filter(g => g.playerId).map(g => g.playerId)))
+  
+  const playerStats = scorerIds.map(id => {
+    const player = players.find(p => p.id === id)
+    const playerEvts = goals.filter(g => g.playerId === id)
+    const p1 = playerEvts.filter(g => g.detail === '1').length
+    const p2 = playerEvts.filter(g => g.detail === '2' || g.detail === '').length
+    const p3 = playerEvts.filter(g => g.detail === '3').length
+    const total = p1 * 1 + p2 * 2 + p3 * 3
+    return {
+      player,
+      playerId: id,
+      p1,
+      p2,
+      p3,
+      total
+    }
+  }).filter(s => s.player)
+
+  const handleRemove = (playerId: string) => {
+    setGoals(prev => prev.filter(g => g.playerId !== playerId))
+  }
+
+  return (
+    <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-bold text-slate-800 tracking-tight flex items-center gap-2">
+          <span>🏀</span> {title}
+        </h3>
+        <button
+          onClick={onAddClick}
+          className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-all"
+        >
+          + Añadir Puntos
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {playerStats.map(({ player, p1, p2, p3, total }) => (
+          player && (
+            <div key={player.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs border border-blue-100">
+                  {player.number || '#'}
+                </div>
+                <div>
+                  <div className="font-black text-slate-800 text-sm">{player.name}</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                    T1: {p1} | T2: {p2} | T3: {p3}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <div className="text-sm font-black text-blue-600">{total} pts</div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onEditClick(player, p1, p2, p3)}
+                    className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all text-xs font-bold"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleRemove(player.id)}
+                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        ))}
+
+        {playerStats.length === 0 && (
+          <div className="text-center py-6 text-slate-400 font-bold italic text-xs">
+            No hay puntos registrados aún
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function EditResultPage() {
@@ -321,6 +419,23 @@ export default function EditResultPage() {
   const [awayHighlights, setAwayHighlights] = useState<BaseEvent[]>([])
   const [homeLineup, setHomeLineup] = useState<BaseEvent[]>([])
   const [awayLineup, setAwayLineup] = useState<BaseEvent[]>([])
+
+  const sportType = (match as any)?.category?.sportType || (match as any)?.tournament?.sportType || ''
+  const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
+
+  const getBasketballScore = (goals: BaseEvent[]) => {
+    return goals.reduce((acc, g) => acc + (parseInt(g.detail) || 2), 0)
+  }
+
+  // Basketball stats states
+  const [showBasketballPlayerSelect, setShowBasketballPlayerSelect] = useState<{ teamType: 'home' | 'away' } | null>(null)
+  const [basketballEditingPlayer, setBasketballEditingPlayer] = useState<{
+    teamType: 'home' | 'away'
+    player: Player
+    p1: number
+    p2: number
+    p3: number
+  } | null>(null)
 
   useEffect(() => {
     fetchMatch()
@@ -445,8 +560,8 @@ export default function EditResultPage() {
         },
         body: JSON.stringify({
           status: matchStatus,
-          homeScore: homeGoals.length,
-          awayScore: awayGoals.length,
+          homeScore: isBasketball ? getBasketballScore(homeGoals) : homeGoals.length,
+          awayScore: isBasketball ? getBasketballScore(awayGoals) : awayGoals.length,
           events: allEvents
         })
       })
@@ -503,13 +618,26 @@ export default function EditResultPage() {
               <div className="flex items-center justify-center gap-4 mb-8 bg-blue-50 py-4 rounded-xl border border-blue-100">
                 <h2 className="text-2xl font-black text-blue-900">{match.homeTeam.name}</h2>
                 <div className="bg-blue-600 text-white text-2xl font-bold w-12 h-12 flex items-center justify-center rounded-xl shadow-inner">
-                  {homeGoals.length}
+                  {isBasketball ? getBasketballScore(homeGoals) : homeGoals.length}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <PitchLineup lineup={homeLineup} setLineup={setHomeLineup} players={match.homeTeam.players || []} />
-                <EventSection title="Goles" events={homeGoals} setEvents={setHomeGoals} players={match.homeTeam.players || []} defaultType="GOAL" showAssist={true} playerLabel="Anotador" />
+                {isBasketball ? (
+                  <BasketballPointsSection
+                    title="Puntos"
+                    goals={homeGoals}
+                    setGoals={setHomeGoals}
+                    players={match.homeTeam.players || []}
+                    onAddClick={() => setShowBasketballPlayerSelect({ teamType: 'home' })}
+                    onEditClick={(player, p1, p2, p3) => setBasketballEditingPlayer({ teamType: 'home', player, p1, p2, p3 })}
+                  />
+                ) : (
+                  <>
+                    <PitchLineup lineup={homeLineup} setLineup={setHomeLineup} players={match.homeTeam.players || []} />
+                    <EventSection title="Goles" events={homeGoals} setEvents={setHomeGoals} players={match.homeTeam.players || []} defaultType="GOAL" showAssist={true} playerLabel="Anotador" />
+                  </>
+                )}
                 <EventSection title="Tarjetas" events={homeCards} setEvents={setHomeCards} players={match.homeTeam.players || []} defaultType="YELLOW_CARD" showType={true} typeOptions={[{value:'YELLOW_CARD',label:'Amarilla'},{value:'DOUBLE_YELLOW_CARD',label:'Doble Amarilla'},{value:'RED_CARD',label:'Roja Directa'}]} />
                 <EventSection title="Faltas" events={homeFouls} setEvents={setHomeFouls} players={match.homeTeam.players || []} defaultType="FOUL" showDetail={true} detailLabel="Motivo de falta" />
                 <EventSection title="Sustituciones" events={homeSubs} setEvents={setHomeSubs} players={match.homeTeam.players || []} defaultType="SUBSTITUTION" showAssist={true} playerLabel="Entra" assistLabel="Sale" showDetail={true} detailLabel="Motivo" />
@@ -524,13 +652,26 @@ export default function EditResultPage() {
               <div className="flex items-center justify-center gap-4 mb-8 bg-red-50 py-4 rounded-xl border border-red-100">
                 <h2 className="text-2xl font-black text-red-900">{match.awayTeam.name}</h2>
                 <div className="bg-red-600 text-white text-2xl font-bold w-12 h-12 flex items-center justify-center rounded-xl shadow-inner">
-                  {awayGoals.length}
+                  {isBasketball ? getBasketballScore(awayGoals) : awayGoals.length}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <PitchLineup lineup={awayLineup} setLineup={setAwayLineup} players={match.awayTeam.players || []} />
-                <EventSection title="Goles" events={awayGoals} setEvents={setAwayGoals} players={match.awayTeam.players || []} defaultType="GOAL" showAssist={true} playerLabel="Anotador" />
+                {isBasketball ? (
+                  <BasketballPointsSection
+                    title="Puntos"
+                    goals={awayGoals}
+                    setGoals={setAwayGoals}
+                    players={match.awayTeam.players || []}
+                    onAddClick={() => setShowBasketballPlayerSelect({ teamType: 'away' })}
+                    onEditClick={(player, p1, p2, p3) => setBasketballEditingPlayer({ teamType: 'away', player, p1, p2, p3 })}
+                  />
+                ) : (
+                  <>
+                    <PitchLineup lineup={awayLineup} setLineup={setAwayLineup} players={match.awayTeam.players || []} />
+                    <EventSection title="Goles" events={awayGoals} setEvents={setAwayGoals} players={match.awayTeam.players || []} defaultType="GOAL" showAssist={true} playerLabel="Anotador" />
+                  </>
+                )}
                 <EventSection title="Tarjetas" events={awayCards} setEvents={setAwayCards} players={match.awayTeam.players || []} defaultType="YELLOW_CARD" showType={true} typeOptions={[{value:'YELLOW_CARD',label:'Amarilla'},{value:'DOUBLE_YELLOW_CARD',label:'Doble Amarilla'},{value:'RED_CARD',label:'Roja Directa'}]} />
                 <EventSection title="Faltas" events={awayFouls} setEvents={setAwayFouls} players={match.awayTeam.players || []} defaultType="FOUL" showDetail={true} detailLabel="Motivo de falta" />
                 <EventSection title="Sustituciones" events={awaySubs} setEvents={setAwaySubs} players={match.awayTeam.players || []} defaultType="SUBSTITUTION" showAssist={true} playerLabel="Entra" assistLabel="Sale" showDetail={true} detailLabel="Motivo" />
@@ -553,6 +694,219 @@ export default function EditResultPage() {
           Guardar Resultado Oficial
         </button>
       </div>
+
+      {/* MODAL: SELECCIONAR JUGADOR BALONCESTO */}
+      {showBasketballPlayerSelect && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4" onClick={() => setShowBasketballPlayerSelect(null)}>
+          <div className="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
+                <span>🏀</span> Seleccionar Anotador
+              </h3>
+              <button onClick={() => setShowBasketballPlayerSelect(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-all font-black">✕</button>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto p-4 space-y-1">
+              {((showBasketballPlayerSelect.teamType === 'home' ? match.homeTeam.players : match.awayTeam.players) || []).map(player => (
+                <button
+                  key={player.id}
+                  onClick={() => {
+                    const teamType = showBasketballPlayerSelect.teamType
+                    const goals = teamType === 'home' ? homeGoals : awayGoals
+                    const playerEvts = goals.filter(g => g.playerId === player.id)
+                    const p1 = playerEvts.filter(g => g.detail === '1').length
+                    const p2 = playerEvts.filter(g => g.detail === '2' || g.detail === '').length
+                    const p3 = playerEvts.filter(g => g.detail === '3').length
+                    
+                    setBasketballEditingPlayer({
+                      teamType,
+                      player,
+                      p1,
+                      p2,
+                      p3
+                    })
+                    setShowBasketballPlayerSelect(null)
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
+                >
+                  <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs group-hover:bg-blue-50 group-hover:text-blue-600 transition-all">
+                    {player.number || '#'}
+                  </div>
+                  <div className="font-bold text-slate-700 text-sm group-hover:text-slate-900 transition-all">{player.name}</div>
+                </button>
+              ))}
+              {((showBasketballPlayerSelect.teamType === 'home' ? match.homeTeam.players : match.awayTeam.players) || []).length === 0 && (
+                <div className="text-center py-12">
+                  <div className="text-slate-300 text-3xl">👥</div>
+                  <p className="text-slate-400 text-xs mt-2 italic font-bold">No hay jugadores registrados aún</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: AJUSTAR TIROS BALONCESTO */}
+      {basketballEditingPlayer && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[210] p-4" onClick={() => setBasketballEditingPlayer(null)}>
+          <div className="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <div>
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ajustar Puntos</div>
+                <h3 className="font-black text-slate-800 text-base mt-0.5">
+                  {basketballEditingPlayer.player.number ? `#${basketballEditingPlayer.player.number} ` : ''}{basketballEditingPlayer.player.name}
+                </h3>
+              </div>
+              <button onClick={() => setBasketballEditingPlayer(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-all font-black">✕</button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Lanzamiento de 1 punto */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div>
+                  <div className="font-black text-slate-800 text-sm">Lanzamiento de 1 punto</div>
+                  <div className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">Tiros libres</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setBasketballEditingPlayer(prev => prev ? { ...prev, p1: Math.max(0, prev.p1 - 1) } : null)}
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center font-black text-slate-800 text-lg">{basketballEditingPlayer.p1}</span>
+                  <button
+                    onClick={() => setBasketballEditingPlayer(prev => prev ? { ...prev, p1: prev.p1 + 1 } : null)}
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Lanzamiento de 2 puntos */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div>
+                  <div className="font-black text-slate-800 text-sm">Lanzamiento de 2 puntos</div>
+                  <div className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">Tiros dobles de campo</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setBasketballEditingPlayer(prev => prev ? { ...prev, p2: Math.max(0, prev.p2 - 1) } : null)}
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center font-black text-slate-800 text-lg">{basketballEditingPlayer.p2}</span>
+                  <button
+                    onClick={() => setBasketballEditingPlayer(prev => prev ? { ...prev, p2: prev.p2 + 1 } : null)}
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Lanzamiento de 3 puntos */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div>
+                  <div className="font-black text-slate-800 text-sm">Lanzamiento de 3 puntos</div>
+                  <div className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">Tiros triples</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setBasketballEditingPlayer(prev => prev ? { ...prev, p3: Math.max(0, prev.p3 - 1) } : null)}
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+                  >
+                    -
+                  </button>
+                  <span className="w-8 text-center font-black text-slate-800 text-lg">{basketballEditingPlayer.p3}</span>
+                  <button
+                    onClick={() => setBasketballEditingPlayer(prev => prev ? { ...prev, p3: prev.p3 + 1 } : null)}
+                    className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="pt-4 border-t flex justify-between items-center px-2">
+                <span className="font-black text-slate-400 uppercase tracking-wider text-[10px]">Total Acumulado:</span>
+                <span className="font-black text-blue-600 text-lg">
+                  {basketballEditingPlayer.p1 * 1 + basketballEditingPlayer.p2 * 2 + basketballEditingPlayer.p3 * 3} pts
+                </span>
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button
+                onClick={() => setBasketballEditingPlayer(null)}
+                className="flex-1 py-3 text-slate-500 font-bold text-xs uppercase tracking-wider hover:bg-slate-100 rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const { teamType, player, p1, p2, p3 } = basketballEditingPlayer
+                  const setGoals = teamType === 'home' ? setHomeGoals : setAwayGoals
+                  
+                  setGoals(prev => {
+                    const filtered = prev.filter(g => g.playerId !== player.id)
+                    const newEvts: BaseEvent[] = []
+                    
+                    for (let i = 0; i < p1; i++) {
+                      newEvts.push({
+                        id: `BASKET_${player.id}_1_${Date.now()}_${i}`,
+                        playerId: player.id,
+                        assistId: '',
+                        type: 'GOAL',
+                        defineTime: false,
+                        timeType: '1°',
+                        minutes: 0,
+                        seconds: 0,
+                        detail: '1'
+                      })
+                    }
+                    for (let i = 0; i < p2; i++) {
+                      newEvts.push({
+                        id: `BASKET_${player.id}_2_${Date.now()}_${i}`,
+                        playerId: player.id,
+                        assistId: '',
+                        type: 'GOAL',
+                        defineTime: false,
+                        timeType: '1°',
+                        minutes: 0,
+                        seconds: 0,
+                        detail: '2'
+                      })
+                    }
+                    for (let i = 0; i < p3; i++) {
+                      newEvts.push({
+                        id: `BASKET_${player.id}_3_${Date.now()}_${i}`,
+                        playerId: player.id,
+                        assistId: '',
+                        type: 'GOAL',
+                        defineTime: false,
+                        timeType: '1°',
+                        minutes: 0,
+                        seconds: 0,
+                        detail: '3'
+                      })
+                    }
+                    
+                    return [...filtered, ...newEvts]
+                  })
+                  
+                  setBasketballEditingPlayer(null)
+                }}
+                className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs uppercase tracking-wider hover:shadow-lg hover:shadow-blue-500/20 rounded-xl shadow-md transition-all active:scale-95"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

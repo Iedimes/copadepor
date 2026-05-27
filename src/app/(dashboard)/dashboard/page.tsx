@@ -20,7 +20,7 @@ interface Stats {
 }
 
 const sports = [
-  { id: 'FUTBOL_11', name: 'Fútbol 11', icon: '⚽' },
+  { id: 'FUTBOL_11', name: 'Fútbol', icon: '⚽' },
   { id: 'FUTSAL', name: 'Futsal', icon: '⚽' },
   { id: 'FUTBOL_7', name: 'Fútbol 7', icon: '⚽' },
   { id: 'FUTBOL_SALA', name: 'Fútbol Sala', icon: '⚽' },
