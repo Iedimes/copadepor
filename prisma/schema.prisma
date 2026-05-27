@@ -151,6 +151,9 @@ model Category {
   tournamentId  String
   tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   
+  sportType              String     @default("FUTBOL_11")
+  classificationCriteria String     @default("PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O")
+
   matches         Match[]
   standings       Standings[]
   phases          Phase[]

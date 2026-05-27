@@ -116,7 +116,13 @@ export default function DashboardPage() {
   const handleTypeSelect = (type: 'single' | 'multiple') => {
     setSelectedChampionshipType(type)
     setShowTypeModal(false)
-    setTimeout(() => setShowSportModal(true), 100)
+    if (type === 'multiple') {
+      setSelectedSport('FUTBOL_11')
+      setClassificationCriteria(CRITERIA_OPTIONS.map(c => c.id))
+      setTimeout(() => setShowChampionshipModal(true), 100)
+    } else {
+      setTimeout(() => setShowSportModal(true), 100)
+    }
   }
 
   const handleSportSelect = (sportId: string) => {

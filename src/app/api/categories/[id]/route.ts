@@ -3,12 +3,9 @@ import prisma from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { z } from 'zod'
 
-const categorySchema = z.object({
-  tournamentId: z.string(),
-  name: z.string().min(2),
+const categoryPatchSchema = z.object({
+  name: z.string().min(2).optional(),
   description: z.string().optional(),
-  minAge: z.number().optional(),
-  maxAge: z.number().optional(),
   sportType: z.string().optional(),
   classificationCriteria: z.string().optional(),
 })
@@ -18,24 +15,10 @@ function getAuthToken(request: NextRequest): string | null {
   return authHeader?.replace('Bearer ', '') || null
 }
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const tournamentId = searchParams.get('tournamentId')
-
-  const where: Record<string, unknown> = {}
-  if (tournamentId) where.tournamentId = tournamentId
-
-  const categories = await prisma.category.findMany({
-    where,
-    include: {
-      tournament: { select: { id: true, name: true } },
-    },
-  })
-
-  return NextResponse.json(categories)
-}
-
-export async function POST(request: NextRequest) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const token = getAuthToken(request)
   if (!token) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -46,20 +29,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
   }
 
+  const id = params.id
+
   try {
     const body = await request.json()
-    const validated = categorySchema.parse(body)
+    const validated = categoryPatchSchema.parse(body)
 
-    const category = await prisma.category.create({
+    const category = await prisma.category.update({
+      where: { id },
       data: validated,
     })
 
-    return NextResponse.json(category, { status: 201 })
+    return NextResponse.json(category)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
-    console.error('Create category error:', error)
-    return NextResponse.json({ error: 'Error al crear categoría' }, { status: 500 })
+    console.error('Update category error:', error)
+    return NextResponse.json({ error: 'Error al actualizar la categoría' }, { status: 500 })
   }
 }

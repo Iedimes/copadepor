@@ -81,6 +81,37 @@ const LiveMatchTimer = ({ notes }: { notes: string }) => {
   return <span className="text-[10px] font-black text-slate-700 font-mono tracking-widest">{str}</span>
 }
 
+const sports = [
+  { id: 'FUTBOL_11', name: 'Fútbol 11', icon: '⚽' },
+  { id: 'FUTSAL', name: 'Futsal', icon: '⚽' },
+  { id: 'FUTBOL_7', name: 'Fútbol 7', icon: '⚽' },
+  { id: 'FUTBOL_SALA', name: 'Fútbol Sala', icon: '⚽' },
+  { id: 'BALONMANO', name: 'Balonmano', icon: '🤾' },
+  { id: 'BALONCESTO', name: 'Baloncesto', icon: '🏀' },
+  { id: 'VOLEY', name: 'Voleibol', icon: '🏐' },
+  { id: 'VOLEY_PLAYA', name: 'Voleibol de Playa', icon: '🏐' },
+  { id: 'TENIS_MESA', name: 'Tenis de Mesa', icon: '🏓' },
+  { id: 'TENIS', name: 'Tenis', icon: '🎾' },
+  { id: 'BEACH_TENNIS', name: 'Beach Tennis', icon: '🏖️' },
+  { id: 'AJEDREZ', name: 'Ajedrez', icon: '♟️' },
+  { id: 'ATLETISMO', name: 'Atletismo', icon: '🏃' },
+  { id: 'DEPORTE_GENERICO', name: 'Deporte Genérico', icon: '🏅' },
+  { id: 'DISPAROS', name: 'Juego de Disparos', icon: '🔫' },
+  { id: 'BATTLE_ROYALE', name: 'Battle Royale', icon: '🎮' },
+  { id: 'MOBA_LOL', name: 'MOBA (LoL)', icon: '🛡️' },
+  { id: 'MOBA_DOTA', name: 'MOBA (Dota)', icon: '🛡️' },
+]
+
+const CRITERIA_OPTIONS = [
+  { id: 'PUNTOS', label: 'Puntos', description: 'Suma de puntos obtenidos' },
+  { id: 'GOLES', label: 'Goles', description: 'Diferencia de goles' },
+  { id: 'GOLES_A_FAVOR', label: 'Goles a Favor', description: 'Total de goles marcados' },
+  { id: 'RESULTADOS_ENTRE_SI', label: 'Resultados Entre Sí', description: 'Desempate directo' },
+  { id: 'TARJETAS_AMARILLAS', label: 'Tarjetas Amarillas', description: 'Menos tarjetas amarillas' },
+  { id: 'TARJETAS_ROJAS', label: 'Tarjetas Rojas', description: 'Menos tarjetas rojas' },
+  { id: 'W_O', label: 'W.O. (Walkover)', description: 'Victorias por incomparecencia' },
+]
+
 export default function TournamentPage() {
   const params = useParams()
   const router = useRouter()
@@ -114,6 +145,11 @@ export default function TournamentPage() {
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryPhasesFormat, setCategoryPhasesFormat] = useState<'todos_contra_todos' | 'liga_eliminacion' | 'eliminacion'>('todos_contra_todos')
+  
+  const [showCatSportModal, setShowCatSportModal] = useState(false)
+  const [selectedCatSport, setSelectedCatSport] = useState('FUTBOL_11')
+  const [showCatCriteriaModal, setShowCatCriteriaModal] = useState(false)
+  const [catClassificationCriteria, setCatClassificationCriteria] = useState<string[]>(['PUNTOS', 'GOLES', 'GOLES_A_FAVOR', 'RESULTADOS_ENTRE_SI', 'TARJETAS_AMARILLAS', 'TARJETAS_ROJAS', 'W_O'])
 
   useEffect(() => {
     if (showGenType) {
@@ -785,7 +821,9 @@ export default function TournamentPage() {
         body: JSON.stringify({
           tournamentId,
           name: newCategoryName,
-          description: `Categoría ${newCategoryName}`
+          description: `Categoría ${newCategoryName}`,
+          sportType: selectedCatSport,
+          classificationCriteria: catClassificationCriteria.join(','),
         })
       })
 
@@ -870,6 +908,21 @@ export default function TournamentPage() {
     }
   }
 
+  const handleStartNewCategoryFlow = () => {
+    setSelectedCatSport('FUTBOL_11')
+    setCatClassificationCriteria(['PUNTOS', 'GOLES', 'GOLES_A_FAVOR', 'RESULTADOS_ENTRE_SI', 'TARJETAS_AMARILLAS', 'TARJETAS_ROJAS', 'W_O'])
+    setNewCategoryName('')
+    setCategoryPhasesFormat('todos_contra_todos')
+    setShowCatSportModal(true)
+  }
+
+  const handleMoveCatCriteria = (from: number, to: number) => {
+    const newCriteria = [...catClassificationCriteria]
+    const [moved] = newCriteria.splice(from, 1)
+    newCriteria.splice(to, 0, moved)
+    setCatClassificationCriteria(newCriteria)
+  }
+
   const handleRemoveRound = async () => {
     const roundMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)
     const hasResults = roundMatches.some(m => 
@@ -927,12 +980,18 @@ export default function TournamentPage() {
 
   const handleSaveCriteria = async () => {
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}`, {
+    const isCat = !!activeCategory
+    const url = isCat ? `/api/categories/${activeCategory.id}` : `/api/tournaments/${tournamentId}`
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ classificationCriteria: tempCriteria.join(',') }),
     })
     if (res.ok) {
+      const data = await res.json()
+      if (isCat) {
+        setActiveCategory(data)
+      }
       await fetchData()
       setShowCriteriaModal(false)
     } else {
@@ -1052,7 +1111,7 @@ export default function TournamentPage() {
       })
     })
 
-    const criteria = (tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(',')
+    const criteria = (activeCategory?.classificationCriteria || tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O').split(',')
 
     const sortedStandings = Object.values(stats).map(s => {
       const tt = tournamentTeams.find(t => t.team.id === s.id)
@@ -1233,7 +1292,7 @@ export default function TournamentPage() {
 
 
   const shareUrl = `https://copafacil.com/${tournamentId}`
-  const sportIcon = getSportIcon(tournament?.sportType || '')
+  const sportIcon = getSportIcon(activeCategory?.sportType || tournament?.sportType || '')
 
   if (loading && !tournament) return <div className="p-8 text-center font-black text-slate-400 uppercase tracking-widest">Cargando Torneo...</div>
   if (!tournament) return <div className="p-8 text-center text-slate-400 font-bold italic">No se encontró el torneo.</div>
@@ -1348,7 +1407,7 @@ export default function TournamentPage() {
               {/* Botón Nueva Categoría Fila Grande */}
               <div className="mb-6">
                 <button 
-                  onClick={() => setShowNewCategoryModal(true)}
+                  onClick={handleStartNewCategoryFlow}
                   className="w-full py-4 bg-[#0A1128] hover:bg-[#1e293b] text-white font-black text-xs uppercase tracking-widest rounded-2xl border border-transparent transition-all hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg"
                 >
                   Nueva categoría
@@ -2801,6 +2860,95 @@ export default function TournamentPage() {
           setExportView={setExportView}
           onClose={() => setShowExportModal(false)}
         />
+      )}
+
+      {showCatSportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500]" onClick={() => setShowCatSportModal(false)}>
+          <div className="bg-white rounded-[2rem] p-8 max-w-3xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-black text-slate-800 mb-2 text-center">🎯 Selecciona la Modalidad</h2>
+            <p className="text-slate-500 font-bold text-center mb-6">Elige el deporte para la nueva categoría</p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {sports.map((sport) => (
+                <button
+                  key={sport.id}
+                  onClick={() => {
+                    setSelectedCatSport(sport.id)
+                    setShowCatSportModal(false)
+                    setTimeout(() => setShowCatCriteriaModal(true), 100)
+                  }}
+                  className="p-4 border-2 border-slate-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50/50 transition-all text-center group active:scale-95"
+                >
+                  <div className="text-3xl mb-2">{sport.icon}</div>
+                  <div className="text-sm font-black text-slate-700 group-hover:text-blue-600 uppercase tracking-tight">{sport.name}</div>
+                </button>
+              ))}
+            </div>
+
+            <button onClick={() => setShowCatSportModal(false)} className="mt-6 w-full py-4 text-slate-400 hover:text-slate-600 font-black text-xs uppercase tracking-widest transition-all">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showCatCriteriaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500]" onClick={() => setShowCatCriteriaModal(false)}>
+          <div className="bg-white rounded-[2rem] p-8 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-black text-slate-800 mb-2 text-center">Criterio de Clasificación</h2>
+            <p className="text-slate-500 font-bold text-center mb-6">Arrastra los criterios para cambiar el orden de prioridad</p>
+            
+            <div className="space-y-3 mb-6">
+              {catClassificationCriteria.map((criterionId, index) => {
+                const criterion = CRITERIA_OPTIONS.find(c => c.id === criterionId)
+                return (
+                  <div
+                    key={criterionId}
+                    draggable
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      const draggedIndex = parseInt(e.dataTransfer.getData('index'))
+                      handleMoveCatCriteria(draggedIndex, index)
+                    }}
+                    onDragStart={(e) => e.dataTransfer.setData('index', index.toString())}
+                    className="flex items-center gap-4 p-4 border border-slate-100 rounded-2xl hover:border-blue-500 hover:bg-slate-50 cursor-move transition-all bg-white"
+                  >
+                    <span className="text-lg text-slate-400 font-black">⋮⋮</span>
+                    <div className="flex-1">
+                      <p className="font-black text-slate-800 text-sm uppercase tracking-tight">{criterion?.label}</p>
+                      <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">{criterion?.description}</p>
+                    </div>
+                    <div className="flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 rounded-full font-black text-xs">
+                      {index + 1}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex gap-4 mt-8 border-t border-slate-50 pt-6">
+              <button
+                onClick={() => {
+                  setShowCatCriteriaModal(false)
+                  setTimeout(() => setShowCatSportModal(true), 100)
+                }}
+                className="flex-1 py-4 border-2 border-slate-200 rounded-2xl text-slate-600 hover:bg-slate-50 font-bold text-xs uppercase tracking-widest transition-all"
+              >
+                Atrás
+              </button>
+              <button
+                onClick={() => {
+                  setShowCatCriteriaModal(false)
+                  setTimeout(() => setShowNewCategoryModal(true), 100)
+                }}
+                className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-blue-100"
+              >
+                Confirmar Criterios
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showNewCategoryModal && (
