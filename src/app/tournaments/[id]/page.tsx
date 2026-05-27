@@ -1312,6 +1312,7 @@ export default function TournamentPage() {
               if (tournament?.format === 'categorias') {
                 setActiveCategory(null)
                 setActiveMenu('inicio')
+                router.replace(`/tournaments/${tournamentId}`)
               }
             }}
             className={`flex items-center gap-3 mb-12 ${tournament?.format === 'categorias' ? 'cursor-pointer hover:opacity-80 transition-all' : ''}`}
@@ -1325,6 +1326,7 @@ export default function TournamentPage() {
               onClick={() => {
                 if (tournament?.format === 'categorias') {
                   setActiveCategory(null)
+                  router.replace(`/tournaments/${tournamentId}`)
                 }
                 setActiveMenu('inicio')
               }} 
@@ -1429,7 +1431,10 @@ export default function TournamentPage() {
                   {categories.map((cat: any) => (
                     <div 
                       key={cat.id} 
-                      onClick={() => setActiveCategory(cat)}
+                      onClick={() => {
+                        setActiveCategory(cat)
+                        router.replace(`/tournaments/${tournamentId}?categoryId=${cat.id}`)
+                      }}
                       className="p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 cursor-pointer transition-all flex justify-between items-center group hover:scale-[1.02]"
                     >
                       <div>
