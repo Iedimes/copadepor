@@ -1633,7 +1633,7 @@ export default function TournamentPage() {
                                  <span className="text-lg">☰</span> Tabla
                                </button>
                                <button onClick={() => { 
-                                 setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
+                                 setTempCriteria((activeCategory?.classificationCriteria || tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
                                  setShowCriteriaModal(true); 
                                }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                  <span className="text-lg">☑</span> Criterios de clasificación
@@ -1908,7 +1908,7 @@ export default function TournamentPage() {
                           <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowReorderModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); setExportView('menu'); setShowExportModal(true); }} />
                           <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
-                            setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
+                            setTempCriteria((activeCategory?.classificationCriteria || tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
                             setShowRoundActions(false); 
                             setShowCriteriaModal(true); 
                           }} />
@@ -2281,7 +2281,7 @@ export default function TournamentPage() {
               <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); setExportView('menu'); setShowExportModal(true); }} />
               <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); setShowTableConfig(true); }} />
               <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
-                setTempCriteria((tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
+                setTempCriteria((activeCategory?.classificationCriteria || tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
                 setShowConfigMenu(false); 
                 setShowCriteriaModal(true); 
               }} />
