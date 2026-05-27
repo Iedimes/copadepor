@@ -2098,6 +2098,7 @@ export default function TournamentPage() {
         <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-[100] p-4 lg:pr-[480px]">
           <EditResultModal 
             matchId={editingMatchId} 
+            isBasketball={isBasketball}
             onUpdate={d => setEditingMatchData({ id: editingMatchId, ...d })}
             onClose={() => { setShowEditResult(false); setEditingMatchId(null); setEditingMatchData(null); fetchData(); }} 
           />
@@ -3522,7 +3523,7 @@ function MenuOption({ icon, label, onClick, color = "text-white" }: { icon: stri
   )
 }
 
-function EditResultModal({ matchId, onClose, onUpdate }: { matchId: string, onClose: () => void, onUpdate: (d: any) => void }) {
+function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId: string, onClose: () => void, onUpdate: (d: any) => void, isBasketball?: boolean }) {
   const [match, setMatch] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [st, setSt] = useState('NO_REALIZADO')
