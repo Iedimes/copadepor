@@ -336,12 +336,23 @@ export default function TournamentPage() {
 
       // If format is categories, fetch categories
       let cats: any[] = []
+      let loadedActiveCat = activeCategory
       if (currentFormat === 'categorias') {
         const catRes = await fetch(`/api/categories?tournamentId=${tournamentId}`, { headers: { Authorization: `Bearer ${token}` } })
         if (catRes.ok) {
           const cData = await catRes.json()
           setCategories(cData)
           cats = cData
+          
+          // Auto-select category if categoryId query parameter exists in URL
+          const urlCatId = searchParams.get('categoryId')
+          if (urlCatId && !activeCategory) {
+            const found = cData.find((c: any) => c.id === urlCatId)
+            if (found) {
+              setActiveCategory(found)
+              loadedActiveCat = found
+            }
+          }
         }
       }
 
@@ -350,7 +361,7 @@ export default function TournamentPage() {
       if (mRes.ok) setMessages(await mRes.json())
 
       // If it's a categories tournament and no category is active, reset matches/teams/phases
-      if (currentFormat === 'categorias' && !activeCategory) {
+      if (currentFormat === 'categorias' && !loadedActiveCat) {
         setMatches([])
         setTournamentTeams([])
         setPhases([])
@@ -358,7 +369,7 @@ export default function TournamentPage() {
         return
       }
 
-      const categoryQueryParam = (currentFormat === 'categorias' && activeCategory) ? `&categoryId=${activeCategory.id}` : ''
+      const categoryQueryParam = (currentFormat === 'categorias' && loadedActiveCat) ? `&categoryId=${loadedActiveCat.id}` : ''
 
       const [matchesRes, teamsRes, allTeamsRes, phasesRes] = await Promise.all([
         fetch(`/api/tournaments/${tournamentId}/matches?t=${Date.now()}${categoryQueryParam}`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -602,6 +613,7 @@ export default function TournamentPage() {
       order: p.order,
       isClassification: p.isClassification !== undefined ? p.isClassification : true,
       continueFromId: p.continueFromId || null,
+      categoryId: p.categoryId || activeCategory?.id || null,
       teams: Array.isArray(teams) ? teams : []
     })
     setShowPhasesList(false)
@@ -2066,7 +2078,7 @@ export default function TournamentPage() {
                   </p>
                   <div className="space-y-3">
                     <button
-                      onClick={() => { setShowGenType(false); router.push(`/tournaments/${tournamentId}/add-teams`) }}
+                      onClick={() => { setShowGenType(false); router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`) }}
                       className="w-full p-5 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition-all shadow-lg"
                     >
                       👥 Agregar Equipos
@@ -2204,7 +2216,7 @@ export default function TournamentPage() {
           <div className="bg-[#0F172A] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="p-4 space-y-1">
 
-              <MenuOption icon="👥" label="Equipos" onClick={() => { setShowConfigMenu(false); router.push(`/tournaments/${tournamentId}/add-teams`); }} />
+              <MenuOption icon="👥" label="Equipos" onClick={() => { setShowConfigMenu(false); router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`); }} />
               <MenuOption icon="💠" label="Grupos" onClick={() => { setShowConfigMenu(false); setShowGroupsModal(true); }} />
               <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); setShowPhasesList(true); }} />
               <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); setExportView('menu'); setShowExportModal(true); }} />
@@ -2499,7 +2511,7 @@ export default function TournamentPage() {
             <h3 className="text-xl font-black text-center mb-8 text-slate-900">Fases</h3>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">1° Fase</div>
             <div className="space-y-3">
-              <button onClick={() => { setEditPhaseData({ name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', type: 'LIGA', order: phases.length, isClassification: true, continueFromId: null, teams: tournamentTeams.map((t: any) => t.team.id) }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
+              <button onClick={() => { setEditPhaseData({ name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', type: 'LIGA', order: phases.length, isClassification: true, continueFromId: null, categoryId: activeCategory?.id || null, teams: tournamentTeams.map((t: any) => t.team.id) }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
               <button onClick={() => { 
                 const suggested = getSuggestedQualifiedTeams();
                 const defaultTeams = suggested.length > 0 ? suggested : tournamentTeams.map((t: any) => t.team.id);
@@ -2509,6 +2521,7 @@ export default function TournamentPage() {
                   order: phases.length, 
                   isClassification: true, 
                   continueFromId: null, 
+                  categoryId: activeCategory?.id || null,
                   teams: defaultTeams 
                 }); 
                 setShowPhaseType(false); 

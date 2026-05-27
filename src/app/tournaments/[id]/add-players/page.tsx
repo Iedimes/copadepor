@@ -39,6 +39,7 @@ export default function AddPlayersPage() {
   const tournamentId = params.id as string
   const teamId = searchParams.get('teamId') || ''
   const teamName = decodeURIComponent(searchParams.get('teamName') || 'Equipo')
+  const categoryId = searchParams.get('categoryId')
 
   useEffect(() => {
     if (teamId) {
@@ -106,7 +107,8 @@ export default function AddPlayersPage() {
   }
 
   const handleGoBack = () => {
-    router.push(`/tournaments/${tournamentId}/add-teams`)
+    const categoryQuery = categoryId ? `?categoryId=${categoryId}` : ''
+    router.push(`/tournaments/${tournamentId}/add-teams${categoryQuery}`)
   }
 
   const handleOpenModal = (member: TeamMember) => {

@@ -103,11 +103,13 @@ export default function AddTeamsPage() {
   }
 
   const handleGoBack = () => {
-    router.push(`/tournaments/${tournamentId}?view=clasificacion`)
+    const categoryQuery = categoryId ? `&categoryId=${categoryId}` : ''
+    router.push(`/tournaments/${tournamentId}?view=clasificacion${categoryQuery}`)
   }
 
   const handleAddPlayers = (teamId: string, teamName: string) => {
-    router.push(`/tournaments/${tournamentId}/add-players?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}`)
+    const categoryQuery = categoryId ? `&categoryId=${categoryId}` : ''
+    router.push(`/tournaments/${tournamentId}/add-players?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}${categoryQuery}`)
   }
 
   if (loading) {
