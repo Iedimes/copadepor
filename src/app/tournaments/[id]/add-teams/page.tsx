@@ -8,6 +8,8 @@ interface Team {
   name: string
   logo: string | null
   color: string | null
+  teamMembers?: any[]
+  players?: any[]
 }
 
 interface AddedTeam {
@@ -27,6 +29,12 @@ export default function AddTeamsPage() {
   const [loading, setLoading] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Managed Teams & UI State
+  const [teams, setTeams] = useState<Team[]>([])
+  const [activeTab, setActiveTab] = useState<'create' | 'existing'>('create')
+  const [selectedTeamId, setSelectedTeamId] = useState('')
+  const [assigning, setAssigning] = useState(false)
+
   // Edit state
   const [editingTeam, setEditingTeam] = useState<AddedTeam | null>(null)
   const [editName, setEditName] = useState('')
@@ -40,7 +48,24 @@ export default function AddTeamsPage() {
 
   useEffect(() => {
     fetchAddedTeams()
+    fetchManagedTeams()
   }, [tournamentId, categoryId])
+
+  const fetchManagedTeams = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    try {
+      const res = await fetch('/api/teams', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setTeams(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error fetching managed teams:', error)
+    }
+  }
 
   const fetchAddedTeams = async () => {
     setLoading(true)
@@ -102,6 +127,7 @@ export default function AddTeamsPage() {
 
         setNewTeamName('')
         fetchAddedTeams()
+        fetchManagedTeams()
       }
     } catch (error) {
       console.error('Error adding team:', error)
@@ -112,6 +138,46 @@ export default function AddTeamsPage() {
     setTimeout(() => {
       inputRef.current?.focus()
     }, 100)
+  }
+
+  const handleAssignExistingTeam = async (clone: boolean) => {
+    if (!selectedTeamId) return
+
+    setAssigning(true)
+    const token = localStorage.getItem('token')
+    if (!token) {
+      alert('No hay sesión activa.')
+      setAssigning(false)
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/teams`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          teamId: selectedTeamId,
+          categoryId: categoryId || null,
+          clone: clone
+        }),
+      })
+
+      if (res.ok) {
+        setSelectedTeamId('')
+        fetchAddedTeams()
+        fetchManagedTeams()
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Error al agregar equipo')
+      }
+    } catch (error) {
+      console.error('Error assigning team:', error)
+      alert('Error al agregar equipo')
+    }
+    setAssigning(false)
   }
 
   const handleGoBack = () => {
@@ -194,6 +260,11 @@ export default function AddTeamsPage() {
     setSavingEdit(false)
   }
 
+  // Filter out teams that are already added to this category/tournament view
+  const availableTeams = teams.filter(
+    (t) => !addedTeams.some((at) => at.teamId === t.id)
+  )
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -214,27 +285,112 @@ export default function AddTeamsPage() {
 
       {/* Content */}
       <div className="max-w-2xl mx-auto p-6">
-        {/* Formulario para agregar equipo */}
-        <form onSubmit={handleAddTeam} className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-bold mb-4">Nuevo Equipo</h2>
-          <div className="flex gap-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              placeholder="Nombre del equipo (Enter para agregar)"
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"
-            />
+        {/* Formulario/Panel para agregar equipo con pestañas */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100/50">
+          <div className="flex border-b border-gray-100 pb-3 mb-6 gap-6">
             <button
-              type="submit"
-              disabled={saving || !newTeamName.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"
+              onClick={() => setActiveTab('create')}
+              className={`pb-2 font-bold text-sm uppercase tracking-wider border-b-2 transition-all ${
+                activeTab === 'create'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
             >
-              {saving ? 'Agregando...' : 'Agregar'}
+              🆕 Crear Nuevo
+            </button>
+            <button
+              onClick={() => setActiveTab('existing')}
+              className={`pb-2 font-bold text-sm uppercase tracking-wider border-b-2 transition-all ${
+                activeTab === 'existing'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              📋 Usar Existente
             </button>
           </div>
-        </form>
+
+          {activeTab === 'create' ? (
+            <form onSubmit={handleAddTeam} className="space-y-4">
+              <h3 className="text-md font-bold text-gray-700 uppercase tracking-wide">Crear Equipo en Blanco</h3>
+              <div className="flex gap-3">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  placeholder="Nombre del equipo (Ej: Los Leones)"
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-800 placeholder-gray-400 font-medium"
+                />
+                <button
+                  type="submit"
+                  disabled={saving || !newTeamName.trim()}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-bold transition-all shadow-md active:scale-95"
+                >
+                  {saving ? 'Creando...' : 'Crear'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-md font-bold text-gray-700 uppercase tracking-wide mb-2">Asignar Equipo del Club</h3>
+                <p className="text-xs text-gray-400 font-medium">Asigna un equipo que ya tengas registrado o clónalo con su plantel actual para este torneo.</p>
+              </div>
+
+              {availableTeams.length === 0 ? (
+                <div className="text-center py-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                  <span className="text-3xl block mb-2">📋</span>
+                  <span className="text-sm text-slate-400 font-bold">No hay otros equipos disponibles para asignar</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Selecciona un Equipo</label>
+                    <select
+                      value={selectedTeamId}
+                      onChange={(e) => setSelectedTeamId(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-800 font-bold bg-white"
+                    >
+                      <option value="">-- Elige un equipo --</option>
+                      {availableTeams.map((t) => {
+                        const membersCount = t.teamMembers?.length || 0;
+                        const playersCount = t.players?.length || 0;
+                        const totalRoster = membersCount + playersCount;
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({totalRoster} integrantes)
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      type="button"
+                      disabled={assigning || !selectedTeamId}
+                      onClick={() => handleAssignExistingTeam(false)}
+                      className="flex-1 px-5 py-3.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 disabled:opacity-50 font-bold transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <span>🔗</span>
+                      <span>{assigning ? 'Asignando...' : 'Asignar al Torneo'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={assigning || !selectedTeamId}
+                      onClick={() => handleAssignExistingTeam(true)}
+                      className="flex-1 px-5 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-bold transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <span>👯</span>
+                      <span>{assigning ? 'Copiando...' : 'Copiar Equipo con Plantilla'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Lista de equipos agregados */}
         <div className="bg-white rounded-xl shadow-lg p-6">

@@ -6,6 +6,7 @@ import { z } from 'zod'
 const teamSchema = z.object({
   teamId: z.string(),
   categoryId: z.string().optional().nullable(),
+  clone: z.boolean().optional().default(false),
 })
 
 function getAuthToken(request: NextRequest): string | null {
@@ -89,22 +90,79 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const body = await request.json()
     const validated = teamSchema.parse(body)
 
+    let finalTeamId = validated.teamId
+
+    // Si se especificó clonar, duplicar el equipo y todos sus integrantes
+    if (validated.clone) {
+      const originalTeam = await prisma.team.findUnique({
+        where: { id: validated.teamId },
+        include: {
+          teamMembers: true,
+          players: true,
+        },
+      })
+
+      if (!originalTeam) {
+        return NextResponse.json({ error: 'El equipo original no existe' }, { status: 404 })
+      }
+
+      // Crear nuevo equipo duplicado
+      const clonedTeam = await prisma.team.create({
+        data: {
+          name: `${originalTeam.name} (Copia)`,
+          logo: originalTeam.logo,
+          color: originalTeam.color,
+          coach: originalTeam.coach,
+          managerId: payload.userId,
+        },
+      })
+
+      // Duplicar integrantes del cuerpo técnico/locales
+      if (originalTeam.teamMembers.length > 0) {
+        await prisma.teamMember.createMany({
+          data: originalTeam.teamMembers.map((m) => ({
+            teamId: clonedTeam.id,
+            name: m.name,
+            role: m.role,
+            number: m.number,
+            phone: m.phone,
+            isActive: m.isActive,
+          })),
+        })
+      }
+
+      // Duplicar enlaces a jugadores globales (TeamPlayer)
+      if (originalTeam.players.length > 0) {
+        await prisma.teamPlayer.createMany({
+          data: originalTeam.players.map((p) => ({
+            teamId: clonedTeam.id,
+            playerId: p.playerId,
+            number: p.number,
+            isCaptain: p.isCaptain,
+            isActive: p.isActive,
+          })),
+        })
+      }
+
+      finalTeamId = clonedTeam.id
+    }
+
     const existing = await prisma.tournamentTeam.findFirst({
       where: { 
         tournamentId: params.id, 
-        teamId: validated.teamId,
+        teamId: finalTeamId,
         ...(validated.categoryId && { categoryId: validated.categoryId })
       },
     })
 
     if (existing) {
-      return NextResponse.json({ error: 'El equipo ya está registrado' }, { status: 400 })
+      return NextResponse.json({ error: 'El equipo ya está registrado en esta categoría' }, { status: 400 })
     }
 
     const tournamentTeam = await prisma.tournamentTeam.create({
       data: {
         tournamentId: params.id,
-        teamId: validated.teamId,
+        teamId: finalTeamId,
         categoryId: validated.categoryId || null,
       },
       include: {
