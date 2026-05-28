@@ -149,23 +149,59 @@ export default function DashboardPage() {
     setClassificationCriteria(newCriteria)
   }
 
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    tournament: Tournament
+    details: { teams: number; matches: number; categories: number; phases: number; sponsors: number; news: number }
+  } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
   const handleDeleteTournament = async (e: React.MouseEvent, tournament: Tournament) => {
     e.stopPropagation()
-    if (!confirm(`¿Eliminar "${tournament.name}"?`)) return
     
     const token = localStorage.getItem('token')
+    
+    // First attempt without force - check if tournament has data
     const res = await fetch(`/api/tournaments/${tournament.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
     
     if (res.ok) {
+      // Tournament had no data and was deleted directly
       setTournaments(tournaments.filter(t => t.id !== tournament.id))
       setStats({ ...stats, tournaments: stats.tournaments - 1 })
+      return
+    }
+    
+    const data = await res.json()
+    
+    if (res.status === 409 && data.error === 'CONFIRM_DELETE') {
+      // Tournament has data - show confirmation modal
+      setDeleteConfirm({ tournament, details: data.details })
+    } else {
+      alert(data.error || 'Error al eliminar')
+    }
+  }
+
+  const handleConfirmForceDelete = async () => {
+    if (!deleteConfirm) return
+    setDeleting(true)
+    
+    const token = localStorage.getItem('token')
+    const res = await fetch(`/api/tournaments/${deleteConfirm.tournament.id}?force=true`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    
+    if (res.ok) {
+      setTournaments(tournaments.filter(t => t.id !== deleteConfirm.tournament.id))
+      setStats({ ...stats, tournaments: stats.tournaments - 1 })
+      setDeleteConfirm(null)
     } else {
       const err = await res.json()
       alert(err.error || 'Error al eliminar')
     }
+    setDeleting(false)
   }
 
   const handleCreateChampionship = async () => {
@@ -496,6 +532,80 @@ export default function DashboardPage() {
                 className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"
               >
                 {loading ? 'Creando...' : 'Crear Campeonato'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmar Eliminación */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDeleteConfirm(null)}>
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">¿Eliminar Campeonato?</h2>
+            <p className="text-gray-600 text-center mb-4">
+              <strong>&quot;{deleteConfirm.tournament.name}&quot;</strong> tiene datos asociados que se perderán:
+            </p>
+            
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 space-y-2">
+              {deleteConfirm.details.teams > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">🏟️ Equipos inscritos</span>
+                  <span className="font-semibold text-red-700">{deleteConfirm.details.teams}</span>
+                </div>
+              )}
+              {deleteConfirm.details.matches > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">⚽ Partidos</span>
+                  <span className="font-semibold text-red-700">{deleteConfirm.details.matches}</span>
+                </div>
+              )}
+              {deleteConfirm.details.categories > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">📂 Categorías</span>
+                  <span className="font-semibold text-red-700">{deleteConfirm.details.categories}</span>
+                </div>
+              )}
+              {deleteConfirm.details.phases > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">📋 Fases</span>
+                  <span className="font-semibold text-red-700">{deleteConfirm.details.phases}</span>
+                </div>
+              )}
+              {deleteConfirm.details.sponsors > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">💰 Patrocinadores</span>
+                  <span className="font-semibold text-red-700">{deleteConfirm.details.sponsors}</span>
+                </div>
+              )}
+              {deleteConfirm.details.news > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-700">📰 Noticias</span>
+                  <span className="font-semibold text-red-700">{deleteConfirm.details.news}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-sm text-red-600 text-center mb-6 font-medium">
+              Esta acción no se puede deshacer.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 transition font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmForceDelete}
+                disabled={deleting}
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 transition font-medium"
+              >
+                {deleting ? 'Eliminando...' : 'Sí, Eliminar'}
               </button>
             </div>
           </div>

@@ -112,6 +112,26 @@ const CRITERIA_OPTIONS = [
   { id: 'W_O', label: 'W.O. (Walkover)', description: 'Victorias por incomparecencia' },
 ]
 
+const getColLabel = (colId: string, isBasketball: boolean) => {
+  if (isBasketball) {
+    if (colId === 'gf') return 'Anotaciones Favor'
+    if (colId === 'ga') return 'Anotaciones Contra'
+    if (colId === 'diff') return 'Diferencia Anotaciones'
+    if (colId === 'avg') return 'Promedio Anotaciones'
+  }
+  if (colId === 'gf') return 'Goles a Favor'
+  if (colId === 'ga') return 'Goles Contra'
+  if (colId === 'diff') return 'Diferencia de Goles'
+  if (colId === 'avg') return 'Promedio de goles'
+  
+  const defaults: Record<string, string> = {
+    points: 'Puntos', played: 'Juegos', won: 'Ganados', drawn: 'Empates', lost: 'Perdido',
+    perc: 'Aprovechamiento', pe: 'Puntos Extras', red: 'Tarjeta roja', yellow: 'Tarjeta amarilla',
+    blue: 'Tarjeta azul', allCards: 'Todas las tarjetas', fairPlay: 'Juego Limpio', technique: 'Index technique'
+  }
+  return defaults[colId] || colId
+}
+
 export default function TournamentPage() {
   const params = useParams()
   const router = useRouter()
@@ -1764,7 +1784,7 @@ export default function TournamentPage() {
                                           <th className="p-4 text-center w-16">Pos</th>
                                           <th className="p-4 text-left min-w-[150px]">EQUIPOS</th>
                                           {tableColumns.filter(c => c.visible).map(col => (
-                                            <th key={col.id} className="p-4 text-center">{col.id === 'perc' ? '%' : col.label.split(' ').map(w => w[0]).join('').toUpperCase()}</th>
+                                            <th key={col.id} className="p-4 text-center">{col.id === 'perc' ? '%' : getColLabel(col.id, isBasketball).split(' ').map(w => w[0]).join('').toUpperCase()}</th>
                                           ))}
                                         </tr>
                                       </thead>
@@ -2084,8 +2104,8 @@ export default function TournamentPage() {
 
             {/* Global Rankings Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-8">
-              <RankingCard title="Mejor ataque" label="Goles" data={getTeamRankings().bestAttack} field="gf" />
-              <RankingCard title="Mejor defensa" label="Goles" data={getTeamRankings().bestDefense} field="ga" />
+              <RankingCard title="Mejor ataque" label={isBasketball ? "Anotaciones" : "Goles"} data={getTeamRankings().bestAttack} field="gf" />
+              <RankingCard title="Mejor defensa" label={isBasketball ? "Anotaciones" : "Goles"} data={getTeamRankings().bestDefense} field="ga" />
               <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
               <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
             </div>
@@ -2330,7 +2350,9 @@ export default function TournamentPage() {
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center shadow-lg">{i + 1}</span>
                     <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                      {c.replace(/_/g, ' ')}
+                      {c === 'GOLES' && isBasketball ? 'Diferencia Anotaciones' :
+                       c === 'GOLES_A_FAVOR' && isBasketball ? 'Anotaciones a Favor' :
+                       c.replace(/_/g, ' ')}
                     </span>
                   </div>
                   <div className="text-slate-300 group-hover:text-blue-500 transition-colors">
@@ -2803,7 +2825,7 @@ export default function TournamentPage() {
                   }}
                   className={`flex items-center justify-between p-3 rounded-2xl transition-all ${draggedColIdx === idx ? 'opacity-50 bg-blue-50' : 'hover:bg-white hover:shadow-sm'}`}
                 >
-                  <span className="text-sm font-bold text-slate-600">{col.label}</span>
+                  <span className="text-sm font-bold text-slate-600">{getColLabel(col.id, isBasketball)}</span>
                   <div className="flex items-center gap-3">
                     <input 
                       type="checkbox" 
@@ -2869,6 +2891,7 @@ export default function TournamentPage() {
           tableColumns={tableColumns}
           exportView={exportView}
           setExportView={setExportView}
+          isBasketball={isBasketball}
           onClose={() => setShowExportModal(false)}
         />
       )}
@@ -2927,8 +2950,16 @@ export default function TournamentPage() {
                   >
                     <span className="text-lg text-slate-400 font-black">⋮⋮</span>
                     <div className="flex-1">
-                      <p className="font-black text-slate-800 text-sm uppercase tracking-tight">{criterion?.label}</p>
-                      <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">{criterion?.description}</p>
+                      <p className="font-black text-slate-800 text-sm uppercase tracking-tight">
+                        {criterionId === 'GOLES' && selectedCatSport === 'BALONCESTO' ? 'Diferencia Anotaciones' :
+                         criterionId === 'GOLES_A_FAVOR' && selectedCatSport === 'BALONCESTO' ? 'Anotaciones a Favor' :
+                         criterion?.label}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">
+                        {criterionId === 'GOLES' && selectedCatSport === 'BALONCESTO' ? 'Diferencia de anotaciones marcadas y recibidas' :
+                         criterionId === 'GOLES_A_FAVOR' && selectedCatSport === 'BALONCESTO' ? 'Total de anotaciones marcadas' :
+                         criterion?.description}
+                      </p>
                     </div>
                     <div className="flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 rounded-full font-black text-xs">
                       {index + 1}
@@ -4496,7 +4527,7 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
   )
 }
 
-function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exportView, setExportView, onClose }: any) {
+function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exportView, setExportView, isBasketball, onClose }: any) {
   const [selectedStyle, setSelectedStyle] = useState(1)
   const [isGenerating, setIsGenerating] = useState(false)
   const [showEmbedCode, setShowEmbedCode] = useState(false)
@@ -4555,7 +4586,10 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
     
     // Header Row Object
     const headerRow: any = { Pos: 'Pos', Equipo: 'Equipo' }
-    visibleCols.forEach((col: any) => { headerRow[col.label] = col.label })
+    visibleCols.forEach((col: any) => { 
+      const label = getColLabel(col.id, isBasketball)
+      headerRow[label] = label 
+    })
 
     if (isGrouped) {
       const grouped = dataToExport.reduce((acc: any, curr: any) => {
@@ -4570,7 +4604,10 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
         rows.push(headerRow)
         teams.forEach((s: any, idx: number) => {
           const row: any = { Pos: idx + 1, Equipo: s.name }
-          visibleCols.forEach((col: any) => { row[col.label] = s[col.id] || 0 })
+          visibleCols.forEach((col: any) => { 
+            const label = getColLabel(col.id, isBasketball)
+            row[label] = s[col.id] || 0 
+          })
           rows.push(row)
         })
         rows.push({}) // Spacer
@@ -4579,7 +4616,10 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
       rows.push(headerRow)
       dataToExport.forEach((s: any, idx: number) => {
         const row: any = { Pos: idx + 1, Equipo: s.name }
-        visibleCols.forEach((col: any) => { row[col.label] = s[col.id] || 0 })
+        visibleCols.forEach((col: any) => { 
+          const label = getColLabel(col.id, isBasketball)
+          row[label] = s[col.id] || 0 
+        })
         rows.push(row)
       })
     }
@@ -4610,9 +4650,18 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
         <tr className="uppercase tracking-widest font-black text-[10px]">
           <th className="p-3 text-center w-10">Pos</th>
           <th className="p-3 text-left min-w-[150px]">Equipo</th>
-          {visibleCols.map((col: any) => (
-            <th key={col.id} className="p-3 text-center w-12">{col.id.toUpperCase()}</th>
-          ))}
+          {visibleCols.map((col: any) => {
+            let sigla = col.id.toUpperCase()
+            if (isBasketball) {
+              if (col.id === 'gf') sigla = 'AF'
+              if (col.id === 'ga') sigla = 'AC'
+              if (col.id === 'diff') sigla = 'DA'
+              if (col.id === 'avg') sigla = 'PA'
+            }
+            return (
+              <th key={col.id} className="p-3 text-center w-12">{sigla}</th>
+            )
+          })}
         </tr>
       </thead>
     )
