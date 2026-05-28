@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
       include: {
         manager: { select: { id: true, name: true } },
         players: { include: { player: true } },
+        teamMembers: true,
       },
       orderBy: { name: 'asc' },
     })
