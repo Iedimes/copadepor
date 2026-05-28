@@ -109,7 +109,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       // Crear nuevo equipo duplicado
       const clonedTeam = await prisma.team.create({
         data: {
-          name: `${originalTeam.name} (Copia)`,
+          name: originalTeam.name,
           logo: originalTeam.logo,
           color: originalTeam.color,
           coach: originalTeam.coach,
@@ -223,5 +223,48 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       error: 'Error al actualizar equipos', 
       details: error instanceof Error ? error.message : String(error) 
     }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const token = getAuthToken(request)
+  if (!token) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  const payload = verifyToken(token)
+  if (!payload) {
+    return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+  }
+
+  try {
+    const { searchParams } = new URL(request.url)
+    const teamId = searchParams.get('teamId')
+
+    if (!teamId) {
+      return NextResponse.json({ error: 'teamId requerido' }, { status: 400 })
+    }
+
+    // Validar que el usuario sea el organizador del torneo
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!tournament || tournament.organizerId !== payload.userId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+
+    // Eliminar la asociación del equipo con el torneo en la tabla TournamentTeam
+    await prisma.tournamentTeam.deleteMany({
+      where: {
+        tournamentId: params.id,
+        teamId: teamId,
+      },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Delete tournament team error:', error)
+    return NextResponse.json({ error: 'Error al eliminar el equipo del torneo' }, { status: 500 })
   }
 }

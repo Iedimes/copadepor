@@ -180,6 +180,34 @@ export default function AddTeamsPage() {
     setAssigning(false)
   }
 
+  const handleRemoveTeam = async (teamId: string, teamName: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar al equipo "${teamName}" del torneo?`)) return
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      alert('No hay sesión activa.')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/teams?teamId=${teamId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (res.ok) {
+        fetchAddedTeams()
+        fetchManagedTeams()
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Error al eliminar equipo')
+      }
+    } catch (error) {
+      console.error('Error removing team:', error)
+      alert('Error al eliminar equipo')
+    }
+  }
+
   const handleGoBack = () => {
     const categoryQuery = categoryId ? `&categoryId=${categoryId}` : ''
     router.push(`/tournaments/${tournamentId}?view=clasificacion${categoryQuery}`)
@@ -334,8 +362,8 @@ export default function AddTeamsPage() {
           ) : (
             <div className="space-y-6">
               <div>
-                <h3 className="text-md font-bold text-gray-700 uppercase tracking-wide mb-2">Asignar Equipo del Club</h3>
-                <p className="text-xs text-gray-400 font-medium">Asigna un equipo que ya tengas registrado o clónalo con su plantel actual para este torneo.</p>
+                <h3 className="text-md font-bold text-gray-700 uppercase tracking-wide mb-2">Importar Equipo con Plantilla</h3>
+                <p className="text-xs text-gray-400 font-medium">Crea una copia independiente de un equipo registrado junto con todo su cuerpo técnico e integrantes para este torneo.</p>
               </div>
 
               {availableTeams.length === 0 ? (
@@ -366,21 +394,12 @@ export default function AddTeamsPage() {
                     </select>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button
-                      type="button"
-                      disabled={assigning || !selectedTeamId}
-                      onClick={() => handleAssignExistingTeam(false)}
-                      className="flex-1 px-5 py-3.5 bg-slate-800 text-white rounded-xl hover:bg-slate-900 disabled:opacity-50 font-bold transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
-                    >
-                      <span>🔗</span>
-                      <span>{assigning ? 'Asignando...' : 'Asignar al Torneo'}</span>
-                    </button>
+                  <div className="pt-2">
                     <button
                       type="button"
                       disabled={assigning || !selectedTeamId}
                       onClick={() => handleAssignExistingTeam(true)}
-                      className="flex-1 px-5 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-bold transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                      className="w-full px-5 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-bold transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
                     >
                       <span>👯</span>
                       <span>{assigning ? 'Copiando...' : 'Copiar Equipo con Plantilla'}</span>
@@ -443,6 +462,13 @@ export default function AddTeamsPage() {
                       title="Gestionar Jugadores"
                     >
                       <span className="text-lg">👥</span>
+                    </button>
+                    <button
+                      onClick={() => handleRemoveTeam(tt.team.id, tt.team.name)}
+                      className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                      title="Eliminar del Torneo"
+                    >
+                      <span className="text-lg">🗑️</span>
                     </button>
                   </div>
                 </div>
