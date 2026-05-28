@@ -114,6 +114,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           color: originalTeam.color,
           coach: originalTeam.coach,
           managerId: payload.userId,
+          parentTeamId: originalTeam.id,
         },
       })
 
@@ -261,6 +262,24 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         teamId: teamId,
       },
     })
+
+    // Limpieza de clones huérfanos: Si el equipo ya no participa en ningún otro torneo o categoría, lo eliminamos de forma definitiva de la base de datos para no saturar el panel principal
+    try {
+      const otherAssociations = await prisma.tournamentTeam.findFirst({
+        where: {
+          teamId: teamId,
+        },
+      })
+
+      if (!otherAssociations) {
+        // Eliminar cascada de roster local y global, luego el equipo en sí
+        await prisma.teamPlayer.deleteMany({ where: { teamId } })
+        await prisma.teamMember.deleteMany({ where: { teamId } })
+        await prisma.team.delete({ where: { id: teamId } })
+      }
+    } catch (cleanError) {
+      console.warn('No se pudo borrar el registro del equipo por dependencias activas (ej: fixture generado), se mantiene la integridad referencial.', cleanError)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -29,9 +29,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const tournamentId = searchParams.get('tournamentId')
 
-  const where: Record<string, unknown> = { managerId: payload.userId }
+  const where: Record<string, any> = { managerId: payload.userId }
   if (tournamentId) {
     where.tournamentTeams = { some: { tournamentId } }
+  } else {
+    // Si se consulta el listado general, excluimos los equipos clonados/copias de torneos
+    where.parentTeamId = null
   }
 
   let teams

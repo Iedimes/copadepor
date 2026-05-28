@@ -163,6 +163,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
               playerId: playerProfile.id,
             },
           })
+
+          // Registrar en el historial de transferencias
+          await prisma.playerTransfer.create({
+            data: {
+              playerId: playerProfile.id,
+              fromTeamId: null,
+              toTeamId: targetTeamId,
+            },
+          })
         }
 
         // Eliminar el TeamMember local original
@@ -233,7 +242,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       },
     })
 
-    // Actualizar equipo (transferencia)
+    // Actualizar equipo (transferencia) y registrar en el historial
     if (targetTeamId !== currentTeamId) {
       // Eliminar relaciones anteriores
       await prisma.teamPlayer.deleteMany({
@@ -249,6 +258,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
           },
         })
       }
+
+      // Registrar transferencia en el historial
+      await prisma.playerTransfer.create({
+        data: {
+          playerId: params.id,
+          fromTeamId: currentTeamId,
+          toTeamId: targetTeamId,
+        },
+      })
     }
 
     return NextResponse.json({ id: params.id, name: validated.name })

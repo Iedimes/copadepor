@@ -82,13 +82,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1. Obtener todos los perfiles de jugadores globales
+    // 1. Obtener todos los perfiles de jugadores globales con su historial de transferencias
     const players = await prisma.playerProfile.findMany({
       include: {
         user: { select: { name: true } },
         teamPlayers: {
           include: {
             team: { select: { id: true, name: true, color: true } },
+          },
+        },
+        transfers: {
+          include: {
+            fromTeam: { select: { id: true, name: true } },
+            toTeam: { select: { id: true, name: true } },
+          },
+          orderBy: {
+            transferredAt: 'desc',
           },
         },
       },
@@ -124,6 +133,12 @@ export async function GET(request: NextRequest) {
           name: activeTeamPlayer.team.name,
           color: activeTeamPlayer.team.color || '#3b82f6',
         } : null,
+        transfers: p.transfers.map((t) => ({
+          id: t.id,
+          fromTeam: t.fromTeam ? { id: t.fromTeam.id, name: t.fromTeam.name } : null,
+          toTeam: t.toTeam ? { id: t.toTeam.id, name: t.toTeam.name } : null,
+          transferredAt: t.transferredAt.toISOString(),
+        })),
       }
     })
 
@@ -140,6 +155,7 @@ export async function GET(request: NextRequest) {
           name: m.team.name,
           color: m.team.color || '#3b82f6',
         } : null,
+        transfers: [],
       }
     })
 
@@ -215,12 +231,21 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Si se especificó equipo, agregarlo en TeamPlayer
+    // Si se especificó equipo, agregarlo en TeamPlayer y registrar en el historial
     if (validated.teamId) {
       await prisma.teamPlayer.create({
         data: {
           teamId: validated.teamId,
           playerId: playerProfile.id,
+        },
+      })
+
+      // Registrar transferencia inicial
+      await prisma.playerTransfer.create({
+        data: {
+          playerId: playerProfile.id,
+          fromTeamId: null,
+          toTeamId: validated.teamId,
         },
       })
     }

@@ -15,6 +15,12 @@ interface Player {
   dateOfBirth: string
   age: number
   isGlobal?: boolean
+  transfers?: {
+    id: string
+    fromTeam: { id: string; name: string } | null
+    toTeam: { id: string; name: string } | null
+    transferredAt: string
+  }[]
   team: {
     id: string
     name: string
@@ -26,6 +32,7 @@ export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editPlayer, setEditPlayer] = useState<Player | null>(null)
@@ -50,6 +57,10 @@ export default function PlayersPage() {
       age--
     }
     return age
+  }
+
+  const toggleTimeline = (playerId: string) => {
+    setExpandedTimelineId(expandedTimelineId === playerId ? null : playerId)
   }
 
   const filteredPlayers = players.filter((player) => {
@@ -228,67 +239,125 @@ export default function PlayersPage() {
           {filteredPlayers.length > 0 ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
               {filteredPlayers.map((player) => (
-                <div key={player.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50/50 transition-all gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-lg font-bold">
-                  👤
-                </div>
-                <div>
-                  <span className="block font-bold text-gray-800 text-lg flex items-center gap-2">
-                    {player.name}
-                    {player.isGlobal ? (
-                      <span className="text-[10px] font-black tracking-widest text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md uppercase select-none border border-emerald-200/50">
-                        Oficial
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-black tracking-widest text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md uppercase select-none border border-amber-200/50">
-                        Local
-                      </span>
-                    )}
-                  </span>
-                  <span className="block text-xs text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                    {player.isGlobal ? (
-                      <>Doc. Identidad: {player.dni} • Edad: {player.age} años ({player.dateOfBirth})</>
-                    ) : (
-                      <>Registro Local • Documento y Edad no registrados</>
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between sm:justify-end gap-6">
-                {/* Team Badge */}
-                <div>
-                  {player.team ? (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border" style={{ borderColor: player.team.color, color: player.team.color, backgroundColor: `${player.team.color}08` }}>
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: player.team.color }}></span>
-                      <span>{player.team.name}</span>
+                <div key={player.id} className="flex flex-col transition-all">
+                  {/* Fila Principal */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50/30 transition-all gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-lg font-bold">
+                        👤
+                      </div>
+                      <div>
+                        <span className="block font-bold text-gray-800 text-lg flex items-center gap-2">
+                          {player.name}
+                          {player.isGlobal ? (
+                            <span className="text-[10px] font-black tracking-widest text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md uppercase select-none border border-emerald-200/50">
+                              Oficial
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black tracking-widest text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md uppercase select-none border border-amber-200/50">
+                              Local
+                            </span>
+                          )}
+                        </span>
+                        <span className="block text-xs text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                          {player.isGlobal ? (
+                            <>Doc. Identidad: {player.dni} • Edad: {player.age} años ({player.dateOfBirth})</>
+                          ) : (
+                            <>Registro Local • Documento y Edad no registrados</>
+                          )}
+                        </span>
+                      </div>
                     </div>
-                  ) : (
-                    <span className="px-3 py-1.5 rounded-full text-xs font-bold text-gray-400 bg-gray-100 select-none">
-                      Sin Equipo
-                    </span>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-6">
+                      {/* Team Badge */}
+                      <div>
+                        {player.team ? (
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border" style={{ borderColor: player.team.color, color: player.team.color, backgroundColor: `${player.team.color}08` }}>
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: player.team.color }}></span>
+                            <span>{player.team.name}</span>
+                          </div>
+                        ) : (
+                          <span className="px-3 py-1.5 rounded-full text-xs font-bold text-gray-400 bg-gray-100 select-none">
+                            Sin Equipo
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => toggleTimeline(player.id)} 
+                          className={`px-3 py-1.5 text-xs rounded-lg font-bold transition-all border ${
+                            expandedTimelineId === player.id
+                              ? 'bg-blue-50 text-blue-600 border-blue-200'
+                              : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-200'
+                          }`}
+                        >
+                          📈 {expandedTimelineId === player.id ? 'Ocultar Trayecto' : 'Trayectoria'}
+                        </button>
+                        <button 
+                          onClick={() => openEdit(player)} 
+                          className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-blue-50 hover:text-blue-600 text-gray-600 rounded-lg font-bold transition-all border border-gray-200"
+                        >
+                          Editar / Transferir
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(player)} 
+                          className="px-3 py-1.5 text-xs bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-bold transition-all"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Panel Colapsable de Trayectoria (Timeline) */}
+                  {expandedTimelineId === player.id && (
+                    <div className="bg-slate-50/50 border-t border-slate-100 p-5 pl-16 animate-in slide-in-from-top duration-200">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5 select-none">
+                        📈 Trayectoria / Historial de Clubes
+                      </h4>
+                      {player.transfers && player.transfers.length > 0 ? (
+                        <div className="relative border-l border-blue-100 ml-2 space-y-4 py-1">
+                          {player.transfers.map((t, idx) => {
+                            const dateFormatted = new Date(t.transferredAt).toLocaleDateString('es-ES', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            });
+                            return (
+                              <div key={t.id} className="relative pl-6">
+                                {/* Bullet */}
+                                <div className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full border-2 bg-white ${
+                                  idx === 0 ? 'border-emerald-500 bg-emerald-50 w-3 h-3 -left-[6px]' : 'border-blue-400'
+                                }`} />
+                                
+                                <p className="text-sm font-semibold text-slate-700">
+                                  {idx === 0 ? (
+                                    <>
+                                      🟢 Incorporado a <span className="font-extrabold text-emerald-600">{t.toTeam?.name || 'Libre'}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      ⬅️ Transferido a <span className="font-bold text-slate-800">{t.toTeam?.name || 'Libre'}</span>
+                                    </>
+                                  )}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                  {t.fromTeam ? `Desde ${t.fromTeam.name}` : 'Desde Libre'} • {dateFormatted}
+                                </p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 font-semibold italic">Sin movimientos registrados. Se asigna automáticamente su historial al realizar transferencias oficiales.</p>
+                      )}
+                    </div>
                   )}
                 </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => openEdit(player)} 
-                    className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-blue-50 hover:text-blue-600 text-gray-600 rounded-lg font-bold transition-all border border-gray-200"
-                  >
-                    Editar / Transferir
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(player)} 
-                    className="px-3 py-1.5 text-xs bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-bold transition-all"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+              ))}
         </div>
       ) : (
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">

@@ -183,6 +183,7 @@ model Team {
   coach       String?
   managerId   String
   manager     User      @relation("TeamManager", fields: [managerId], references: [id])
+  parentTeamId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -194,6 +195,8 @@ model Team {
   standings       Standings[]
   messages        Message[]
   matchEvents     MatchEvent[]
+  fromTransfers   PlayerTransfer[] @relation("FromTransfers")
+  toTransfers     PlayerTransfer[] @relation("ToTransfers")
 }
 
 enum MemberRole {
@@ -233,6 +236,7 @@ model PlayerProfile {
   teamPlayers TeamPlayer[]
   goals      Goal[]
   sanctions  Sanction[]
+  transfers  PlayerTransfer[]
 }
 
 model TeamPlayer {
@@ -406,4 +410,16 @@ model Settings {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model PlayerTransfer {
+  id             String        @id @default(cuid())
+  playerId       String
+  fromTeamId     String?
+  toTeamId       String?
+  transferredAt  DateTime      @default(now())
+
+  player         PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  fromTeam       Team?         @relation("FromTransfers", fields: [fromTeamId], references: [id], onDelete: SetNull)
+  toTeam         Team?         @relation("ToTransfers", fields: [toTeamId], references: [id], onDelete: SetNull)
 }

@@ -25,12 +25,58 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
-    const members = await prisma.teamMember.findMany({
+    // 1. Obtener miembros locales
+    const localMembers = await prisma.teamMember.findMany({
       where: { teamId },
       orderBy: { number: 'asc' },
     })
 
-    return NextResponse.json(members)
+    // 2. Obtener miembros globales vinculados mediante TeamPlayer
+    const teamPlayers = await prisma.teamPlayer.findMany({
+      where: { teamId },
+      include: {
+        player: {
+          include: {
+            user: { select: { name: true, phone: true } },
+          },
+        },
+      },
+    })
+
+    const formattedLocal = localMembers.map((m) => ({
+      id: m.id,
+      teamId: m.teamId,
+      name: m.name,
+      role: m.role,
+      number: m.number,
+      phone: m.phone,
+      isActive: m.isActive,
+      isGlobal: false,
+    }))
+
+    const formattedGlobal = teamPlayers.map((tp) => ({
+      id: tp.id,
+      teamId: tp.teamId,
+      name: tp.player.user.name,
+      role: 'PLAYER',
+      number: tp.number,
+      phone: tp.player.user.phone,
+      isActive: tp.isActive,
+      isGlobal: true,
+      playerId: tp.playerId,
+    }))
+
+    const combined = [...formattedLocal, ...formattedGlobal]
+    
+    // Ordenar por número si existe, o alfabéticamente
+    combined.sort((a, b) => {
+      if (a.number !== null && b.number !== null) return a.number - b.number
+      if (a.number !== null) return -1
+      if (b.number !== null) return 1
+      return a.name.localeCompare(b.name)
+    })
+
+    return NextResponse.json(combined)
   } catch (error) {
     console.error('Get members error:', error)
     return NextResponse.json({ error: 'Error al obtener miembros' }, { status: 500 })
