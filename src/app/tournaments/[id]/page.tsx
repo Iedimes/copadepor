@@ -29,8 +29,8 @@ interface Match {
   id: string
   roundName: string
   matchDate: string
-  homeTeam: { id: string; name: string }
-  awayTeam: { id: string; name: string }
+  homeTeam: { id: string; name: string; logo?: string | null; color?: string | null }
+  awayTeam: { id: string; name: string; logo?: string | null; color?: string | null }
   homeScore: number | null
   awayScore: number | null
   status: string
@@ -47,7 +47,7 @@ interface Match {
 
 interface TournamentTeam {
   id: string
-  team: { id: string; name: string }
+  team: { id: string; name: string; logo?: string | null; color?: string | null }
 }
 
 type MenuType = 'inicio' | 'clasificacion' | 'estadisticas'
@@ -320,8 +320,10 @@ export default function TournamentPage() {
           {m.advantageTeamId === m.homeTeam?.id && (
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
           )}
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative ${m.homeTeam ? 'bg-gradient-to-br from-slate-800 to-slate-900 text-white' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`}>
-            {m.homeTeam ? '🏆' : <span className="text-slate-300 text-sm">?</span>}
+          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.homeTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.homeTeam && !m.homeTeam.logo ? { backgroundColor: m.homeTeam.color || '#1e293b' } : undefined}>
+            {m.homeTeam ? (
+              m.homeTeam.logo ? <img src={m.homeTeam.logo} alt={m.homeTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.homeTeam.name.charAt(0).toUpperCase()}</span>
+            ) : <span className="text-slate-300 text-sm">?</span>}
           </div>
           <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
             {m.homeTeam?.name || m.homePlaceholder || 'Por definir'}
@@ -353,8 +355,10 @@ export default function TournamentPage() {
           {m.advantageTeamId === m.awayTeam?.id && (
             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
           )}
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative ${m.awayTeam ? 'bg-gradient-to-br from-slate-800 to-slate-900 text-white' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`}>
-            {m.awayTeam ? '🏆' : <span className="text-slate-300 text-sm">?</span>}
+          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.awayTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.awayTeam && !m.awayTeam.logo ? { backgroundColor: m.awayTeam.color || '#1e293b' } : undefined}>
+            {m.awayTeam ? (
+              m.awayTeam.logo ? <img src={m.awayTeam.logo} alt={m.awayTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.awayTeam.name.charAt(0).toUpperCase()}</span>
+            ) : <span className="text-slate-300 text-sm">?</span>}
           </div>
           <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
             {m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}
@@ -1066,7 +1070,7 @@ export default function TournamentPage() {
     tournamentTeams.forEach(tt => { 
       // If phase has specific teams, only include those. Otherwise, include all.
       if (!phaseTeamIds || phaseTeamIds.includes(tt.team.id)) {
-        stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, red: 0, yellow: 0 } 
+        stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, logo: tt.team.logo || null, color: tt.team.color || null, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, red: 0, yellow: 0 } 
       }
     })
     
@@ -1798,7 +1802,9 @@ export default function TournamentPage() {
                                             </td>
                                             <td className="p-4">
                                               <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-lg shadow-sm border border-slate-100">🏆</div>
+                                                <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-lg shadow-sm border border-slate-100" style={!row.logo ? { backgroundColor: row.color || '#eff6ff' } : undefined}>
+                                                  {row.logo ? <img src={row.logo} alt={row.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-sm">{row.name?.charAt(0).toUpperCase()}</span>}
+                                                </div>
                                                 <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
                                               </div>
                                             </td>

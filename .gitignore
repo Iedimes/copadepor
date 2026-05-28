@@ -45,3 +45,6 @@ next-env.d.ts
 
 # scripts temporales de depuracion (no subir al repo)
 /scratch
+
+# uploaded files
+/public/uploads

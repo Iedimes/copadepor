@@ -130,6 +130,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           select: { 
             id: true, 
             name: true,
+            logo: true,
+            color: true,
             _count: { select: { teamMembers: true } }
           } 
         },
@@ -137,6 +139,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           select: { 
             id: true, 
             name: true,
+            logo: true,
+            color: true,
             _count: { select: { teamMembers: true } }
           } 
         },
@@ -1022,8 +1026,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         advantageTeamId: validated.advantageTeamId,
       },
       include: {
-        homeTeam: { select: { id: true, name: true } },
-        awayTeam: { select: { id: true, name: true } },
+        homeTeam: { select: { id: true, name: true, logo: true, color: true } },
+        awayTeam: { select: { id: true, name: true, logo: true, color: true } },
       },
     })
 

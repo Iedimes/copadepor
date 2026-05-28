@@ -6,10 +6,13 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 interface Team {
   id: string
   name: string
+  logo: string | null
+  color: string | null
 }
 
 interface AddedTeam {
   id: string
+  teamId: string
   team: Team
 }
 
@@ -23,6 +26,15 @@ export default function AddTeamsPage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Edit state
+  const [editingTeam, setEditingTeam] = useState<AddedTeam | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editColor, setEditColor] = useState('')
+  const [editLogo, setEditLogo] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const tournamentId = params.id as string
 
@@ -112,6 +124,76 @@ export default function AddTeamsPage() {
     router.push(`/tournaments/${tournamentId}/add-players?teamId=${teamId}&teamName=${encodeURIComponent(teamName)}${categoryQuery}`)
   }
 
+  const handleStartEdit = (tt: AddedTeam) => {
+    setEditingTeam(tt)
+    setEditName(tt.team.name)
+    setEditColor(tt.team.color || '')
+    setEditLogo(tt.team.logo || null)
+  }
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'teams')
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setEditLogo(data.url)
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Error al subir imagen')
+      }
+    } catch (error) {
+      console.error('Error uploading:', error)
+      alert('Error al subir imagen')
+    }
+    setUploading(false)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingTeam || !editName.trim()) return
+
+    setSavingEdit(true)
+    const token = localStorage.getItem('token')
+
+    try {
+      const res = await fetch(`/api/teams/${editingTeam.team.id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editName.trim(),
+          logo: editLogo || undefined,
+          color: editColor || undefined,
+        }),
+      })
+
+      if (res.ok) {
+        setEditingTeam(null)
+        fetchAddedTeams()
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Error al actualizar equipo')
+      }
+    } catch (error) {
+      console.error('Error updating team:', error)
+      alert('Error al actualizar equipo')
+    }
+    setSavingEdit(false)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -170,21 +252,43 @@ export default function AddTeamsPage() {
                   className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-3xl hover:shadow-xl hover:shadow-slate-200/50 transition-all group"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white text-xl font-black">
-                      🏆
-                    </div>
+                    {tt.team.logo ? (
+                      <div className="w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center bg-slate-50 shadow-sm">
+                        <img 
+                          src={tt.team.logo} 
+                          alt={tt.team.name} 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div 
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-sm"
+                        style={{ backgroundColor: tt.team.color || '#1e293b' }}
+                      >
+                        {tt.team.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <span className="block font-black text-slate-800 text-lg uppercase tracking-tight">{tt.team.name}</span>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Registrado</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleAddPlayers(tt.team.id, tt.team.name)}
-                    className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                    title="Gestionar Jugadores"
-                  >
-                    <span className="text-xl">👥</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleStartEdit(tt)}
+                      className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:bg-amber-500 hover:text-white transition-all shadow-sm"
+                      title="Editar Equipo"
+                    >
+                      <span className="text-lg">✏️</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddPlayers(tt.team.id, tt.team.name)}
+                      className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                      title="Gestionar Jugadores"
+                    >
+                      <span className="text-lg">👥</span>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -203,6 +307,116 @@ export default function AddTeamsPage() {
           </div>
         )}
       </div>
+
+      {/* Modal: Editar Equipo */}
+      {editingTeam && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingTeam(null)}>
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Editar Equipo</h2>
+            
+            {/* Logo Preview & Upload */}
+            <div className="flex flex-col items-center mb-6">
+              <div 
+                className="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center mb-3 cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition relative group"
+                style={{ backgroundColor: editColor || '#f1f5f9' }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {editLogo ? (
+                  <>
+                    <img src={editLogo} alt="Logo" className="w-full h-full object-contain" />
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl">
+                      <span className="text-white text-sm font-medium">Cambiar</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center">
+                    {uploading ? (
+                      <span className="text-sm text-gray-400">Subiendo...</span>
+                    ) : (
+                      <>
+                        <span className="text-3xl block">📷</span>
+                        <span className="text-[10px] text-gray-400 font-medium">Subir logo</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+              {editLogo && (
+                <button
+                  onClick={() => setEditLogo(null)}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  Quitar logo
+                </button>
+              )}
+            </div>
+
+            {/* Nombre */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Nombre del Equipo</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none"
+                placeholder="Nombre del equipo"
+              />
+            </div>
+
+            {/* Color */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Color del Equipo</label>
+              <div className="flex gap-3 items-center">
+                <input
+                  type="color"
+                  value={editColor || '#1e293b'}
+                  onChange={(e) => setEditColor(e.target.value)}
+                  className="w-12 h-12 rounded-xl cursor-pointer border-2 border-gray-200"
+                />
+                <input
+                  type="text"
+                  value={editColor}
+                  onChange={(e) => setEditColor(e.target.value)}
+                  placeholder="#1e293b"
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:outline-none text-sm"
+                />
+                {editColor && (
+                  <button
+                    onClick={() => setEditColor('')}
+                    className="text-xs text-gray-400 hover:text-red-500"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditingTeam(null)}
+                className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 transition font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit || !editName.trim()}
+                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition font-medium"
+              >
+                {savingEdit ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

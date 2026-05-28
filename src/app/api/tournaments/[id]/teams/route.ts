@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const categoryId = searchParams.get('categoryId')
 
     let query = `
-      SELECT tt.*, t.name as teamName, t.id as teamIdReal
+      SELECT tt.*, t.name as teamName, t.id as teamIdReal, t.logo as teamLogo, t.color as teamColor
       FROM TournamentTeam tt
       JOIN Team t ON tt.teamId = t.id
       WHERE tt.tournamentId = ?
@@ -53,7 +53,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       categoryId: tt.categoryId,
       team: {
         id: tt.teamIdReal,
-        name: tt.teamName
+        name: tt.teamName,
+        logo: tt.teamLogo || null,
+        color: tt.teamColor || null,
       }
     }))
 
