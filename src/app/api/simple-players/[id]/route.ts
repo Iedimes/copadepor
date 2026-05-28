@@ -82,7 +82,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const body = await request.json()
     const validated = updatePlayerSchema.parse(body)
 
-    const player = await prisma.playerProfile.findUnique({
+    let player = await prisma.playerProfile.findUnique({
       where: { id: params.id },
       include: {
         teamPlayers: true,
@@ -90,7 +90,100 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     })
 
     if (!player) {
-      return NextResponse.json({ error: 'Jugador no encontrado' }, { status: 404 })
+      // Intentar buscar en TeamMember local
+      const localMember = await prisma.teamMember.findUnique({
+        where: { id: params.id },
+        include: { team: true },
+      })
+
+      if (!localMember || localMember.role !== 'PLAYER') {
+        return NextResponse.json({ error: 'Jugador no encontrado' }, { status: 404 })
+      }
+
+      // Si es local y se especificó un Documento de Identidad y fecha de nacimiento reales, promocionar a global:
+      if (
+        validated.dni &&
+        validated.dni.trim() !== '' &&
+        validated.dni.trim() !== 'Sin documento' &&
+        validated.dateOfBirth &&
+        validated.dateOfBirth.trim() !== '' &&
+        validated.dateOfBirth.trim() !== 'Sin fecha'
+      ) {
+        const finalDni = validated.dni.trim()
+        const finalBirthDate = new Date(validated.dateOfBirth)
+
+        // Validar DNI único
+        const existingDni = await prisma.playerProfile.findUnique({
+          where: { dni: finalDni }
+        })
+        if (existingDni) {
+          return NextResponse.json({ error: 'Ya existe un jugador con este documento de identidad.' }, { status: 400 })
+        }
+
+        // Validar edad con el equipo de destino
+        const targetTeamId = validated.teamId || localMember.teamId
+        if (targetTeamId) {
+          const ageCheck = await validatePlayerAgeForTeam(
+            finalBirthDate,
+            targetTeamId,
+            validated.allowAgeException
+          )
+          if (!ageCheck.valid) {
+            return NextResponse.json({
+              error: ageCheck.error,
+              isMinAgeError: ageCheck.isMinAgeError,
+              ageValidationFailed: true,
+            }, { status: 400 })
+          }
+        }
+
+        // Crear User + PlayerProfile + TeamPlayer
+        const randomId = crypto.randomUUID()
+        const user = await prisma.user.create({
+          data: {
+            email: `player_${randomId}@copadepor.local`,
+            password: 'placeholder',
+            name: validated.name,
+            role: 'PLAYER',
+          },
+        })
+
+        const playerProfile = await prisma.playerProfile.create({
+          data: {
+            userId: user.id,
+            dni: finalDni,
+            dateOfBirth: finalBirthDate,
+          },
+        })
+
+        if (targetTeamId) {
+          await prisma.teamPlayer.create({
+            data: {
+              teamId: targetTeamId,
+              playerId: playerProfile.id,
+            },
+          })
+        }
+
+        // Eliminar el TeamMember local original
+        await prisma.teamMember.delete({
+          where: { id: localMember.id },
+        })
+
+        return NextResponse.json({ id: playerProfile.id, name: validated.name, promoted: true })
+      } else {
+        // Solo actualizar el nombre o equipo del miembro local (sigue siendo local)
+        const targetTeamId = validated.teamId || localMember.teamId
+        await prisma.teamMember.update({
+          where: { id: localMember.id },
+          data: {
+            name: validated.name,
+            teamId: targetTeamId || localMember.teamId,
+          },
+        })
+
+        return NextResponse.json({ id: localMember.id, name: validated.name, promoted: false })
+      }
     }
 
     const finalDni = validated.dni?.trim() || player.dni
@@ -102,7 +195,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         where: { dni: finalDni }
       })
       if (existingDni) {
-        return NextResponse.json({ error: 'Ya existe un jugador con este DNI.' }, { status: 400 })
+        return NextResponse.json({ error: 'Ya existe un jugador con este documento de identidad.' }, { status: 400 })
       }
     }
 
@@ -185,6 +278,18 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     })
 
     if (!player) {
+      // Intentar buscar en TeamMember local
+      const localMember = await prisma.teamMember.findUnique({
+        where: { id: params.id },
+      })
+
+      if (localMember && localMember.role === 'PLAYER') {
+        await prisma.teamMember.delete({
+          where: { id: params.id },
+        })
+        return NextResponse.json({ success: true })
+      }
+
       return NextResponse.json({ error: 'Jugador no encontrado' }, { status: 404 })
     }
 

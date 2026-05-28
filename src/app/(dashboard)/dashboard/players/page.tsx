@@ -14,6 +14,7 @@ interface Player {
   dni: string
   dateOfBirth: string
   age: number
+  isGlobal?: boolean
   team: {
     id: string
     name: string
@@ -24,6 +25,7 @@ interface Player {
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [teams, setTeams] = useState<Team[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editPlayer, setEditPlayer] = useState<Player | null>(null)
@@ -36,6 +38,28 @@ export default function PlayersPage() {
   const [allowAgeException, setAllowAgeException] = useState(false)
   const [ageErrorAlert, setAgeErrorAlert] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const getLiveAge = (dobString: string) => {
+    if (!dobString || dobString === 'Sin fecha') return null
+    const dob = new Date(dobString)
+    if (isNaN(dob.getTime())) return null
+    const today = new Date()
+    let age = today.getFullYear() - dob.getFullYear()
+    const m = today.getMonth() - dob.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--
+    }
+    return age
+  }
+
+  const filteredPlayers = players.filter((player) => {
+    const term = searchTerm.toLowerCase()
+    return (
+      player.name.toLowerCase().includes(term) ||
+      (player.dni && player.dni.toLowerCase().includes(term)) ||
+      (player.team?.name && player.team.name.toLowerCase().includes(term))
+    )
+  })
 
   useEffect(() => {
     fetchPlayers()
@@ -119,8 +143,8 @@ export default function PlayersPage() {
   const openEdit = (player: Player) => {
     setEditPlayer(player)
     setPlayerName(player.name)
-    setPlayerDni(player.dni || '')
-    setPlayerBirthDate(player.dateOfBirth || '')
+    setPlayerDni(player.isGlobal ? (player.dni || '') : '')
+    setPlayerBirthDate(player.isGlobal && player.dateOfBirth !== 'Sin fecha' ? (player.dateOfBirth || '') : '2000-01-01')
     setPlayerTeamId(player.team?.id || '')
     setAllowAgeException(false)
     setAgeErrorAlert(null)
@@ -172,18 +196,62 @@ export default function PlayersPage() {
         </button>
       </div>
 
+      {/* Buscador de Jugadores */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full md:w-80">
+          <span className="absolute left-3 top-3 text-gray-400 text-sm">🔍</span>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por nombre, documento o equipo..."
+            className="w-full pl-9 pr-4 py-2 px-3 border border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm font-semibold text-gray-800 placeholder-gray-400 bg-gray-50/30"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-2.5 text-gray-400 hover:text-red-500 text-sm font-bold"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        <div className="flex gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider select-none">
+          <span>Registrados: {players.length}</span>
+          <span>•</span>
+          <span>Encontrados: {filteredPlayers.length}</span>
+        </div>
+      </div>
+
       {players.length > 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
-          {players.map((player) => (
-            <div key={player.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50/50 transition-all gap-4">
+        <>
+          {filteredPlayers.length > 0 ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+              {filteredPlayers.map((player) => (
+                <div key={player.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50/50 transition-all gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-lg font-bold">
                   👤
                 </div>
                 <div>
-                  <span className="block font-bold text-gray-800 text-lg">{player.name}</span>
+                  <span className="block font-bold text-gray-800 text-lg flex items-center gap-2">
+                    {player.name}
+                    {player.isGlobal ? (
+                      <span className="text-[10px] font-black tracking-widest text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md uppercase select-none border border-emerald-200/50">
+                        Oficial
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black tracking-widest text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md uppercase select-none border border-amber-200/50">
+                        Local
+                      </span>
+                    )}
+                  </span>
                   <span className="block text-xs text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                    DNI: {player.dni} • Edad: {player.age} años ({player.dateOfBirth})
+                    {player.isGlobal ? (
+                      <>Doc. Identidad: {player.dni} • Edad: {player.age} años ({player.dateOfBirth})</>
+                    ) : (
+                      <>Registro Local • Documento y Edad no registrados</>
+                    )}
                   </span>
                 </div>
               </div>
@@ -224,6 +292,14 @@ export default function PlayersPage() {
         </div>
       ) : (
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <span className="text-4xl block mb-2">🔍</span>
+          <h3 className="text-lg font-bold text-gray-700 mb-1">Sin resultados</h3>
+          <p className="text-sm text-gray-400 font-semibold">No se encontraron jugadores que coincidan con su búsqueda.</p>
+        </div>
+      )}
+    </>
+  ) : (
+        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
           <div className="text-6xl mb-4">👤</div>
           <h3 className="text-xl font-bold text-gray-700 mb-2">No hay jugadores registrados</h3>
           <p className="text-gray-400 font-semibold mb-6">Registra tu primer jugador global en la liga.</p>
@@ -241,10 +317,15 @@ export default function PlayersPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-extrabold text-gray-900 mb-6 text-center">
-              {editPlayer ? '✏️ Editar Jugador' : '👤 Nuevo Jugador'}
+              {editPlayer ? (editPlayer.isGlobal ? '✏️ Editar Jugador' : '⚡ Completar Registro Oficial') : '👤 Nuevo Jugador'}
             </h2>
             
             <form onSubmit={handleSubmit} className="space-y-4">
+              {editPlayer && !editPlayer.isGlobal && (
+                <div className="bg-amber-50 border border-amber-200/50 rounded-2xl p-4 text-xs text-amber-700 font-bold leading-relaxed mb-2">
+                  💡 Este jugador es de registro local. Para hacerlo Oficial e inscribirlo de forma permanente en la liga, ingresa su Documento de Identidad y Fecha de Nacimiento.
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nombre del Jugador</label>
                 <input
@@ -259,7 +340,7 @@ export default function PlayersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">DNI / Cédula</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Documento de Identidad</label>
                 <input
                   type="text"
                   value={playerDni}
@@ -270,7 +351,14 @@ export default function PlayersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Fecha de Nacimiento</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Fecha de Nacimiento</label>
+                  {playerBirthDate && playerBirthDate !== 'Sin fecha' && (
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200/30">
+                      Edad: {getLiveAge(playerBirthDate)} años
+                    </span>
+                  )}
+                </div>
                 <input
                   type="date"
                   value={playerBirthDate}

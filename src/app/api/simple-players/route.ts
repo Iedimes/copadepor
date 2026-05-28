@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // 1. Obtener todos los perfiles de jugadores globales
     const players = await prisma.playerProfile.findMany({
       include: {
         user: { select: { name: true } },
@@ -96,8 +97,20 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const formatted = players.map((p) => {
-      // Tomamos la primera asociación de equipo activa si existe
+    // 2. Obtener todos los miembros locales con rol de jugador de los equipos del mánager
+    const localMembers = await prisma.teamMember.findMany({
+      where: {
+        role: 'PLAYER',
+        team: {
+          managerId: payload.userId,
+        },
+      },
+      include: {
+        team: { select: { id: true, name: true, color: true } },
+      },
+    })
+
+    const formattedGlobal = players.map((p) => {
       const activeTeamPlayer = p.teamPlayers[0]
       return {
         id: p.id,
@@ -105,6 +118,7 @@ export async function GET(request: NextRequest) {
         dni: p.dni,
         dateOfBirth: p.dateOfBirth.toISOString().split('T')[0],
         age: calculateAge(p.dateOfBirth),
+        isGlobal: true,
         team: activeTeamPlayer ? {
           id: activeTeamPlayer.team.id,
           name: activeTeamPlayer.team.name,
@@ -113,7 +127,26 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(formatted)
+    const formattedLocal = localMembers.map((m) => {
+      return {
+        id: m.id,
+        name: m.name,
+        dni: 'Sin documento',
+        dateOfBirth: 'Sin fecha',
+        age: 0,
+        isGlobal: false,
+        team: m.team ? {
+          id: m.team.id,
+          name: m.team.name,
+          color: m.team.color || '#3b82f6',
+        } : null,
+      }
+    })
+
+    const combined = [...formattedGlobal, ...formattedLocal]
+    combined.sort((a, b) => a.name.localeCompare(b.name))
+
+    return NextResponse.json(combined)
   } catch (error) {
     console.error('Get simple players error:', error)
     return NextResponse.json({ error: 'Error al obtener jugadores' }, { status: 500 })
@@ -144,7 +177,7 @@ export async function POST(request: NextRequest) {
       where: { dni: finalDni }
     })
     if (existingDni) {
-      return NextResponse.json({ error: 'Ya existe un jugador con este DNI.' }, { status: 400 })
+      return NextResponse.json({ error: 'Ya existe un jugador con este documento de identidad.' }, { status: 400 })
     }
 
     // Si se especificó un equipo, realizar validación de edad
