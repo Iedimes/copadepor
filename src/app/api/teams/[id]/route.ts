@@ -29,6 +29,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         teamMembers: {
           orderBy: { role: 'asc' },
         },
+        players: {
+          include: {
+            player: {
+              include: {
+                user: true
+              }
+            }
+          }
+        }
       },
     })
 

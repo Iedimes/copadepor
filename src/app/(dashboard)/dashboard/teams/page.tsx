@@ -19,6 +19,7 @@ interface Team {
   color: string | null
   coach: string | null
   teamMembers: TeamMember[]
+  players?: any[]
 }
 
 export default function TeamsPage() {
@@ -354,7 +355,9 @@ export default function TeamsPage() {
       {filteredTeams.length > 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
           {filteredTeams.map((team) => {
-            const playerCount = team.teamMembers?.filter(m => m.role === 'PLAYER').length || 0;
+            const localPlayerCount = team.teamMembers?.filter(m => m.role === 'PLAYER').length || 0;
+            const globalPlayerCount = team.players?.length || 0;
+            const playerCount = localPlayerCount + globalPlayerCount;
             return (
               <div 
                 key={team.id} 
@@ -655,19 +658,20 @@ export default function TeamsPage() {
                         className={`w-full flex items-center justify-between p-3.5 rounded-xl border font-bold text-left transition-all ${expandedSection === 'players' ? 'bg-blue-50/50 border-blue-200 text-blue-700 shadow-sm' : 'bg-gray-50 border-gray-100 hover:bg-gray-100/50 text-gray-700'}`}
                       >
                         <span className="flex items-center gap-2">
-                          <span>👥</span> Jugadores ({selectedTeam.teamMembers?.filter(m => m.role === 'PLAYER').length || 0})
+                          <span>👥</span> Jugadores ({(selectedTeam.teamMembers?.filter(m => m.role === 'PLAYER').length || 0) + (selectedTeam.players?.length || 0)})
                         </span>
                         <span className="text-xs">{expandedSection === 'players' ? '▼' : '▶'}</span>
                       </button>
 
                       {expandedSection === 'players' && (
                         <div className="mt-2 p-3 bg-gray-50/30 rounded-xl border border-gray-100 space-y-2 animate-in slide-in-from-top-2 duration-200">
-                          <div className="flex gap-2">
+                          {/* Agregar jugador local */}
+                          <div className="flex gap-2 mb-2">
                             <input
                               type="text"
                               value={newMemberName}
                               onChange={(e) => setNewMemberName(e.target.value)}
-                              placeholder="Nombre del jugador"
+                              placeholder="Nombre de jugador local"
                               className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
                             />
                             <input
@@ -686,7 +690,24 @@ export default function TeamsPage() {
                             </button>
                           </div>
                           
-                          <div className="space-y-1.5 max-h-40 overflow-y-auto pt-1">
+                          <div className="space-y-1.5 max-h-56 overflow-y-auto pt-1">
+                            {/* Mostrar jugadores globales (Oficiales) */}
+                            {selectedTeam.players?.map((tp: any) => (
+                              <div key={tp.id} className="flex items-center justify-between bg-blue-50/50 px-3 py-2 rounded-lg border border-blue-100 shadow-sm text-sm">
+                                <div className="flex items-center gap-2">
+                                  {tp.number !== null && tp.number !== undefined && (
+                                    <span className="w-5 h-5 bg-blue-200 text-blue-800 font-bold rounded-full flex items-center justify-center text-[10px]">
+                                      {tp.number}
+                                    </span>
+                                  )}
+                                  <span className="font-bold text-blue-800">{tp.player?.user?.name || 'Jugador Oficial'}</span>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 uppercase">Oficial</span>
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-semibold italic">Padrón Global</span>
+                              </div>
+                            ))}
+
+                            {/* Mostrar jugadores locales */}
                             {selectedTeam.teamMembers
                               ?.filter(m => m.role === 'PLAYER')
                               .map(member => (
@@ -698,6 +719,7 @@ export default function TeamsPage() {
                                       </span>
                                     )}
                                     <span className="font-semibold text-gray-700">{member.name}</span>
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase">Local</span>
                                   </div>
                                   <button
                                     onClick={() => handleDeleteMember(member.id)}
@@ -707,7 +729,8 @@ export default function TeamsPage() {
                                   </button>
                                 </div>
                               ))}
-                            {selectedTeam.teamMembers?.filter(m => m.role === 'PLAYER').length === 0 && (
+
+                            {(!selectedTeam.teamMembers?.filter(m => m.role === 'PLAYER').length && !selectedTeam.players?.length) && (
                               <p className="text-center text-xs text-gray-400 py-3">No hay jugadores registrados</p>
                             )}
                           </div>
