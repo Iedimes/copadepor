@@ -428,28 +428,27 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
  
       try {
-        let count = 0
-        for (let i = 0; i < matches.length; i++) {
-          const m = matches[i]
-          await prisma.match.create({
-            data: {
-              tournamentId: params.id,
-              categoryId: categoryId || phase?.categoryId || null,
-              homeTeamId: m.homeTeamId,
-              awayTeamId: m.awayTeamId,
-              matchDate: roundDate,
-              roundName: String(m.roundName),
-              roundOrder: Number(m.roundName),
-              phaseName,
-              phaseId: phase?.id || null,
-              status: 'SCHEDULED',
-              notes: m.notes || null,
-            },
-          })
-          count++
-        }
+        const matchesData = matches.map(m => ({
+          tournamentId: params.id,
+          categoryId: categoryId || phase?.categoryId || null,
+          homeTeamId: m.homeTeamId || null,
+          awayTeamId: m.awayTeamId || null,
+          matchDate: roundDate,
+          roundName: String(m.roundName),
+          roundOrder: isNaN(Number(m.roundName)) ? 0 : Number(m.roundName),
+          phaseName,
+          phaseId: phase?.id || null,
+          status: 'SCHEDULED' as const,
+          notes: m.notes || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }))
+
+        const result = await prisma.match.createMany({
+          data: matchesData,
+        })
  
-        return NextResponse.json({ count }, { status: 201 })
+        return NextResponse.json({ count: result.count }, { status: 201 })
       } catch (error) {
         console.error('Generate matches error:', error)
         return NextResponse.json({ error: 'Error al generar partidos: ' + (error as Error).message }, { status: 500 })
@@ -472,24 +471,25 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           }
         })
 
-        let createdCount = 0
-        for (let i = 0; i < numMatches; i++) {
-          await prisma.match.create({
-            data: {
-              tournamentId: params.id,
-              categoryId: categoryId || phase?.categoryId || null,
-              homeTeamId: '', 
-              awayTeamId: '', 
-              matchDate: roundDate,
-              roundName: stageName,
-              phaseName: phaseName || 'Fase Final',
-              phaseId: phase?.id || null,
-              status: 'SCHEDULED',
-            },
-          })
-          createdCount++
-        }
-        return NextResponse.json({ count: createdCount }, { status: 201 })
+        const playoffMatchesData = Array.from({ length: numMatches }).map(() => ({
+          tournamentId: params.id,
+          categoryId: categoryId || phase?.categoryId || null,
+          homeTeamId: null, 
+          awayTeamId: null, 
+          matchDate: roundDate,
+          roundName: stageName,
+          phaseName: phaseName || 'Fase Final',
+          phaseId: phase?.id || null,
+          status: 'SCHEDULED' as const,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }))
+
+        const result = await prisma.match.createMany({
+          data: playoffMatchesData,
+        })
+        
+        return NextResponse.json({ count: result.count }, { status: 201 })
       } catch (error) {
         console.error('Generate playoff error:', error)
         return NextResponse.json({ error: 'Error al generar eliminatoria' }, { status: 500 })
@@ -794,6 +794,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         const roundDate = new Date()
         const isIdaVuelta = matchType === 'idayvuelta'
 
+        const treeMatchesData: any[] = []
+
         // 1. Generar Primera Ronda (con equipos o vacía)
         const numMatches = Math.floor(count / 2)
         for (let i = 0; i < numMatches; i++) {
@@ -803,21 +805,27 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           const matchData = {
             tournamentId: params.id,
             categoryId: categoryId || phase?.categoryId || null,
-            homeTeamId: homeId,
-            awayTeamId: awayId,
+            homeTeamId: homeId || null,
+            awayTeamId: awayId || null,
             matchDate: roundDate,
             roundName: startRound,
             groupName: `#${i + 1}`,
             phaseName,
             phaseId: phase?.id || null,
-            status: 'SCHEDULED',
+            status: 'SCHEDULED' as const,
             advantageTeamId: (selectionMode === 'clasificacion' && homeId) ? homeId : null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           }
 
-          await prisma.match.create({ data: matchData })
+          treeMatchesData.push(matchData)
           if (isIdaVuelta) {
-            await prisma.match.create({ 
-              data: { ...matchData, homeTeamId: awayId, awayTeamId: homeId, advantageTeamId: null, notes: 'Partido de vuelta' } 
+            treeMatchesData.push({ 
+              ...matchData, 
+              homeTeamId: awayId || null, 
+              awayTeamId: homeId || null, 
+              advantageTeamId: null, 
+              notes: 'Partido de vuelta' 
             })
           }
         }
@@ -830,26 +838,30 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           currentLevelMatches = Math.floor(currentLevelMatches / 2)
           
           for (let i = 0; i < currentLevelMatches; i++) {
-            await prisma.match.create({
-              data: {
-                tournamentId: params.id,
-                categoryId: categoryId || phase?.categoryId || null,
-                homeTeamId: null,
-                awayTeamId: null,
-                matchDate: roundDate,
-                roundName: rName,
-                groupName: `#${i + 1}`,
-                homePlaceholder: `Ganador ${prevRoundName} #${i * 2 + 1}`,
-                awayPlaceholder: `Ganador ${prevRoundName} #${i * 2 + 2}`,
-                phaseName,
-                phaseId: phase?.id || null,
-                status: 'SCHEDULED'
-              }
+            treeMatchesData.push({
+              tournamentId: params.id,
+              categoryId: categoryId || phase?.categoryId || null,
+              homeTeamId: null,
+              awayTeamId: null,
+              matchDate: roundDate,
+              roundName: rName,
+              groupName: `#${i + 1}`,
+              homePlaceholder: `Ganador ${prevRoundName} #${i * 2 + 1}`,
+              awayPlaceholder: `Ganador ${prevRoundName} #${i * 2 + 2}`,
+              phaseName,
+              phaseId: phase?.id || null,
+              status: 'SCHEDULED' as const,
+              createdAt: new Date(),
+              updatedAt: new Date(),
             })
           }
         }
 
-        return NextResponse.json({ message: 'Árbol eliminatorio generado con éxito' }, { status: 201 })
+        const result = await prisma.match.createMany({
+          data: treeMatchesData
+        })
+
+        return NextResponse.json({ message: 'Árbol eliminatorio generado con éxito', count: result.count }, { status: 201 })
       } catch (error) {
         console.error('Generate knockout tree error:', error)
         return NextResponse.json({ error: 'Error al generar el árbol' }, { status: 500 })
