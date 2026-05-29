@@ -2950,6 +2950,7 @@ export default function TournamentPage() {
           getSuggestedQualifiedTeams={getSuggestedQualifiedTeams}
           onClose={() => setShowPlayoffDraw(false)}
           onSuccess={() => { setShowPlayoffDraw(false); fetchData(); }}
+          categoryId={activeCategory?.id || null}
         />
       )}
 
@@ -2960,6 +2961,7 @@ export default function TournamentPage() {
           tournamentId={tournamentId}
           onClose={() => setShowReorderModal(false)}
           onSuccess={() => { setShowReorderModal(false); setSelectedRound(''); fetchData(); }}
+          categoryId={activeCategory?.id || null}
         />
       )}
 
@@ -3315,7 +3317,7 @@ function ReorderTeamsModal({ tournamentTeams, tournamentId, onClose, onSuccess }
   )
 }
 
-function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, getSuggestedQualifiedTeams, onClose, onSuccess }: any) {
+function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, getSuggestedQualifiedTeams, onClose, onSuccess, categoryId }: any) {
   const [step, setStep] = useState(1)
   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
   const [selectionMode, setSelectionMode] = useState<'clasificacion' | 'aleatorio'>('clasificacion')
@@ -3401,7 +3403,7 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
           matchType,
           selectionMode,
           generationMode,
-          categoryId: activeCategory?.id || null,
+          categoryId: categoryId || null,
         }),
       })
       if (res.ok) {
@@ -4525,7 +4527,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
 }
 
 
-function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSuccess }: any) {
+function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSuccess, categoryId }: any) {
   const [rounds, setRounds] = useState<string[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -4571,7 +4573,7 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
         body: JSON.stringify({ 
           phaseName, 
           roundSequence: rounds,
-          categoryId: activeCategory?.id || null,
+          categoryId: categoryId || null,
         }),
       })
       const data = await res.json()
