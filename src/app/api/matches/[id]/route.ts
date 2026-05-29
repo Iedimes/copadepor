@@ -64,6 +64,21 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     const dbStatus = statusMap[status] || status
 
+    // Automáticamente gestionar notes = 'FECHA_LIBRE' si algún equipo es null
+    let finalNotes = notes
+    
+    const existingMatch = await prisma.match.findUnique({ where: { id: matchId } })
+    const resolvedHomeTeamId = homeTeamId !== undefined ? homeTeamId : (existingMatch?.homeTeamId ?? null)
+    const resolvedAwayTeamId = awayTeamId !== undefined ? awayTeamId : (existingMatch?.awayTeamId ?? null)
+    
+    if (resolvedHomeTeamId === null || resolvedAwayTeamId === null) {
+      finalNotes = 'FECHA_LIBRE'
+    } else if (resolvedHomeTeamId && resolvedAwayTeamId) {
+      if (existingMatch?.notes === 'FECHA_LIBRE' && notes === undefined) {
+        finalNotes = null
+      }
+    }
+
     const match = await prisma.match.update({
       where: { id: matchId },
       data: {
@@ -77,7 +92,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         ...(referee !== undefined && { referee }),
         ...(matchDate !== undefined && { matchDate: new Date(matchDate) }),
         ...(status !== undefined && { status: dbStatus }),
-        ...(notes !== undefined && { notes: notes === null ? null : notes }),
+        ...(finalNotes !== undefined && { notes: finalNotes === null ? null : finalNotes }),
       },
     })
 

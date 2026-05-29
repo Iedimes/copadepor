@@ -303,7 +303,8 @@ export default function TournamentPage() {
     const st = isE ? editingMatchData.status : m.status;
     const matchNotes = isE ? ((editingMatchData as any).notes !== undefined ? (editingMatchData as any).notes : m.notes) : m.notes;
 
-    const hasTeams = m.homeTeam && m.awayTeam;
+    const isBye = m.notes === 'FECHA_LIBRE';
+    const hasTeams = (m.homeTeam && m.awayTeam) || isBye;
 
     return (
       <div 
@@ -317,52 +318,85 @@ export default function TournamentPage() {
       >
         {/* Home Team */}
         <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
-          {m.advantageTeamId === m.homeTeam?.id && (
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+          {isBye && !m.homeTeam ? (
+            <>
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-emerald-50 border-2 border-dashed border-emerald-200">
+                <span className="text-emerald-500 animate-bounce text-xl">🌴</span>
+              </div>
+              <span className="text-[10px] font-black text-emerald-600 text-center uppercase truncate w-full tracking-tighter">
+                LIBRE
+              </span>
+            </>
+          ) : (
+            <>
+              {m.advantageTeamId === m.homeTeam?.id && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+              )}
+              <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.homeTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.homeTeam && !m.homeTeam.logo ? { backgroundColor: m.homeTeam.color || '#1e293b' } : undefined}>
+                {m.homeTeam ? (
+                  m.homeTeam.logo ? <img src={m.homeTeam.logo} alt={m.homeTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.homeTeam.name.charAt(0).toUpperCase()}</span>
+                ) : <span className="text-slate-300 text-sm">?</span>}
+              </div>
+              <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
+                {m.homeTeam?.name || m.homePlaceholder || 'Por definir'}
+              </span>
+            </>
           )}
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.homeTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.homeTeam && !m.homeTeam.logo ? { backgroundColor: m.homeTeam.color || '#1e293b' } : undefined}>
-            {m.homeTeam ? (
-              m.homeTeam.logo ? <img src={m.homeTeam.logo} alt={m.homeTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.homeTeam.name.charAt(0).toUpperCase()}</span>
-            ) : <span className="text-slate-300 text-sm">?</span>}
-          </div>
-          <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
-            {m.homeTeam?.name || m.homePlaceholder || 'Por definir'}
-          </span>
         </div>
 
         {/* Score Block */}
         <div className="flex flex-col items-center">
-          <div className="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px] group-hover:bg-white transition-colors">
-            <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
-              {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : <span className="text-slate-300">VS</span>}
-              {st === 'FINALIZADO' && m.homePenaltyScore !== null && m.awayPenaltyScore !== null && (
-                <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest text-center">Pen: {m.homePenaltyScore}-{m.awayPenaltyScore}</span>
+          {isBye ? (
+            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-1.5 shadow-sm flex flex-col items-center min-w-[100px] text-center">
+              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Fecha Libre</span>
+              <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">Descanso</span>
+            </div>
+          ) : (
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px] group-hover:bg-white transition-colors">
+              <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
+                {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : <span className="text-slate-300">VS</span>}
+                {st === 'FINALIZADO' && m.homePenaltyScore !== null && m.awayPenaltyScore !== null && (
+                  <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest text-center">Pen: {m.homePenaltyScore}-{m.awayPenaltyScore}</span>
+                )}
+              </div>
+              {st !== 'NO_REALIZADO' && (
+                <div className="flex flex-col items-center mt-1 gap-1">
+                  <div className={`text-[8px] font-black px-3 py-0.5 rounded-md uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
+                    {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
+                  </div>
+                  {st === 'EN_VIVO' && matchNotes && matchNotes.startsWith('{') && <LiveMatchTimer notes={matchNotes} />}
+                </div>
               )}
             </div>
-            {st !== 'NO_REALIZADO' && (
-              <div className="flex flex-col items-center mt-1 gap-1">
-                <div className={`text-[8px] font-black px-3 py-0.5 rounded-md uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
-                  {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
-                </div>
-                {st === 'EN_VIVO' && matchNotes && matchNotes.startsWith('{') && <LiveMatchTimer notes={matchNotes} />}
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Away Team */}
         <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
-          {m.advantageTeamId === m.awayTeam?.id && (
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+          {isBye && !m.awayTeam ? (
+            <>
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-emerald-50 border-2 border-dashed border-emerald-200">
+                <span className="text-emerald-500 animate-bounce text-xl">🌴</span>
+              </div>
+              <span className="text-[10px] font-black text-emerald-600 text-center uppercase truncate w-full tracking-tighter">
+                LIBRE
+              </span>
+            </>
+          ) : (
+            <>
+              {m.advantageTeamId === m.awayTeam?.id && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+              )}
+              <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.awayTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.awayTeam && !m.awayTeam.logo ? { backgroundColor: m.awayTeam.color || '#1e293b' } : undefined}>
+                {m.awayTeam ? (
+                  m.awayTeam.logo ? <img src={m.awayTeam.logo} alt={m.awayTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.awayTeam.name.charAt(0).toUpperCase()}</span>
+                ) : <span className="text-slate-300 text-sm">?</span>}
+              </div>
+              <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
+                {m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}
+              </span>
+            </>
           )}
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.awayTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.awayTeam && !m.awayTeam.logo ? { backgroundColor: m.awayTeam.color || '#1e293b' } : undefined}>
-            {m.awayTeam ? (
-              m.awayTeam.logo ? <img src={m.awayTeam.logo} alt={m.awayTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.awayTeam.name.charAt(0).toUpperCase()}</span>
-            ) : <span className="text-slate-300 text-sm">?</span>}
-          </div>
-          <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
-            {m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}
-          </span>
         </div>
 
         {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2.5rem] pointer-events-none animate-pulse"></div>}
@@ -762,6 +796,13 @@ export default function TournamentPage() {
 
 
   const handleOpenMatchModal = (m: any) => {
+    const isBye = m.notes === 'FECHA_LIBRE';
+    if (isBye) {
+      setSelectedMatchId(m.id)
+      setShowMatchMenu(true)
+      return
+    }
+
     if (!m.homeTeam || !m.awayTeam) return
     const homePlayers = m.homeTeam._count?.teamMembers || 0
     const awayPlayers = m.awayTeam._count?.teamMembers || 0
@@ -2729,62 +2770,95 @@ export default function TournamentPage() {
         <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setShowMatchMenu(false)}>
           <div className="bg-[#0F172A] rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="p-4 space-y-1">
-              <MenuOption icon="📖" label="Ver partido" onClick={() => setShowMatchMenu(false)} />
-              <MenuOption icon="📋" label="Seleccionar equipos" onClick={() => setShowMatchMenu(false)} />
-              <MenuOption icon="✔️" label="Editar resultado" onClick={() => { 
+              {(() => {
                 const m = matches.find(x => x.id === selectedMatchId);
-                if (m) {
-                  setEditingMatchData({ id: m.id, homeScore: m.homeScore, awayScore: m.awayScore, status: m.status });
-                  setEditingMatchId(m.id);
-                  setShowEditResult(true);
+                const isBye = m?.notes === 'FECHA_LIBRE';
+                if (isBye) {
+                  return (
+                    <>
+                      <MenuOption icon="⚽" label="Sustituir Equipos (Cambiar Descanso)" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
+                      <div className="h-px bg-slate-800 my-2 mx-4"></div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirmRemoveMatchId !== selectedMatchId) {
+                            setConfirmRemoveMatchId(selectedMatchId);
+                          } else {
+                            if (selectedMatchId) handleRemoveMatch(selectedMatchId);
+                            setConfirmRemoveMatchId(null);
+                            setShowMatchMenu(false);
+                          }
+                        }}
+                        className={`w-full flex items-center gap-4 px-6 py-4 transition-all rounded-[1.5rem] group text-left border ${confirmRemoveMatchId === selectedMatchId ? 'bg-red-600 border-red-400 animate-pulse' : 'hover:bg-slate-800 border-transparent'}`}
+                      >
+                        <span className={`text-xl group-hover:scale-125 transition-transform ${confirmRemoveMatchId === selectedMatchId ? 'text-white' : 'text-red-500'}`}>{confirmRemoveMatchId === selectedMatchId ? '🚨' : '✕'}</span>
+                        <span className={`font-black text-sm tracking-tight ${confirmRemoveMatchId === selectedMatchId ? 'text-white' : 'text-red-500 uppercase'}`}>
+                          {confirmRemoveMatchId === selectedMatchId ? '⚠️ ¿CONFIRMAR ELIMINAR?' : 'Quitar fecha libre'}
+                        </span>
+                      </button>
+                    </>
+                  );
                 }
-                setShowMatchMenu(false);
-              }} />
-              <MenuOption icon="✏️" label="Editar informacion" onClick={() => setShowMatchMenu(false)} />
-              
-              <div className="h-px bg-slate-800 my-2 mx-4"></div>
-              
-              <MenuOption icon="⚽" label="Sustituir Equipos" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!confirmResetMatch) {
-                    setConfirmResetMatch(true);
-                  } else {
-                    if (selectedMatchId) handleResetMatch(selectedMatchId);
-                    setConfirmResetMatch(false);
-                  }
-                }}
-                className={`w-full flex items-center gap-4 px-6 py-4 transition-all rounded-[1.5rem] group text-left border ${confirmResetMatch ? 'bg-red-600 border-red-400' : 'bg-blue-600/10 border-blue-500/30 hover:bg-blue-600/20'}`}
-              >
-                <span className={`text-xl group-hover:scale-125 transition-transform ${confirmResetMatch ? 'text-white' : 'text-blue-500'}`}>{confirmResetMatch ? '⚠️' : '⚡'}</span>
-                <span className={`font-black text-sm tracking-tight uppercase ${confirmResetMatch ? 'text-white' : 'text-blue-500'}`}>
-                  {confirmResetMatch ? '¿ESTÁS SEGURO? (CLICK AQUÍ)' : 'Restaurar / Limpiar (Goles, Tarjetas, etc)'}
-                </span>
-              </button>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirmRemoveMatchId !== selectedMatchId) {
-                    setConfirmRemoveMatchId(selectedMatchId);
-                  } else {
-                    if (selectedMatchId) handleRemoveMatch(selectedMatchId);
-                    setConfirmRemoveMatchId(null);
-                  }
-                }}
-                className={`w-full flex items-center gap-4 px-6 py-4 transition-all rounded-[1.5rem] group text-left border ${confirmRemoveMatchId === selectedMatchId ? 'bg-red-600 border-red-400 animate-pulse' : 'hover:bg-slate-800 border-transparent'}`}
-              >
-                <span className={`text-xl group-hover:scale-125 transition-transform ${confirmRemoveMatchId === selectedMatchId ? 'text-white' : 'text-red-500'}`}>{confirmRemoveMatchId === selectedMatchId ? '🚨' : '✕'}</span>
-                <span className={`font-black text-sm tracking-tight ${confirmRemoveMatchId === selectedMatchId ? 'text-white' : 'text-red-500 uppercase'}`}>
-                  {confirmRemoveMatchId === selectedMatchId ? (
-                    (() => {
-                      const m = matches.find(x => x.id === selectedMatchId);
-                      const hasRes = m && (m.homeScore !== null || (m.events && m.events.length > 0));
-                      return hasRes ? '🚨 ¡TIENE RESULTADOS! ¿BORRAR TODO?' : '⚠️ ¿CONFIRMAR ELIMINAR?'
-                    })()
-                  ) : 'Quitar partido'}
-                </span>
-              </button>
+
+                return (
+                  <>
+                    <MenuOption icon="📖" label="Ver partido" onClick={() => setShowMatchMenu(false)} />
+                    <MenuOption icon="📋" label="Seleccionar equipos" onClick={() => setShowMatchMenu(false)} />
+                    <MenuOption icon="✔️" label="Editar resultado" onClick={() => { 
+                      if (m) {
+                        setEditingMatchData({ id: m.id, homeScore: m.homeScore, awayScore: m.awayScore, status: m.status });
+                        setEditingMatchId(m.id);
+                        setShowEditResult(true);
+                      }
+                      setShowMatchMenu(false);
+                    }} />
+                    <MenuOption icon="✏️" label="Editar informacion" onClick={() => setShowMatchMenu(false)} />
+                    
+                    <div className="h-px bg-slate-800 my-2 mx-4"></div>
+                    
+                    <MenuOption icon="⚽" label="Sustituir Equipos" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!confirmResetMatch) {
+                          setConfirmResetMatch(true);
+                        } else {
+                          if (selectedMatchId) handleResetMatch(selectedMatchId);
+                          setConfirmResetMatch(false);
+                        }
+                      }}
+                      className={`w-full flex items-center gap-4 px-6 py-4 transition-all rounded-[1.5rem] group text-left border ${confirmResetMatch ? 'bg-red-600 border-red-400' : 'bg-blue-600/10 border-blue-500/30 hover:bg-blue-600/20'}`}
+                    >
+                      <span className={`text-xl group-hover:scale-125 transition-transform ${confirmResetMatch ? 'text-white' : 'text-blue-500'}`}>{confirmResetMatch ? '⚠️' : '⚡'}</span>
+                      <span className={`font-black text-sm tracking-tight uppercase ${confirmResetMatch ? 'text-white' : 'text-blue-500'}`}>
+                        {confirmResetMatch ? '¿ESTÁS SEGURO? (CLICK AQUÍ)' : 'Restaurar / Limpiar (Goles, Tarjetas, etc)'}
+                      </span>
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirmRemoveMatchId !== selectedMatchId) {
+                          setConfirmRemoveMatchId(selectedMatchId);
+                        } else {
+                          if (selectedMatchId) handleRemoveMatch(selectedMatchId);
+                          setConfirmRemoveMatchId(null);
+                        }
+                      }}
+                      className={`w-full flex items-center gap-4 px-6 py-4 transition-all rounded-[1.5rem] group text-left border ${confirmRemoveMatchId === selectedMatchId ? 'bg-red-600 border-red-400 animate-pulse' : 'hover:bg-slate-800 border-transparent'}`}
+                    >
+                      <span className={`text-xl group-hover:scale-125 transition-transform ${confirmRemoveMatchId === selectedMatchId ? 'text-white' : 'text-red-500'}`}>{confirmRemoveMatchId === selectedMatchId ? '🚨' : '✕'}</span>
+                      <span className={`font-black text-sm tracking-tight ${confirmRemoveMatchId === selectedMatchId ? 'text-white' : 'text-red-500 uppercase'}`}>
+                        {confirmRemoveMatchId === selectedMatchId ? (
+                          (() => {
+                            const hasRes = m && (m.homeScore !== null || (m.events && m.events.length > 0));
+                            return hasRes ? '🚨 ¡TIENE RESULTADOS! ¿BORRAR TODO?' : '⚠️ ¿CONFIRMAR ELIMINAR?'
+                          })()
+                        ) : 'Quitar partido'}
+                      </span>
+                    </button>
+                  </>
+                );
+              })()}
             </div>
             <div className="p-4 bg-slate-800/50 text-center">
               <button onClick={() => { 
@@ -4217,6 +4291,17 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
                 <button onClick={() => setEditingSide(null)} className="text-[10px] font-black text-blue-600 uppercase hover:underline">Volver</button>
               </div>
               <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                <button 
+                  onClick={() => handleUpdateTeam(editingSide as any, null as any)}
+                  className="w-full flex items-center justify-between p-4 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 transition-all rounded-2xl group border border-emerald-100 shadow-sm"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-lg group-hover:bg-white/20">🌴</div>
+                    <span className="font-black tracking-tight">FECHA LIBRE (Establecer descanso)</span>
+                  </div>
+                  <span className="text-[10px] font-black opacity-0 group-hover:opacity-100 uppercase tracking-widest bg-white/20 px-3 py-1 rounded-full">Seleccionar</span>
+                </button>
+
                 {allTeams.map((t: any) => (
                   <button 
                     key={t.team.id} 
@@ -4253,11 +4338,23 @@ function TeamSwapCard({ team, label, onClick }: any) {
     >
       <div className="bg-white rounded-[2rem] p-6 shadow-lg border border-slate-100 group-hover:border-blue-500 group-hover:shadow-blue-200/50 transition-all text-center">
         <div className="w-20 h-20 bg-[#0F172A] rounded-2xl mx-auto mb-4 flex flex-col overflow-hidden shadow-xl group-hover:scale-105 transition-transform">
-          <div className="h-1/2 bg-[#0F172A] flex items-center justify-center text-yellow-400 text-xl">👑</div>
-          <div className="h-1/2 bg-[#22C55E]"></div>
+          {team?.logo ? (
+            <img src={team.logo} alt={team.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className={`w-full h-full flex flex-col items-center justify-center text-white ${!team ? 'bg-emerald-600' : ''}`} style={team && team.color ? { backgroundColor: team.color } : undefined}>
+              {!team ? (
+                <span className="text-3xl animate-bounce">🌴</span>
+              ) : (
+                <>
+                  <div className="h-1/2 w-full bg-[#0F172A] flex items-center justify-center text-yellow-400 text-xl">👑</div>
+                  <div className="h-1/2 w-full bg-[#22C55E]"></div>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</div>
-        <div className="font-black text-slate-800 truncate">{team.name}</div>
+        <div className="font-black text-slate-800 truncate">{team ? team.name : 'FECHA LIBRE'}</div>
       </div>
     </button>
   )

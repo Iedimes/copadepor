@@ -389,29 +389,38 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       } else {
         // STANDARD Round Robin
         const shuffledIds = [...teamIds].sort(() => Math.random() - 0.5)
-        const n = shuffledIds.length
-        const numRounds = n % 2 === 0 ? n - 1 : n
+        const isOdd = shuffledIds.length % 2 !== 0
         
-        let rotatingTeams = [...shuffledIds]
-        if (n % 2 === 0) {
-          rotatingTeams = [shuffledIds[0], ...shuffledIds.slice(1)]
-        }
+        // Si la cantidad es impar, agregamos null como equipo dummy para la rotación par estándar
+        const tempTeams = isOdd ? [...shuffledIds, null] : [...shuffledIds]
+        const n = tempTeams.length
+        const numRounds = n - 1
+        
+        let rotatingTeams = [...tempTeams]
         
         for (let round = 1; round <= numRounds; round++) {
           const roundName = `${round}`
-          if (n % 2 === 0) {
-            for (let i = 0; i < n / 2; i++) {
-              const home = rotatingTeams[i]; const away = rotatingTeams[n - 1 - i]
-              if (home && away) matches.push({ homeTeamId: home, awayTeamId: away, roundName })
+          for (let i = 0; i < n / 2; i++) {
+            const home = rotatingTeams[i]
+            const away = rotatingTeams[n - 1 - i]
+            
+            if (home === null || away === null) {
+              // Uno de los dos es el equipo dummy, por lo tanto el otro tiene FECHA LIBRE
+              const playingTeam = home === null ? away : home
+              if (playingTeam) {
+                matches.push({
+                  homeTeamId: playingTeam,
+                  awayTeamId: null as any,
+                  roundName,
+                  notes: 'FECHA_LIBRE'
+                })
+              }
+            } else {
+              matches.push({ homeTeamId: home, awayTeamId: away, roundName })
             }
-            rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
-          } else {
-            for (let i = 0; i < (n - 1) / 2; i++) {
-              const home = rotatingTeams[i]; const away = rotatingTeams[n - 2 - i]
-              if (home && away) matches.push({ homeTeamId: home, awayTeamId: away, roundName })
-            }
-            rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
           }
+          // Rotación circular estándar: mantiene el primero fijo, rota el resto
+          rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
         }
         
         if (matchType === 'idayvuelta') {
@@ -421,12 +430,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             matches.push({ 
               homeTeamId: m.awayTeamId, 
               awayTeamId: m.homeTeamId, 
-              roundName: String(Number(m.roundName) + numRounds) 
+              roundName: String(Number(m.roundName) + numRounds),
+              notes: m.notes || null
             })
           }
         }
       }
-
+ 
       try {
         let count = 0
         for (let i = 0; i < matches.length; i++) {
@@ -443,11 +453,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               phaseName,
               phaseId: phase?.id || null,
               status: 'SCHEDULED',
+              notes: m.notes || null,
             },
           })
           count++
         }
-
+ 
         return NextResponse.json({ count }, { status: 201 })
       } catch (error) {
         console.error('Generate matches error:', error)
