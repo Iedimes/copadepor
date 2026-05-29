@@ -291,6 +291,8 @@ function PitchLineup({ lineup, setLineup, players }: { lineup: BaseEvent[], setL
       </div>
     </div>
   )
+}
+
 function BasketballPointsSection({
   title,
   goals,

@@ -9,10 +9,7 @@ function getAuthToken(request: NextRequest): string | null {
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const token = getAuthToken(request)
-  if (!token) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
-  const payload = verifyToken(token)
-  if (!payload) return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+  const payload = token ? verifyToken(token) : null
 
   try {
     const { searchParams } = new URL(request.url)
@@ -29,14 +26,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     })
 
     // If there are no phases, and we are NOT in a multiple-category tournament (or if categoryId is not provided)
-    // auto-create "1° Fase" so it matches old behavior.
-    if (phases.length === 0 && (!categoryId || categoryId === 'null')) {
+    // auto-create "1° Fase" so it matches old behavior, ONLY if a valid organizer token is supplied!
+    if (phases.length === 0 && (!categoryId || categoryId === 'null') && payload) {
       const tournament = await prisma.tournament.findUnique({
         where: { id: params.id },
-        select: { format: true }
+        select: { format: true, organizerId: true }
       })
 
-      if (tournament?.format !== 'categorias') {
+      if (tournament?.format !== 'categorias' && tournament?.organizerId === payload.userId) {
         const defaultPhase = await prisma.phase.create({
           data: {
             tournamentId: params.id,

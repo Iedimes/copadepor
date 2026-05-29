@@ -1361,7 +1361,7 @@ export default function TournamentPage() {
   }
 
 
-  const shareUrl = `https://copafacil.com/${tournamentId}`
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/public/tournaments/${tournamentId}` : '';
   const sportIcon = getSportIcon(activeCategory?.sportType || tournament?.sportType || '')
 
   if (loading && !tournament) return <div className="p-8 text-center font-black text-slate-400 uppercase tracking-widest">Cargando Torneo...</div>
