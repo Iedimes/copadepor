@@ -394,6 +394,36 @@ export default function PublicTournamentPage() {
     return '🏆'
   }
 
+  const getSportBanner = (s: string) => {
+    if (tournament?.banner) return tournament.banner
+    const key = (s || '').toUpperCase()
+    if (key.includes('FUT')) {
+      return 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600' // fútbol
+    }
+    if (key.includes('BASKET') || key.includes('BALONCESTO')) {
+      return 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1600' // basquet
+    }
+    if (key.includes('VOLEY') || key.includes('VOLLEY')) {
+      return 'https://images.unsplash.com/photo-1592656094267-764a45068526?q=80&w=1600' // voley
+    }
+    if (key.includes('BALONMANO')) {
+      return 'https://images.unsplash.com/photo-1552667466-07770ae110d0?q=80&w=1600' // balonmano
+    }
+    if (key.includes('TENIS') || key.includes('TENNIS')) {
+      return 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=1600' // tenis
+    }
+    if (key.includes('AJEDREZ')) {
+      return 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=1600' // ajedrez
+    }
+    if (key.includes('ATLETISMO')) {
+      return 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=1600' // atletismo
+    }
+    if (key.includes('DISPAROS') || key.includes('ROYALE') || key.includes('MOBA') || key.includes('LOL') || key.includes('DOTA')) {
+      return 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1600' // esports
+    }
+    return 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=1600' // genérico
+  }
+
   const sportIcon = getSportIcon(sportType)
   const activePhase = phases.find(p => p.name === selectedPhase)
   const standings = getStandings()
@@ -437,7 +467,10 @@ export default function PublicTournamentPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex relative overflow-hidden font-sans antialiased text-slate-800">
       {/* SIDEBAR NAVIGATION */}
-      <div className="w-64 bg-[#FF6B00] text-white/80 flex flex-col h-full z-10 border-r border-black/5 flex-shrink-0">
+      <div 
+        className="w-64 text-white/80 flex flex-col h-full z-10 border-r border-black/5 flex-shrink-0"
+        style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
+      >
         <div className="p-8">
           <div 
             onClick={() => {
@@ -448,7 +481,13 @@ export default function PublicTournamentPage() {
             }}
             className={`flex items-center gap-3 mb-12 ${tournament?.format === 'categorias' ? 'cursor-pointer hover:opacity-90 transition-all' : ''}`}
           >
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl shadow-md shrink-0">⚽</div>
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shadow-md shrink-0 overflow-hidden">
+              {tournament?.logo ? (
+                <img src={tournament.logo} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl">{sportIcon}</span>
+              )}
+            </div>
             <h1 className="text-xs font-black text-white tracking-tight uppercase leading-snug break-words max-w-[130px]">{tournament?.name}</h1>
           </div>
 
@@ -537,7 +576,7 @@ export default function PublicTournamentPage() {
             <div className="relative h-64 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
               <div 
                 className="absolute inset-0 bg-cover bg-center opacity-40" 
-                style={{ backgroundImage: `url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600')` }}
+                style={{ backgroundImage: `url('${getSportBanner(sportType)}')` }}
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
               <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">

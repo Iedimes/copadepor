@@ -16,6 +16,9 @@ interface Tournament {
   organizer: { name: string }
   classificationCriteria: string
   phaseSystem: string
+  logo?: string | null
+  banner?: string | null
+  themeColor?: string | null
 }
 
 interface Message {
@@ -50,7 +53,7 @@ interface TournamentTeam {
   team: { id: string; name: string; logo?: string | null; color?: string | null }
 }
 
-type MenuType = 'inicio' | 'clasificacion' | 'estadisticas'
+type MenuType = 'inicio' | 'clasificacion' | 'estadisticas' | 'configuracion'
 
 const LiveMatchTimer = ({ notes }: { notes: string }) => {
   const [str, setStr] = useState('')
@@ -163,6 +166,37 @@ export default function TournamentPage() {
   const [activeCategory, setActiveCategory] = useState<any | null>(null)
   const sportType = activeCategory?.sportType || tournament?.sportType || ''
   const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
+  
+  const getSportBanner = (s: string) => {
+    if (tournament?.banner) return tournament.banner
+    const key = (s || '').toUpperCase()
+    if (key.includes('FUT')) {
+      return 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600' // fútbol
+    }
+    if (key.includes('BASKET') || key.includes('BALONCESTO')) {
+      return 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1600' // basquet
+    }
+    if (key.includes('VOLEY') || key.includes('VOLLEY')) {
+      return 'https://images.unsplash.com/photo-1592656094267-764a45068526?q=80&w=1600' // voley
+    }
+    if (key.includes('BALONMANO')) {
+      return 'https://images.unsplash.com/photo-1552667466-07770ae110d0?q=80&w=1600' // balonmano
+    }
+    if (key.includes('TENIS') || key.includes('TENNIS')) {
+      return 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=1600' // tenis
+    }
+    if (key.includes('AJEDREZ')) {
+      return 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=1600' // ajedrez
+    }
+    if (key.includes('ATLETISMO')) {
+      return 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=1600' // atletismo
+    }
+    if (key.includes('DISPAROS') || key.includes('ROYALE') || key.includes('MOBA') || key.includes('LOL') || key.includes('DOTA')) {
+      return 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1600' // esports
+    }
+    return 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=1600' // genérico
+  }
+
   const [categories, setCategories] = useState<any[]>([])
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -264,6 +298,61 @@ export default function TournamentPage() {
   const [selectedSeeds, setSelectedSeeds] = useState<string[]>([])
   const [groupByGroup, setGroupByGroup] = useState(false)
   const [continueFromPrevPhase, setContinueFromPrevPhase] = useState(false)
+
+  // Custom Tournament Configuration States
+  const [configName, setConfigName] = useState('')
+  const [configDescription, setConfigDescription] = useState('')
+  const [configLogo, setConfigLogo] = useState('')
+  const [configBanner, setConfigBanner] = useState('')
+  const [configThemeColor, setConfigThemeColor] = useState('#FF6B00')
+  const [configSaving, setConfigSaving] = useState(false)
+  const [configSuccess, setConfigSuccess] = useState(false)
+  const [configError, setConfigError] = useState('')
+
+  useEffect(() => {
+    if (tournament) {
+      setConfigName(tournament.name || '')
+      setConfigDescription(tournament.description || '')
+      setConfigLogo(tournament.logo || '')
+      setConfigBanner(tournament.banner || '')
+      setConfigThemeColor(tournament.themeColor || '#FF6B00')
+    }
+  }, [tournament])
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setConfigSaving(true)
+    setConfigSuccess(false)
+    setConfigError('')
+    const token = localStorage.getItem('token')
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: configName,
+          description: configDescription || null,
+          logo: configLogo || null,
+          banner: configBanner || null,
+          themeColor: configThemeColor
+        })
+      })
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Error al guardar la configuración')
+      }
+      setConfigSuccess(true)
+      await fetchData()
+      setTimeout(() => setConfigSuccess(false), 5000)
+    } catch (err: any) {
+      setConfigError(err.message)
+    } finally {
+      setConfigSaving(false)
+    }
+  }
 
   const tournamentId = params.id as string
 
@@ -1382,8 +1471,14 @@ export default function TournamentPage() {
             }}
             className={`flex items-center gap-3 mb-12 ${tournament?.format === 'categorias' ? 'cursor-pointer hover:opacity-80 transition-all' : ''}`}
           >
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-500/20">🏆</div>
-            <h1 className="text-xl font-black text-white tracking-tighter uppercase">{tournament?.name || 'Copa Depor'}</h1>
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 overflow-hidden">
+              {tournament?.logo ? (
+                <img src={tournament.logo} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl">{sportIcon}</span>
+              )}
+            </div>
+            <h1 className="text-xl font-black text-white tracking-tighter uppercase leading-tight truncate max-w-[130px]">{tournament?.name || 'Copa Depor'}</h1>
           </div>
 
           <nav className="space-y-2">
@@ -1414,7 +1509,10 @@ export default function TournamentPage() {
             <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
               <span className="text-lg">📸</span> Fotos, vídeos y noticias
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed mt-8">
+            <button 
+              onClick={() => setActiveMenu('configuracion')} 
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all mt-8 ${activeMenu === 'configuracion' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400'}`}
+            >
               <span className="text-lg">⚙️</span> Configuración
             </button>
           </nav>
@@ -1446,7 +1544,7 @@ export default function TournamentPage() {
             <div className="relative h-64 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
               <div 
                 className="absolute inset-0 bg-cover bg-center opacity-40" 
-                style={{ backgroundImage: `url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600')` }}
+                style={{ backgroundImage: `url('${getSportBanner(sportType)}')` }}
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
               <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
@@ -1541,6 +1639,237 @@ export default function TournamentPage() {
                 ))}
               </div>
             </div>
+          </div>
+        ) : activeMenu === 'configuracion' ? (
+          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {/* Header Title */}
+            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 p-8">
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <span className="text-4xl">⚙️</span> Configuración del Torneo
+              </h1>
+              <p className="text-slate-400 text-xs font-bold leading-normal mt-1 uppercase tracking-wider">
+                Personaliza la apariencia pública, logotipo, colores y datos básicos de tu campeonato.
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveConfig} className="space-y-8">
+              {/* Card 1: Datos Básicos */}
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 p-10 space-y-6">
+                <h3 className="text-lg font-black text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
+                  <span>📝</span> Datos Básicos
+                </h3>
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nombre del Torneo</label>
+                    <input 
+                      type="text" 
+                      value={configName} 
+                      onChange={e => setConfigName(e.target.value)} 
+                      required
+                      placeholder="Ej. Copa de Campeones"
+                      className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descripción / Subtítulo</label>
+                    <textarea 
+                      value={configDescription} 
+                      onChange={e => setConfigDescription(e.target.value)} 
+                      placeholder="Ej. Edición Aniversario - Torneo Oficial de Categorías"
+                      rows={3}
+                      className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 transition-all resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Identidad y Diseño */}
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 p-10 space-y-8">
+                <h3 className="text-lg font-black text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
+                  <span>🎨</span> Identidad y Diseño
+                </h3>
+
+                {/* Color del Menú */}
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Color del Menú Público (Barra Lateral)</label>
+                  <div className="flex flex-wrap items-center gap-4">
+                    {/* Preset Colors */}
+                    {[
+                      { hex: '#FF6B00', name: 'Naranja Sajonia' },
+                      { hex: '#0F172A', name: 'Azul Profundo' },
+                      { hex: '#059669', name: 'Verde Esmeralda' },
+                      { hex: '#7C3AED', name: 'Púrpura Imperial' },
+                      { hex: '#DC2626', name: 'Rojo Fuego' },
+                      { hex: '#18181B', name: 'Negro Premium' },
+                    ].map(preset => (
+                      <button
+                        key={preset.hex}
+                        type="button"
+                        onClick={() => setConfigThemeColor(preset.hex)}
+                        className={`w-10 h-10 rounded-full border-4 transition-all hover:scale-110 shadow-sm relative`}
+                        style={{ 
+                          backgroundColor: preset.hex,
+                          borderColor: configThemeColor === preset.hex ? '#3B82F6' : 'white',
+                          outline: configThemeColor === preset.hex ? '2px solid #3B82F6' : 'none'
+                        }}
+                        title={preset.name}
+                      />
+                    ))}
+                    {/* Custom Color Input */}
+                    <div className="flex items-center gap-2 pl-4 border-l border-slate-200">
+                      <input 
+                        type="color" 
+                        value={configThemeColor} 
+                        onChange={e => setConfigThemeColor(e.target.value)} 
+                        className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 shadow-sm bg-transparent"
+                      />
+                      <span className="font-mono text-xs text-slate-500 font-bold uppercase">{configThemeColor}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo Section */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                  <div className="md:col-span-2 space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">URL del Logotipo (Imagen Cuadrada)</label>
+                    <input 
+                      type="text" 
+                      value={configLogo} 
+                      onChange={e => setConfigLogo(e.target.value)} 
+                      placeholder="Ej. https://tusitio.com/logo.png"
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 text-sm transition-all"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfigLogo('')}
+                        className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-500 px-4 py-2 rounded-xl font-bold uppercase tracking-wider transition-all"
+                      >
+                        Restablecer por defecto (Emoji del deporte)
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200/60 rounded-[2rem] p-6 min-h-[140px]">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Vista Previa</span>
+                    {configLogo ? (
+                      <img 
+                        src={configLogo} 
+                        alt="Logo Torneo" 
+                        className="w-20 h-20 rounded-full object-cover border border-slate-200 shadow-md"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect width="80" height="80" fill="%23f1f5f9"/><text x="40" y="45" font-family="sans-serif" font-size="12" fill="%2394a3b8" text-anchor="middle">Error</text></svg>';
+                        }}
+                      />
+                    ) : (
+                      <div 
+                        className="w-20 h-20 rounded-full bg-white/60 flex items-center justify-center text-4xl shadow-sm border border-slate-200"
+                        style={{ backgroundColor: configThemeColor + '15', color: configThemeColor }}
+                      >
+                        {sportIcon}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Banner Section */}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                    <div className="md:col-span-2 space-y-4">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">URL de la Portada / Banner (Imagen Horizontal)</label>
+                      <input 
+                        type="text" 
+                        value={configBanner} 
+                        onChange={e => setConfigBanner(e.target.value)} 
+                        placeholder="Ej. https://tusitio.com/banner.jpg"
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 text-sm transition-all"
+                      />
+                      
+                      <div className="space-y-2">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Aplicar Portadas Recomendadas:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { code: 'FUTBOL_11', label: '⚽ Fútbol' },
+                            { code: 'BALONCESTO', label: '🏀 Basquet' },
+                            { code: 'VOLEY', label: '🏐 Voley' },
+                            { code: 'BALONMANO', label: '🤾 Balonmano' },
+                            { code: 'TENIS', label: '🎾 Tenis' },
+                            { code: 'AJEDREZ', label: '♟️ Ajedrez' },
+                            { code: 'ATLETISMO', label: '🏃 Atletismo' },
+                            { code: 'DISPAROS', label: '🎮 E-Sports' },
+                          ].map(opt => (
+                            <button
+                              key={opt.code}
+                              type="button"
+                              onClick={() => {
+                                const defaultBannerImg = {
+                                  FUTBOL_11: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600',
+                                  BALONCESTO: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1600',
+                                  VOLEY: 'https://images.unsplash.com/photo-1592656094267-764a45068526?q=80&w=1600',
+                                  BALONMANO: 'https://images.unsplash.com/photo-1552667466-07770ae110d0?q=80&w=1600',
+                                  TENIS: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=1600',
+                                  AJEDREZ: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=1600',
+                                  ATLETISMO: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?q=80&w=1600',
+                                  DISPAROS: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1600',
+                                }[opt.code as 'FUTBOL_11' | 'BALONCESTO' | 'VOLEY' | 'BALONMANO' | 'TENIS' | 'AJEDREZ' | 'ATLETISMO' | 'DISPAROS'];
+                                setConfigBanner(defaultBannerImg || '');
+                              }}
+                              className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-xl font-bold uppercase tracking-wider transition-all border border-slate-200"
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200/60 rounded-[2rem] p-4 min-h-[140px] overflow-hidden">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Vista Previa</span>
+                      <div className="w-full h-20 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-200 relative">
+                        <img 
+                          src={configBanner || 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600'} 
+                          alt="Banner Torneo" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="80" viewBox="0 0 300 80"><rect width="300" height="80" fill="%23f1f5f9"/><text x="150" y="45" font-family="sans-serif" font-size="12" fill="%2394a3b8" text-anchor="middle">Error al cargar imagen</text></svg>';
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status and Actions */}
+              {configError && (
+                <div className="p-6 bg-red-50 border border-red-200/60 rounded-[2rem] text-red-600 text-xs font-bold uppercase tracking-wider flex items-center gap-3 animate-in fade-in duration-300">
+                  <span>⚠️</span> {configError}
+                </div>
+              )}
+
+              {configSuccess && (
+                <div className="p-6 bg-emerald-50 border border-emerald-200/60 rounded-[2rem] text-emerald-600 text-xs font-bold uppercase tracking-wider flex items-center gap-3 animate-in fade-in duration-300">
+                  <span>✓</span> ¡Configuración guardada exitosamente! Todos los cambios han sido aplicados.
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <button
+                  type="submit"
+                  disabled={configSaving}
+                  className="flex-1 py-5 bg-[#0A1128] hover:bg-blue-600 disabled:bg-slate-400 text-white font-black text-xs uppercase tracking-widest rounded-[2rem] border border-transparent transition-all hover:scale-[1.01] flex items-center justify-center gap-3 shadow-xl animate-in duration-300"
+                >
+                  {configSaving ? (
+                    <>
+                      <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <span>💾</span> Guardar Configuración
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         ) : activeMenu === 'inicio' ? (
           <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
