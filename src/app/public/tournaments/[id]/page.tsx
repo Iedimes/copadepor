@@ -631,105 +631,187 @@ export default function PublicTournamentPage() {
                       <div className="flex justify-between items-center mb-6 relative">
                         <div className="relative">
                           <select 
-                            value={selectedPhase}
-                            onChange={(e) => {
-                              setSelectedPhase(e.target.value)
-                              setSelectedRound('')
-                            }}
+                            value={activeMenu === 'estadisticas' ? 'estadisticas' : selectedPhase}
+                            onChange={(e) => handlePhaseChange(e.target.value)}
                             className="bg-transparent border border-slate-350 rounded-full pl-4 pr-8 py-1.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer shadow-xs"
                           >
                             {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
                             {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase}>{selectedPhase}</option>}
+                            <option value="estadisticas" className="text-[#FF6B00] font-black">📊 Estadísticas Generales</option>
                           </select>
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 text-[10px]">▼</span>
                         </div>
                       </div>
 
-                      {/* Centered Classification header */}
-                      <h2 className="text-center text-xs font-black text-slate-400 uppercase tracking-[0.25em] mb-8">CLASIFICACIÓN</h2>
+                      {activeMenu === 'estadisticas' ? (
+                        /* STATISTICS VIEW */
+                        <div className="space-y-10 animate-in fade-in duration-500 pt-2">
+                          <h2 className="text-center text-xs font-black text-slate-400 uppercase tracking-[0.25em] mb-8">ESTADÍSTICAS GENERALES</h2>
 
-                      {/* Standings list */}
-                      {Object.keys(standings).length === 0 ? (
-                        <div className="text-center py-16 text-slate-400 font-bold italic text-xs uppercase tracking-wider">
-                          Tabla de posiciones no disponible aún.
+                          {/* Scorers & Sanciones List */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Scorers */}
+                            <div className="bg-white rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-xs">
+                              <div className="bg-[#FF6B00] p-4 text-center">
+                                <h3 className="text-white font-black uppercase tracking-widest text-xs">⚽ Tabla de Goleadores</h3>
+                              </div>
+                              <div className="p-4">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-200 text-[9px] text-slate-400 font-black uppercase tracking-widest">
+                                      <th className="p-3 text-center w-12">#</th>
+                                      <th className="p-3 text-left">Jugador</th>
+                                      <th className="p-3 text-left">Club</th>
+                                      <th className="p-3 text-center w-16">{isBasketball ? 'PTS' : 'GOLES'}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                                    {getTopScorers().length === 0 ? (
+                                      <tr><td colSpan={4} className="p-12 text-center text-slate-450 font-bold italic text-xs uppercase tracking-widest">Sin registros</td></tr>
+                                    ) : getTopScorers().map((p: any, i: number) => (
+                                      <tr key={i} className="hover:bg-slate-50 transition-all">
+                                        <td className="p-3 text-center font-black text-slate-400">{i+1}</td>
+                                        <td className="p-3 font-black text-slate-800">{p.name}</td>
+                                        <td className="p-3 text-slate-500">{p.team}</td>
+                                        <td className="p-3 text-center font-black text-[#FF6B00] text-xs bg-[#FF6B00]/5">{p.goals}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
+                            {/* Discipline */}
+                            <div className="bg-white rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-xs">
+                              <div className="bg-slate-800 p-4 text-center">
+                                <h3 className="text-white font-black uppercase tracking-widest text-xs">🟨 Tabla de Sanciones</h3>
+                              </div>
+                              <div className="p-4">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-200 text-[9px] text-slate-400 font-black uppercase tracking-widest">
+                                      <th className="p-3 text-center w-12">#</th>
+                                      <th className="p-3 text-left">Jugador</th>
+                                      <th className="p-3 text-left">Club</th>
+                                      <th className="p-3 text-center w-12">🟨</th>
+                                      <th className="p-3 text-center w-12">🟥</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                                    {getTopDisciplined().length === 0 ? (
+                                      <tr><td colSpan={5} className="p-12 text-center text-slate-450 font-bold italic text-xs uppercase tracking-widest">Sin amonestaciones</td></tr>
+                                    ) : getTopDisciplined().map((p: any, i: number) => (
+                                      <tr key={i} className="hover:bg-slate-50 transition-all">
+                                        <td className="p-3 text-center font-black text-slate-400">{i+1}</td>
+                                        <td className="p-3 font-black text-slate-800">{p.name}</td>
+                                        <td className="p-3 text-slate-500">{p.team}</td>
+                                        <td className="p-3 text-center font-black text-amber-500 text-xs">{p.yellow}</td>
+                                        <td className="p-3 text-center font-black text-red-500 text-xs">{p.red}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 4 Ranking Cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <RankingCard title="Mejor ataque" label={isBasketball ? "Anotaciones" : "Goles"} data={getTeamRankings().bestAttack} field="gf" />
+                            <RankingCard title="Mejor defensa" label={isBasketball ? "Anotaciones" : "Goles"} data={getTeamRankings().bestDefense} field="ga" />
+                            <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
+                            <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
+                          </div>
                         </div>
                       ) : (
-                        <div className="space-y-8">
-                          {(() => {
-                            const renderSideTable = (list: any[], groupName?: string) => (
-                              <div key={groupName || 'all'} className="space-y-4">
-                                {groupName && (
-                                  <h3 className="text-center text-[10px] font-black text-[#FF6B00] uppercase tracking-[0.3em] mb-4">GRUPO {groupName}</h3>
-                                )}
-                                <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
-                                  <table className="w-full text-xs text-left border-collapse">
-                                    <thead>
-                                      <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider border-b border-slate-200">
-                                        <th className="p-3 text-center w-12">Pos</th>
-                                        <th className="p-3 pl-2">EQUIPOS</th>
-                                        <th className="p-3 text-center w-14">Pts</th>
-                                        <th className="p-3 text-center w-10">J</th>
-                                        <th className="p-3 text-center w-10">G</th>
-                                        <th className="p-3 text-center w-10">E</th>
-                                        <th className="p-3 text-center w-10">P</th>
-                                        <th className="p-3 text-center w-12">GF</th>
-                                        <th className="p-3 text-center w-12">GC</th>
-                                        <th className="p-3 text-center w-12">DIF</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                                      {list.map((row: any, idx: number) => (
-                                        <tr 
-                                          key={row.id} 
-                                          onClick={() => handleViewTeamRoster(row)}
-                                          className="hover:bg-[#F8FAFC] transition-colors cursor-pointer"
-                                        >
-                                          {/* Position square styled matching the screenshot */}
-                                          <td className="p-3 text-center">
-                                            <span className="w-6 h-6 flex items-center justify-center rounded bg-[#FF6B00] text-white font-black text-[10px] mx-auto shadow-sm">
-                                              {idx + 1}
-                                            </span>
-                                          </td>
-                                          <td className="p-3 pl-2">
-                                            <div className="flex items-center gap-3">
-                                              {row.logo ? (
-                                                <img src={row.logo} className="w-7 h-7 rounded-lg object-cover bg-white border shadow-xs shrink-0" />
-                                              ) : (
-                                                <div className="w-7 h-7 rounded-lg bg-slate-100 border flex items-center justify-center text-xs shrink-0">🛡️</div>
-                                              )}
-                                              <span className="font-black text-slate-800 text-xs truncate max-w-[180px]">{row.name}</span>
-                                            </div>
-                                          </td>
-                                          {/* PTS column styled with light blue background */}
-                                          <td className="p-3 text-center font-black text-slate-900 text-xs bg-[#EBF3FC] border-x border-slate-100/50">{row.points}</td>
-                                          <td className="p-3 text-center text-slate-500">{row.played}</td>
-                                          <td className="p-3 text-center text-slate-500">{row.won}</td>
-                                          <td className="p-3 text-center text-slate-500">{row.drawn}</td>
-                                          <td className="p-3 text-center text-slate-500">{row.lost}</td>
-                                          <td className="p-3 text-center text-slate-500">{row.gf}</td>
-                                          <td className="p-3 text-center text-slate-500">{row.ga}</td>
-                                          <td className={`p-3 text-center font-black ${row.diff > 0 ? 'text-emerald-500' : row.diff < 0 ? 'text-red-400' : 'text-slate-400'}`}>
-                                            {row.diff > 0 ? `+${row.diff}` : row.diff}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )
+                        /* CLASIFICACIÓN VIEW */
+                        <>
+                          <h2 className="text-center text-xs font-black text-slate-400 uppercase tracking-[0.25em] mb-8">CLASIFICACIÓN</h2>
 
-                            const isGrouped = !Array.isArray(standings)
-                            if (isGrouped) {
-                              return Object.keys(standings).sort().map(gName => (
-                                renderSideTable(standings[gName], gName)
-                              ))
-                            } else {
-                              return renderSideTable(standings as any[])
-                            }
-                          })()}
-                        </div>
+                          {Object.keys(standings).length === 0 ? (
+                            <div className="text-center py-16 text-slate-400 font-bold italic text-xs uppercase tracking-wider">
+                              Tabla de posiciones no disponible aún.
+                            </div>
+                          ) : (
+                            <div className="space-y-8">
+                              {(() => {
+                                const renderSideTable = (list: any[], groupName?: string) => (
+                                  <div key={groupName || 'all'} className="space-y-4">
+                                    {groupName && (
+                                      <h3 className="text-center text-[10px] font-black text-[#FF6B00] uppercase tracking-[0.3em] mb-4">GRUPO {groupName}</h3>
+                                    )}
+                                    <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
+                                      <table className="w-full text-xs text-left border-collapse">
+                                        <thead>
+                                          <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider border-b border-slate-200">
+                                            <th className="p-3 text-center w-12">Pos</th>
+                                            <th className="p-3 pl-2">EQUIPOS</th>
+                                            <th className="p-3 text-center w-14">Pts</th>
+                                            <th className="p-3 text-center w-10">J</th>
+                                            <th className="p-3 text-center w-10">G</th>
+                                            <th className="p-3 text-center w-10">E</th>
+                                            <th className="p-3 text-center w-10">P</th>
+                                            <th className="p-3 text-center w-12">GF</th>
+                                            <th className="p-3 text-center w-12">GC</th>
+                                            <th className="p-3 text-center w-12">DIF</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                                          {list.map((row: any, idx: number) => (
+                                            <tr 
+                                              key={row.id} 
+                                              onClick={() => handleViewTeamRoster(row)}
+                                              className="hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                                            >
+                                              {/* Position square styled matching the screenshot */}
+                                              <td className="p-3 text-center">
+                                                <span className="w-6 h-6 flex items-center justify-center rounded bg-[#FF6B00] text-white font-black text-[10px] mx-auto shadow-sm">
+                                                  {idx + 1}
+                                                </span>
+                                              </td>
+                                              <td className="p-3 pl-2">
+                                                <div className="flex items-center gap-3">
+                                                  {row.logo ? (
+                                                    <img src={row.logo} className="w-7 h-7 rounded-lg object-cover bg-white border shadow-xs shrink-0" />
+                                                  ) : (
+                                                    <div className="w-7 h-7 rounded-lg bg-slate-100 border flex items-center justify-center text-xs shrink-0">🛡️</div>
+                                                  )}
+                                                  <span className="font-black text-slate-800 text-xs truncate max-w-[180px]">{row.name}</span>
+                                                </div>
+                                              </td>
+                                              {/* PTS column styled with light blue background */}
+                                              <td className="p-3 text-center font-black text-slate-900 text-xs bg-[#EBF3FC] border-x border-slate-100/50">{row.points}</td>
+                                              <td className="p-3 text-center text-slate-500">{row.played}</td>
+                                              <td className="p-3 text-center text-slate-500">{row.won}</td>
+                                              <td className="p-3 text-center text-slate-500">{row.drawn}</td>
+                                              <td className="p-3 text-center text-slate-500">{row.lost}</td>
+                                              <td className="p-3 text-center text-slate-500">{row.gf}</td>
+                                              <td className="p-3 text-center text-slate-500">{row.ga}</td>
+                                              <td className={`p-3 text-center font-black ${row.diff > 0 ? 'text-emerald-500' : row.diff < 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                                                {row.diff > 0 ? `+${row.diff}` : row.diff}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )
+
+                                const isGrouped = !Array.isArray(standings)
+                                if (isGrouped) {
+                                  return Object.keys(standings).sort().map(gName => (
+                                    renderSideTable(standings[gName], gName)
+                                  ))
+                                } else {
+                                  return renderSideTable(standings as any[])
+                                }
+                              })()}
+                            </div>
+                          )}
+                        </>
                       )}
+
                     </div>
                   </div>
 
