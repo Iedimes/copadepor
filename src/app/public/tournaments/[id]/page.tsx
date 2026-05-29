@@ -377,6 +377,21 @@ export default function PublicTournamentPage() {
   }
 
   const sportIcon = getSportIcon(sportType)
+  const activePhase = phases.find(p => p.name === selectedPhase)
+  const standings = getStandings()
+  const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
+  const phaseRoundsWithOrder = Array.from(new Set(phaseMatches.map((x: any) => String(x.roundName)))).map(r => {
+    const firstMatch = phaseMatches.find((x: any) => String(x.roundName) === r)
+    return { name: r, order: firstMatch?.roundOrder || 0 }
+  }).sort((a, b) => {
+    if (a.order !== b.order) return a.order - b.order
+    if (!isNaN(Number(a.name)) && !isNaN(Number(b.name))) return Number(a.name) - Number(b.name)
+    return a.name.localeCompare(b.name)
+  })
+  const currentPhaseRounds = phaseRoundsWithOrder.map(r => r.name)
+  const activeRoundMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)
+
+
 
   if (loading && !tournament) {
     return (
