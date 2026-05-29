@@ -13,16 +13,6 @@ function getAuthToken(request: NextRequest): string | null {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const token = getAuthToken(request)
-  if (!token) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
-
-  const payload = verifyToken(token)
-  if (!payload) {
-    return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
-  }
-
   try {
     const tournament = await prisma.tournament.findUnique({
       where: { id: params.id },
