@@ -1515,9 +1515,9 @@ export default function TournamentPage() {
               )}
             </div>
 
-            {/* Tablón de Mensajes */}
+            {/* Mensajes */}
             <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
-              <h2 className="text-2xl font-black text-slate-900 mb-6">💬 Tablón de Mensajes</h2>
+              <h2 className="text-2xl font-black text-slate-900 mb-6">💬 Mensajes</h2>
               <form onSubmit={handleSendMessage} className="flex gap-3 mb-8">
                 <input 
                   type="text" 
@@ -1575,7 +1575,7 @@ export default function TournamentPage() {
               {showQR && <div className="p-6 bg-slate-50 rounded-[2rem] mb-10 border-2 border-dashed border-slate-200 animate-in zoom-in-95"><div className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest text-center">URL Pública</div><div className="bg-white p-4 rounded-xl font-mono text-xs text-blue-600 break-all border border-slate-100 shadow-sm">{shareUrl}</div></div>}
               
               <div className="border-t border-slate-100 pt-10">
-                <h2 className="text-2xl font-black text-slate-900 mb-6">💬 Tablón de Mensajes</h2>
+                <h2 className="text-2xl font-black text-slate-900 mb-6">💬 Mensajes</h2>
                 <form onSubmit={handleSendMessage} className="flex gap-3 mb-8">
                   <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Publicar un anuncio importante..." className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" />
                   <button type="submit" className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Publicar</button>

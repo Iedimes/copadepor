@@ -51,6 +51,24 @@ export default function PublicTournamentPage() {
   const [teamRoster, setTeamRoster] = useState<any | null>(null)
   const [loadingRoster, setLoadingRoster] = useState(false)
 
+  // Message sending state
+  const [newMessage, setNewMessage] = useState('')
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [loggedUser, setLoggedUser] = useState<any>(null)
+  const [sendingMessage, setSendingMessage] = useState(false)
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      try { setLoggedUser(JSON.parse(userStr)) } catch {}
+    }
+  }, [])
+
   const firstPhaseName = phases.length > 0 ? phases[0].name : '1° Fase'
   const sportType = activeCategory?.sportType || tournament?.sportType || ''
   const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
@@ -483,14 +501,28 @@ export default function PublicTournamentPage() {
           </nav>
         </div>
 
-        {/* BOTTOM spectating badge */}
+        {/* BOTTOM user badge */}
         <div className="mt-auto p-6 border-t border-white/10">
           <div className="flex items-center justify-between text-white text-xs font-bold px-2">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black shrink-0">👤</span>
-              <span className="truncate max-w-[80px] text-xs font-black">Invitado</span>
+              <span className="truncate max-w-[80px] text-xs font-black">{loggedUser ? loggedUser.name : 'Invitado'}</span>
             </div>
-            <Link href="/login" className="text-white/70 hover:text-white transition-colors text-[9px] uppercase font-black tracking-wider bg-black/10 px-2 py-1 rounded shrink-0">Iniciar Sesión</Link>
+            {loggedUser ? (
+              <button 
+                onClick={() => {
+                  localStorage.removeItem('token')
+                  localStorage.removeItem('user')
+                  setLoggedUser(null)
+                }}
+                className="text-white/70 hover:text-white transition-colors text-[9px] uppercase font-black tracking-wider bg-black/10 px-2 py-1 rounded shrink-0"
+              >Cerrar Sesión</button>
+            ) : (
+              <button 
+                onClick={() => setShowLoginModal(true)}
+                className="text-white/70 hover:text-white transition-colors text-[9px] uppercase font-black tracking-wider bg-black/10 px-2 py-1 rounded shrink-0"
+              >Iniciar Sesión</button>
+            )}
           </div>
         </div>
       </div>
@@ -585,13 +617,61 @@ export default function PublicTournamentPage() {
                   {/* MESSAGE BOARD / TIMELINE ANNOUNCEMENTS */}
                   <div className="border-t border-slate-100 pt-10">
                     <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                      <span>📢</span> Tablón de Anuncios
+                      <span>💬</span> Mensajes
                     </h2>
+
+                    {/* Message Input */}
+                    <div className="flex gap-3 mb-8">
+                      <input 
+                        type="text" 
+                        value={newMessage} 
+                        onChange={e => setNewMessage(e.target.value)} 
+                        placeholder="Escribe un mensaje..." 
+                        className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 border border-slate-100" 
+                      />
+                      <button 
+                        onClick={async () => {
+                          if (!newMessage.trim()) return
+                          const token = localStorage.getItem('token')
+                          if (!token) {
+                            setShowLoginModal(true)
+                            return
+                          }
+                          setSendingMessage(true)
+                          try {
+                            const res = await fetch(`/api/tournaments/${tournamentId}/messages`, {
+                              method: 'POST',
+                              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ content: newMessage }),
+                            })
+                            if (res.ok) {
+                              setNewMessage('')
+                              const msgRes = await fetch(`/api/tournaments/${tournamentId}/messages`)
+                              if (msgRes.ok) setMessages(await msgRes.json())
+                            } else if (res.status === 401) {
+                              localStorage.removeItem('token')
+                              localStorage.removeItem('user')
+                              setLoggedUser(null)
+                              setShowLoginModal(true)
+                            } else {
+                              alert('Error al enviar mensaje')
+                            }
+                          } catch {
+                            alert('Error de conexión')
+                          }
+                          setSendingMessage(false)
+                        }}
+                        disabled={sendingMessage}
+                        className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
+                      >
+                        {sendingMessage ? '...' : 'Enviar'}
+                      </button>
+                    </div>
                     
                     <div className="space-y-6">
                       {messages.length === 0 && (
                         <div className="text-center py-12 text-slate-300 font-black uppercase text-xs tracking-widest italic border border-dashed rounded-[2rem] p-6 bg-slate-50/50 border-slate-200">
-                          Aún no se han publicado anuncios oficiales para este torneo.
+                          Aún no se han publicado mensajes para este torneo.
                         </div>
                       )}
                       
@@ -1300,6 +1380,105 @@ export default function PublicTournamentPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOGIN MODAL */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[500] p-4" onClick={() => setShowLoginModal(false)}>
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-center">
+              <h2 className="text-xl font-black text-white uppercase tracking-tight">Iniciar Sesión</h2>
+              <p className="text-blue-200 text-xs mt-1">Ingresa para enviar tu mensaje</p>
+            </div>
+            <div className="p-8">
+              {loginError && (
+                <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold mb-4">{loginError}</div>
+              )}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={e => setLoginEmail(e.target.value)}
+                    className="w-full px-5 py-4 bg-slate-50 rounded-2xl outline-none border border-slate-100 focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
+                    placeholder="tu@email.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Contraseña</label>
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={e => setLoginPassword(e.target.value)}
+                    className="w-full px-5 py-4 bg-slate-50 rounded-2xl outline-none border border-slate-100 focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+              <div className="mt-8 flex gap-3">
+                <button 
+                  onClick={() => { setShowLoginModal(false); setLoginError(''); }}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
+                >Cancelar</button>
+                <button
+                  onClick={async () => {
+                    if (!loginEmail || !loginPassword) { setLoginError('Completa todos los campos'); return }
+                    setLoginLoading(true)
+                    setLoginError('')
+                    try {
+                      const res = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok) {
+                        setLoginError(data.error || 'Credenciales incorrectas')
+                        setLoginLoading(false)
+                        return
+                      }
+                      localStorage.setItem('token', data.token)
+                      localStorage.setItem('user', JSON.stringify(data.user))
+                      setLoggedUser(data.user)
+                      setShowLoginModal(false)
+                      setLoginEmail('')
+                      setLoginPassword('')
+                      setLoginError('')
+
+                      // Auto-send pending message after login
+                      if (newMessage.trim()) {
+                        setSendingMessage(true)
+                        try {
+                          const msgRes = await fetch(`/api/tournaments/${tournamentId}/messages`, {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${data.token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ content: newMessage }),
+                          })
+                          if (msgRes.ok) {
+                            setNewMessage('')
+                            const refreshRes = await fetch(`/api/tournaments/${tournamentId}/messages`)
+                            if (refreshRes.ok) setMessages(await refreshRes.json())
+                          }
+                        } catch {}
+                        setSendingMessage(false)
+                      }
+                    } catch {
+                      setLoginError('Error de conexión')
+                    }
+                    setLoginLoading(false)
+                  }}
+                  disabled={loginLoading}
+                  className="flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50"
+                >{loginLoading ? 'Ingresando...' : 'Iniciar Sesión'}</button>
+              </div>
+              <p className="text-center mt-6 text-slate-400 text-xs">
+                ¿No tienes cuenta?{' '}
+                <Link href="/register" className="text-blue-600 hover:underline font-bold">Regístrate</Link>
+              </p>
             </div>
           </div>
         </div>
