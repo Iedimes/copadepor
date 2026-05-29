@@ -911,7 +911,7 @@ export default function TournamentPage() {
             Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({
-            name: 'Primera Fase',
+            name: '1° Fase',
             type: 'LIGA',
             isClassification: true,
             categoryId: savedCategory.id

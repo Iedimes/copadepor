@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     })
 
     // If there are no phases, and we are NOT in a multiple-category tournament (or if categoryId is not provided)
-    // auto-create "Primera Fase" so it matches old behavior.
+    // auto-create "1° Fase" so it matches old behavior.
     if (phases.length === 0 && (!categoryId || categoryId === 'null')) {
       const tournament = await prisma.tournament.findUnique({
         where: { id: params.id },
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         const defaultPhase = await prisma.phase.create({
           data: {
             tournamentId: params.id,
-            name: 'Primera Fase',
+            name: '1° Fase',
             type: 'LIGA',
             isClassification: true,
           }

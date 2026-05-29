@@ -1018,7 +1018,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const phase = await prisma.phase.findFirst({
       where: {
         tournamentId: params.id,
-        name: validated.phaseName || 'Primera Fase',
+        name: validated.phaseName || '1° Fase',
         ...(categoryId && { categoryId })
       }
     })
@@ -1031,7 +1031,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         awayTeamId: validated.awayTeamId,
         matchDate: validated.matchDate,
         roundName: validated.roundName || '1ª Fecha',
-        phaseName: validated.phaseName || 'Primera Fase',
+        phaseName: validated.phaseName || '1° Fase',
         phaseId: phase?.id || null,
         status: 'SCHEDULED',
         advantageTeamId: validated.advantageTeamId,
