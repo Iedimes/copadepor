@@ -1514,6 +1514,7 @@ export default function TournamentPage() {
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/public/tournaments/${tournamentId}` : '';
   const sportIcon = getSportIcon(activeCategory?.sportType || tournament?.sportType || '')
+  const themeColor = tournament?.themeColor || '#FF6B00'
 
   if (loading && !tournament) return <div className="p-8 text-center font-black text-slate-400 uppercase tracking-widest">Cargando Torneo...</div>
   if (!tournament) return <div className="p-8 text-center text-slate-400 font-bold italic">No se encontró el torneo.</div>
