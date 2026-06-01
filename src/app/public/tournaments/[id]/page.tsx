@@ -690,8 +690,8 @@ export default function PublicTournamentPage() {
                     <h2 className="text-2xl font-black text-slate-900 mb-6">Equipos</h2>
                     <div className="flex flex-wrap gap-6">
                       {tournamentTeams.map((tt: any) => (
-                        <div key={tt.id} className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTeam(tt.team)}>
-                          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-lg group-hover:scale-110 transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
+                        <div key={tt.id} className="flex flex-col items-center gap-2 group">
+                          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
                             {tt.team.logo ? (
                               <img src={tt.team.logo} alt={tt.team.name} className="w-full h-full object-contain p-1" />
                             ) : (

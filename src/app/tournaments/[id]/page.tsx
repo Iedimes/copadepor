@@ -565,7 +565,7 @@ export default function TournamentPage() {
     const urlCatId = searchParams.get('categoryId')
     if (urlCatId) {
       const found = categories.find((c: any) => c.id === urlCatId)
-      if (found && activeCategory?.id !== urlCatId) {
+      if (found && (activeCategory?.id !== urlCatId || activeCategory !== found)) {
         setActiveCategory(found)
       }
     } else {
