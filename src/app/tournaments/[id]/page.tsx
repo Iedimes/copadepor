@@ -1536,23 +1536,41 @@ export default function TournamentPage() {
       {/* Sidebar */}
       <div className="w-64 bg-[#0A1128] text-slate-400 flex flex-col h-full z-10 border-r border-white/5">
         <div className="p-8">
-          <div 
-            onClick={() => {
-              if (tournament?.format === 'categorias') {
-                setActiveMenu('inicio')
-                router.replace(`/tournaments/${tournamentId}`)
-              }
-            }}
-            className={`flex items-center gap-3 mb-12 ${tournament?.format === 'categorias' ? 'cursor-pointer hover:opacity-80 transition-all' : ''}`}
-          >
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 overflow-hidden">
+          <div className="flex items-center gap-3 mb-12">
+            <div 
+              onClick={(e) => {
+                e.stopPropagation()
+                setLogoEditTarget('tournament_logo')
+                setLogoEditUrl(tournament?.logo || '')
+                setShowLogoEditModal(true)
+              }}
+              className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 overflow-hidden cursor-pointer hover:scale-105 hover:bg-blue-700 transition-all relative group shrink-0"
+              title="Cambiar logotipo del torneo"
+            >
               {tournament?.logo ? (
                 <img src={tournament.logo} alt="Logo" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-xl">{sportIcon}</span>
               )}
+              <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white">
+                📷
+              </div>
             </div>
-            <h1 className="text-xl font-black text-white tracking-tighter uppercase leading-tight truncate max-w-[130px]">{tournament?.name || 'Copa Depor'}</h1>
+            
+            <h1 
+              onClick={() => {
+                if (tournament?.format === 'categorias') {
+                  setActiveMenu('inicio')
+                  router.replace(`/tournaments/${tournamentId}`)
+                } else {
+                  setActiveMenu('inicio')
+                }
+              }}
+              className="text-xl font-black text-white tracking-tighter uppercase leading-tight truncate max-w-[130px] cursor-pointer hover:opacity-80 transition-all"
+              title="Ir al Inicio"
+            >
+              {tournament?.name || 'Copa Depor'}
+            </h1>
           </div>
 
           <nav className="space-y-2">
@@ -1836,30 +1854,49 @@ export default function TournamentPage() {
                       placeholder="Ej. https://tusitio.com/logo.png"
                       className="w-full px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 text-sm transition-all"
                     />
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <button
                         type="button"
                         onClick={() => setConfigLogo('')}
-                        className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-500 px-4 py-2 rounded-xl font-bold uppercase tracking-wider transition-all"
+                        className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-500 px-4 py-2 rounded-xl font-bold uppercase tracking-wider transition-all border border-slate-200"
                       >
                         Restablecer por defecto (Emoji del deporte)
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLogoEditTarget('tournament_logo')
+                          setLogoEditUrl(configLogo || '')
+                          setShowLogoEditModal(true)
+                        }}
+                        className="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-2 rounded-xl font-bold uppercase tracking-wider transition-all border border-blue-200 flex items-center gap-1.5"
+                      >
+                        📷 Subir / Cambiar Logotipo
+                      </button>
                     </div>
                   </div>
-                  <div className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200/60 rounded-[2rem] p-6 min-h-[140px]">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Vista Previa</span>
+                  <div 
+                    onClick={() => {
+                      setLogoEditTarget('tournament_logo')
+                      setLogoEditUrl(configLogo || '')
+                      setShowLogoEditModal(true)
+                    }}
+                    className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200/60 hover:border-blue-300 hover:bg-blue-50/30 rounded-[2rem] p-6 min-h-[140px] cursor-pointer transition-all group"
+                    title="Subir o cambiar logotipo del torneo"
+                  >
+                    <span className="text-[9px] font-black text-slate-400 group-hover:text-blue-600 uppercase tracking-widest mb-3 transition-colors">Vista Previa (Editar 📷)</span>
                     {configLogo ? (
                       <img 
                         src={configLogo} 
                         alt="Logo Torneo" 
-                        className="w-20 h-20 rounded-full object-cover border border-slate-200 shadow-md"
+                        className="w-20 h-20 rounded-full object-cover border border-slate-200 shadow-md group-hover:scale-105 transition-all"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect width="80" height="80" fill="%23f1f5f9"/><text x="40" y="45" font-family="sans-serif" font-size="12" fill="%2394a3b8" text-anchor="middle">Error</text></svg>';
                         }}
                       />
                     ) : (
                       <div 
-                        className="w-20 h-20 rounded-full bg-white/60 flex items-center justify-center text-4xl shadow-sm border border-slate-200"
+                        className="w-20 h-20 rounded-full bg-white/60 flex items-center justify-center text-4xl shadow-sm border border-slate-200 group-hover:scale-105 transition-all"
                         style={{ backgroundColor: configThemeColor + '15', color: configThemeColor }}
                       >
                         {sportIcon}
@@ -1882,7 +1919,20 @@ export default function TournamentPage() {
                       />
                       
                       <div className="space-y-2">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Aplicar Portadas Recomendadas:</span>
+                        <div className="flex justify-between items-center mb-1 flex-wrap gap-2">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Aplicar Portadas Recomendadas:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLogoEditTarget('tournament_banner')
+                              setLogoEditUrl(configBanner || '')
+                              setShowLogoEditModal(true)
+                            }}
+                            className="text-[9px] bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-xl font-bold uppercase tracking-wider transition-all border border-blue-200 flex items-center gap-1"
+                          >
+                            📷 Subir / Cambiar Portada
+                          </button>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {[
                             { code: 'FUTBOL_11', label: '⚽ Fútbol' },
@@ -1918,9 +1968,17 @@ export default function TournamentPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200/60 rounded-[2rem] p-4 min-h-[140px] overflow-hidden">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Vista Previa</span>
-                      <div className="w-full h-20 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-200 relative">
+                    <div 
+                      onClick={() => {
+                        setLogoEditTarget('tournament_banner')
+                        setLogoEditUrl(configBanner || '')
+                        setShowLogoEditModal(true)
+                      }}
+                      className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200/60 hover:border-blue-300 hover:bg-blue-50/30 rounded-[2rem] p-4 min-h-[140px] overflow-hidden cursor-pointer transition-all group"
+                      title="Subir o cambiar portada del torneo"
+                    >
+                      <span className="text-[9px] font-black text-slate-400 group-hover:text-blue-600 uppercase tracking-widest mb-3 transition-colors">Vista Previa (Editar 📷)</span>
+                      <div className="w-full h-20 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-200 relative group-hover:scale-[1.02] transition-all">
                         <img 
                           src={configBanner || 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600'} 
                           alt="Banner Torneo" 
