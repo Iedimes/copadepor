@@ -172,7 +172,6 @@ export default function TournamentPage() {
     const tourBanner = tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined' ? tournament.banner : null
     if (tourBanner && !ignoreTournamentBanner) return tourBanner
     const key = ((s || '') + ' ' + (activeCategory?.name || '') + ' ' + (tournament?.name || '')).toUpperCase()
-    console.log("getSportBanner s:", s, "key:", key)
     if (key.includes('FUT') || key.includes('FÚT')) {
       return 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600' // fútbol
     }
@@ -1612,7 +1611,7 @@ export default function TournamentPage() {
       </div>
 
       <div className="flex-1 p-8 overflow-y-auto">
-        {activeMenu === 'configuracion' ? (
+        {tournament?.format === 'categorias' && !activeCategory ? (
           <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
             {/* Banner Portada con Logo Oficial */}
             <div className="relative h-72 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
@@ -1738,7 +1737,7 @@ export default function TournamentPage() {
               </div>
             </div>
           </div>
-        ) : tournament?.format === 'categorias' && !activeCategory ? (
+        ) : activeMenu === 'configuracion' ? (
           <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
             {/* Header Title */}
             <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 p-8">
@@ -2026,8 +2025,8 @@ export default function TournamentPage() {
                 <h2 className="text-2xl font-black text-slate-900 mb-6">Equipos</h2>
                 <div className="flex flex-wrap gap-6">
                   {tournamentTeams.map((tt: any) => (
-                    <div key={tt.id} className="flex flex-col items-center gap-2 group">
-                      <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
+                    <div key={tt.id} className="flex flex-col items-center gap-2 group cursor-pointer">
+                      <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-lg group-hover:scale-110 transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
                         {tt.team.logo ? (
                           <img src={tt.team.logo} alt={tt.team.name} className="w-full h-full object-contain p-1" />
                         ) : (
