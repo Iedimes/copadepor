@@ -169,24 +169,25 @@ export default function TournamentPage() {
   const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
   
   const getSportBanner = (s: string, ignoreTournamentBanner?: boolean) => {
-    if (tournament?.banner && !ignoreTournamentBanner) return tournament.banner
-    const key = (s || '').toUpperCase()
-    if (key.includes('FUT')) {
+    const tourBanner = tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined' ? tournament.banner : null
+    if (tourBanner && !ignoreTournamentBanner) return tourBanner
+    const key = ((s || '') + ' ' + (activeCategory?.name || '') + ' ' + (tournament?.name || '')).toUpperCase()
+    if (key.includes('FUT') || key.includes('FÚT')) {
       return 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600' // fútbol
     }
-    if (key.includes('BASKET') || key.includes('BALONCESTO')) {
+    if (key.includes('BASKET') || key.includes('BALONCESTO') || key.includes('BASQ') || key.includes('BÁSQ')) {
       return 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1600' // basquet
     }
-    if (key.includes('VOLEY') || key.includes('VOLLEY')) {
+    if (key.includes('VOLEY') || key.includes('VOLLEY') || key.includes('VÓL') || key.includes('VOL') || key.includes('VÓL')) {
       return 'https://images.unsplash.com/photo-1592656094267-764a45068526?q=80&w=1600' // voley
     }
-    if (key.includes('BALONMANO')) {
+    if (key.includes('BALONMANO') || key.includes('HAND') || key.includes('HÁND')) {
       return 'https://images.unsplash.com/photo-1552667466-07770ae110d0?q=80&w=1600' // balonmano
     }
     if (key.includes('TENIS') || key.includes('TENNIS')) {
       return 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=1600' // tenis
     }
-    if (key.includes('AJEDREZ')) {
+    if (key.includes('AJEDREZ') || key.includes('CHESS')) {
       return 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?q=80&w=1600' // ajedrez
     }
     if (key.includes('ATLETISMO')) {
@@ -593,7 +594,7 @@ export default function TournamentPage() {
           
           // Auto-select category if categoryId query parameter exists in URL
           const urlCatId = searchParams.get('categoryId')
-          if (urlCatId && !activeCategory) {
+          if (urlCatId) {
             const found = cData.find((c: any) => c.id === urlCatId)
             if (found) {
               setActiveCategory(found)
@@ -1608,9 +1609,9 @@ export default function TournamentPage() {
               <div 
                 className="absolute inset-0 bg-cover bg-center" 
                 style={
-                  tournament?.banner
-                    ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
-                    : { backgroundImage: `url('${getSportBanner(tournament?.sportType || '', true)}')`, opacity: 0.5 }
+                  (tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined')
+                    ? { backgroundImage: `url(${tournament.banner})`, opacity: 0.5 }
+                    : { backgroundImage: `url(${getSportBanner(tournament?.sportType || '', true)})`, opacity: 0.5 }
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
@@ -1965,9 +1966,9 @@ export default function TournamentPage() {
               <div 
                 className="absolute inset-0 bg-cover bg-center" 
                 style={
-                  activeCategory?.banner
-                    ? { backgroundImage: `url('${activeCategory.banner}')`, opacity: 0.5 }
-                    : { backgroundImage: `url('${getSportBanner(sportType, activeCategory ? true : false)}')`, opacity: 0.5 }
+                  (activeCategory?.banner && activeCategory.banner !== 'null' && activeCategory.banner !== 'undefined')
+                    ? { backgroundImage: `url(${activeCategory.banner})`, opacity: 0.5 }
+                    : { backgroundImage: `url(${getSportBanner(sportType, activeCategory ? true : false)})`, opacity: 0.5 }
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
@@ -2003,12 +2004,6 @@ export default function TournamentPage() {
                 </div>
                 <div className="mt-4 md:mt-0 flex gap-3">
                   <button onClick={() => setShowQR(!showQR)} className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"><span>📤</span> Compartir</button>
-                  {tournament?.format === 'categorias' && (
-                    <button 
-                      onClick={() => setActiveCategory(null)}
-                      className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"
-                    >🗂️ Ver todas</button>
-                  )}
                 </div>
               </div>
             </div>
