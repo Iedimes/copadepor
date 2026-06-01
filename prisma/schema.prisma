@@ -111,6 +111,10 @@ model Tournament {
   maxPlayersLimit    Int              @default(300)
   maxSponsors        Int              @default(3)
   classificationCriteria String       @default("PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O")
+  contact            String?
+  location           String?
+  rules              String?          @db.Text
+  prizes             String?          @db.Text
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   organizerId        String

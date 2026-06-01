@@ -307,6 +307,12 @@ export default function TournamentPage() {
   const [configLogo, setConfigLogo] = useState('')
   const [configBanner, setConfigBanner] = useState('')
   const [configThemeColor, setConfigThemeColor] = useState('#FF6B00')
+  const [configStartDate, setConfigStartDate] = useState('')
+  const [configEndDate, setConfigEndDate] = useState('')
+  const [configContact, setConfigContact] = useState('')
+  const [configLocation, setConfigLocation] = useState('')
+  const [configRules, setConfigRules] = useState('')
+  const [configPrizes, setConfigPrizes] = useState('')
   const [configSaving, setConfigSaving] = useState(false)
   const [configSuccess, setConfigSuccess] = useState(false)
   const [configError, setConfigError] = useState('')
@@ -379,6 +385,12 @@ export default function TournamentPage() {
       setConfigLogo(tournament.logo || '')
       setConfigBanner(tournament.banner || '')
       setConfigThemeColor(tournament.themeColor || '#FF6B00')
+      setConfigStartDate(tournament.startDate ? new Date(tournament.startDate).toISOString().split('T')[0] : '')
+      setConfigEndDate(tournament.endDate ? new Date(tournament.endDate).toISOString().split('T')[0] : '')
+      setConfigContact(tournament.contact || '')
+      setConfigLocation(tournament.location || '')
+      setConfigRules(tournament.rules || '')
+      setConfigPrizes(tournament.prizes || '')
     }
   }, [tournament])
 
@@ -400,7 +412,13 @@ export default function TournamentPage() {
           description: configDescription || null,
           logo: configLogo || null,
           banner: configBanner || null,
-          themeColor: configThemeColor
+          themeColor: configThemeColor,
+          startDate: configStartDate ? new Date(configStartDate) : undefined,
+          endDate: configEndDate ? new Date(configEndDate) : undefined,
+          contact: configContact || null,
+          location: configLocation || null,
+          rules: configRules || null,
+          prizes: configPrizes || null
         })
       })
       if (!res.ok) {
@@ -565,7 +583,7 @@ export default function TournamentPage() {
     const urlCatId = searchParams.get('categoryId')
     if (urlCatId) {
       const found = categories.find((c: any) => c.id === urlCatId)
-      if (found && (activeCategory?.id !== urlCatId || activeCategory !== found)) {
+      if (found && activeCategory?.id !== found.id) {
         setActiveCategory(found)
       }
     } else {
@@ -1795,10 +1813,82 @@ export default function TournamentPage() {
                       className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 transition-all resize-none"
                     />
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha de Inicio</label>
+                      <input 
+                        type="date" 
+                        value={configStartDate} 
+                        onChange={e => setConfigStartDate(e.target.value)} 
+                        className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha de Finalización</label>
+                      <input 
+                        type="date" 
+                        value={configEndDate} 
+                        onChange={e => setConfigEndDate(e.target.value)} 
+                        className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Card 2: Identidad y Diseño */}
+              {/* Card 2: Información Adicional */}
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 p-10 space-y-6">
+                <h3 className="text-lg font-black text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
+                  <span>📝</span> Información Adicional
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contacto (WhatsApp / Email)</label>
+                    <input 
+                      type="text" 
+                      value={configContact} 
+                      onChange={e => setConfigContact(e.target.value)} 
+                      placeholder="Ej. contacto@torneo.com o +595 981 123456"
+                      className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ubicación / Canchas</label>
+                    <input 
+                      type="text" 
+                      value={configLocation} 
+                      onChange={e => setConfigLocation(e.target.value)} 
+                      placeholder="Ej. Complejo Deportivo Sajonia - Cancha 1 y 2"
+                      className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reglas del Campeonato</label>
+                    <textarea 
+                      value={configRules} 
+                      onChange={e => setConfigRules(e.target.value)} 
+                      placeholder="Escribe aquí el reglamento oficial, formato de puntuación, desempates, tarjetas, etc..."
+                      rows={5}
+                      className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 transition-all resize-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Premios del Torneo</label>
+                    <textarea 
+                      value={configPrizes} 
+                      onChange={e => setConfigPrizes(e.target.value)} 
+                      placeholder="Ej. 🥇 1º Puesto: Copa + Medallas Oro, 🥈 2º Puesto: Medallas Plata..."
+                      rows={5}
+                      className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 transition-all resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Identidad y Diseño */}
               <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-200/60 p-10 space-y-8">
                 <h3 className="text-lg font-black text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
                   <span>🎨</span> Identidad y Diseño

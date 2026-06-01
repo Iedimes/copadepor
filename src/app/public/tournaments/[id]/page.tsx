@@ -75,6 +75,39 @@ export default function PublicTournamentPage() {
   const sportType = activeCategory?.sportType || tournament?.sportType || ''
   const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
 
+  const [infoTab, setInfoTab] = useState<string>('')
+
+  const formatBannerDate = (dString: string) => {
+    if (!dString) return ''
+    const d = new Date(dString)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  }
+  
+  const bannerDatesRange = tournament?.startDate && tournament?.endDate ? (
+    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white text-[11px] font-black tracking-tight border border-white/10 uppercase">
+      📅 {formatBannerDate(tournament.startDate)} - {formatBannerDate(tournament.endDate)}
+    </span>
+  ) : null
+
+  const hasRules = !!tournament?.rules
+  const hasPrizes = !!tournament?.prizes
+  const hasLocation = !!tournament?.location
+  const hasContact = !!tournament?.contact
+
+  const availableTabs = [
+    ...(hasRules ? [{ id: 'rules', label: 'Reglas', icon: '📋' }] : []),
+    ...(hasPrizes ? [{ id: 'prizes', label: 'Premios', icon: '🏆' }] : []),
+    ...(hasLocation ? [{ id: 'location', label: 'Ubicación', icon: '📍' }] : []),
+    ...(hasContact ? [{ id: 'contact', label: 'Contacto', icon: '📞' }] : []),
+  ]
+
+  useEffect(() => {
+    if (availableTabs.length > 0 && (!infoTab || !availableTabs.some(t => t.id === infoTab))) {
+      setInfoTab(availableTabs[0].id)
+    }
+  }, [tournament])
+
   // Fetch initial tournament data, categories and messages
   useEffect(() => {
     async function loadTournament() {
@@ -595,7 +628,10 @@ export default function PublicTournamentPage() {
 
               <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
                 <div>
-                  <h1 className="text-4xl font-black text-white mb-2">{tournament.name}</h1>
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <h1 className="text-4xl font-black text-white">{tournament.name}</h1>
+                    {bannerDatesRange}
+                  </div>
                   <p className="text-slate-300 font-medium flex items-center gap-2 italic">{tournament.description || `Organizado por ${tournament?.organizer?.name}`}</p>
                 </div>
                 <div className="mt-4 md:mt-0 flex gap-3">
@@ -644,6 +680,84 @@ export default function PublicTournamentPage() {
                 })}
               </div>
             </div>
+
+            {/* Módulo de Información General ("Centro de Información") */}
+            {availableTabs.length > 0 && (
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100 animate-in fade-in duration-500 space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-150 pb-4">
+                  <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                    <span>ℹ️</span> Información del Torneo
+                  </h2>
+                  
+                  {/* Tab Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    {availableTabs.map((tab) => {
+                      const isActive = infoTab === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setInfoTab(tab.id)}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 ${
+                            isActive 
+                              ? 'text-white shadow-md' 
+                              : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-655 border border-slate-100'
+                          }`}
+                          style={isActive ? { backgroundColor: themeColor } : undefined}
+                        >
+                          <span>{tab.icon}</span>
+                          <span>{tab.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Tab Content */}
+                <div className="pt-2 animate-in fade-in zoom-in-97 duration-300 min-h-[100px]">
+                  {infoTab === 'rules' && hasRules && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Reglamento Oficial</h4>
+                      <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-line bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                        {tournament.rules}
+                      </div>
+                    </div>
+                  )}
+                  {infoTab === 'prizes' && hasPrizes && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Premios y Reconocimientos</h4>
+                      <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-line bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                        {tournament.prizes}
+                      </div>
+                    </div>
+                  )}
+                  {infoTab === 'location' && hasLocation && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Sede Principal</h4>
+                      <div className="flex items-center gap-4 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                        <span className="text-3xl">📍</span>
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{tournament.location}</p>
+                          <p className="text-slate-400 text-[10px] font-bold uppercase mt-0.5">Sede Oficial de los Encuentros</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {infoTab === 'contact' && hasContact && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Contacto Oficial de la Organización</h4>
+                      <div className="flex items-center gap-4 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                        <span className="text-3xl">📞</span>
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{tournament.contact}</p>
+                          <p className="text-slate-400 text-[10px] font-bold uppercase mt-0.5">Comunícate para dudas o inscripciones</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Mensajes */}
             <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
@@ -744,7 +858,10 @@ export default function PublicTournamentPage() {
 
                   <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
                     <div>
-                      <h1 className="text-4xl font-black text-white mb-1">{tournament.name}</h1>
+                      <div className="flex flex-wrap items-center gap-3 mb-1">
+                        <h1 className="text-4xl font-black text-white">{tournament.name}</h1>
+                        {bannerDatesRange}
+                      </div>
                       {tournament.description && (
                         <p className="text-slate-300 text-sm font-medium mb-2 italic">{tournament.description}</p>
                       )}
@@ -777,6 +894,84 @@ export default function PublicTournamentPage() {
                     </div>
                   </div>
                 )}
+
+            {/* Módulo de Información General ("Centro de Información") */}
+            {availableTabs.length > 0 && (
+              <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100 animate-in fade-in duration-500 space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-150 pb-4">
+                  <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                    <span>ℹ️</span> Información del Torneo
+                  </h2>
+                  
+                  {/* Tab Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    {availableTabs.map((tab) => {
+                      const isActive = infoTab === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setInfoTab(tab.id)}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 ${
+                            isActive 
+                              ? 'text-white shadow-md' 
+                              : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-655 border border-slate-100'
+                          }`}
+                          style={isActive ? { backgroundColor: themeColor } : undefined}
+                        >
+                          <span>{tab.icon}</span>
+                          <span>{tab.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Tab Content */}
+                <div className="pt-2 animate-in fade-in zoom-in-97 duration-300 min-h-[100px]">
+                  {infoTab === 'rules' && hasRules && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Reglamento Oficial</h4>
+                      <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-line bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                        {tournament.rules}
+                      </div>
+                    </div>
+                  )}
+                  {infoTab === 'prizes' && hasPrizes && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Premios y Reconocimientos</h4>
+                      <div className="text-slate-600 text-sm leading-relaxed whitespace-pre-line bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                        {tournament.prizes}
+                      </div>
+                    </div>
+                  )}
+                  {infoTab === 'location' && hasLocation && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Sede Principal</h4>
+                      <div className="flex items-center gap-4 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                        <span className="text-3xl">📍</span>
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{tournament.location}</p>
+                          <p className="text-slate-400 text-[10px] font-bold uppercase mt-0.5">Sede Oficial de los Encuentros</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {infoTab === 'contact' && hasContact && (
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-450 uppercase tracking-widest">Contacto Oficial de la Organización</h4>
+                      <div className="flex items-center gap-4 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                        <span className="text-3xl">📞</span>
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{tournament.contact}</p>
+                          <p className="text-slate-400 text-[10px] font-bold uppercase mt-0.5">Comunícate para dudas o inscripciones</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
                 {/* Mensajes */}
                 <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
