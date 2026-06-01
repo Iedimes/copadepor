@@ -127,13 +127,57 @@ const getColLabel = (colId: string, isBasketball: boolean) => {
   if (colId === 'ga') return 'Goles Contra'
   if (colId === 'diff') return 'Diferencia de Goles'
   if (colId === 'avg') return 'Promedio de goles'
-  
+
   const defaults: Record<string, string> = {
     points: 'Puntos', played: 'Juegos', won: 'Ganados', drawn: 'Empates', lost: 'Perdido',
     perc: 'Aprovechamiento', pe: 'Puntos Extras', red: 'Tarjeta roja', yellow: 'Tarjeta amarilla',
     blue: 'Tarjeta azul', allCards: 'Todas las tarjetas', fairPlay: 'Juego Limpio', technique: 'Index technique'
   }
   return defaults[colId] || colId
+}
+
+const toDatetimeLocal = (dateStr: string) => {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    const hh = String(d.getHours()).padStart(2, '0')
+    const min = String(d.getMinutes()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`
+  } catch (e) {
+    return ''
+  }
+}
+
+const formatMatchDate = (dateStr: string) => {
+  try {
+    const d = new Date(dateStr)
+    const weekdays = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+    const weekday = weekdays[d.getDay()]
+    const day = d.getDate()
+    const month = d.getMonth() + 1
+    const year = d.getFullYear()
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${weekday}, ${day}/${month}/${year} ${hours}:${minutes}`
+  } catch (e) {
+    return dateStr
+  }
+}
+
+const getDisplayNotes = (notesStr: string | null) => {
+  if (!notesStr || notesStr === 'FECHA_LIBRE') return ''
+  if (notesStr.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(notesStr)
+      return parsed.customNotes || ''
+    } catch (e) {
+      return ''
+    }
+  }
+  return notesStr
 }
 
 export default function TournamentPage() {
@@ -159,15 +203,15 @@ export default function TournamentPage() {
   const [showGenType, setShowGenType] = useState(false)
   const [selectedPhase, setSelectedPhase] = useState('1° Fase')
   const [phases, setPhases] = useState<any[]>([])
-    const firstPhaseName = phases.length > 0 ? phases[0].name : '1° Fase';
-   const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
-   const [genStep, setGenStep] = useState(1)
-   const [genFormat, setGenFormat] = useState<'STANDARD' | 'INTERGROUP' | 'SWISS'>('STANDARD')
+  const firstPhaseName = phases.length > 0 ? phases[0].name : '1° Fase';
+  const [matchType, setMatchType] = useState<'ida' | 'idayvuelta'>('ida')
+  const [genStep, setGenStep] = useState(1)
+  const [genFormat, setGenFormat] = useState<'STANDARD' | 'INTERGROUP' | 'SWISS'>('STANDARD')
 
   const [activeCategory, setActiveCategory] = useState<any | null>(null)
   const sportType = activeCategory?.sportType || tournament?.sportType || ''
   const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
-  
+
   const getSportBanner = (s: string, ignoreTournamentBanner?: boolean) => {
     const tourBanner = tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined' ? tournament.banner : null
     if (tourBanner && !ignoreTournamentBanner) return tourBanner
@@ -203,7 +247,7 @@ export default function TournamentPage() {
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryPhasesFormat, setCategoryPhasesFormat] = useState<'todos_contra_todos' | 'liga_eliminacion' | 'eliminacion'>('todos_contra_todos')
-  
+
   const [showCatSportModal, setShowCatSportModal] = useState(false)
   const [selectedCatSport, setSelectedCatSport] = useState('FUTBOL_11')
   const [showCatCriteriaModal, setShowCatCriteriaModal] = useState(false)
@@ -233,9 +277,10 @@ export default function TournamentPage() {
   const [showKnockoutTeamSelection, setShowKnockoutTeamSelection] = useState(false)
   const [knockoutTeamCount, setKnockoutTeamCount] = useState(8)
   const [selectedKnockoutTeams, setSelectedKnockoutTeams] = useState<any[]>([])
-  
+
   const [editingMatchData, setEditingMatchData] = useState<{ id: string, homeScore: number | null, awayScore: number | null, status: string } | null>(null)
   const [showEditResult, setShowEditResult] = useState(false)
+  const [showEditInfo, setShowEditInfo] = useState(false)
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null)
   const [showConfigMenu, setShowConfigMenu] = useState(false)
   const [showFixtureMenu, setShowFixtureMenu] = useState(false)
@@ -244,28 +289,28 @@ export default function TournamentPage() {
   const [editingRoundName, setEditingRoundName] = useState('')
   const [showMatchMenu, setShowMatchMenu] = useState(false)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
-   const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
-   const [showTableConfig, setShowTableConfig] = useState(false)
-   const [tableColumns, setTableColumns] = useState([
-     { id: 'points', label: 'Puntos', visible: true },
-     { id: 'played', label: 'Juegos', visible: true },
-     { id: 'won', label: 'Ganados', visible: true },
-     { id: 'drawn', label: 'Empates', visible: true },
-     { id: 'lost', label: 'Perdido', visible: true },
-     { id: 'gf', label: 'Goles a Favor', visible: true },
-     { id: 'ga', label: 'Goles Contra', visible: true },
-     { id: 'diff', label: 'Diferencia de Goles', visible: true },
-     { id: 'avg', label: 'Promedio de goles', visible: false },
-     { id: 'perc', label: 'Aprovechamiento', visible: true },
-     { id: 'pe', label: 'Puntos Extras', visible: true },
-     { id: 'red', label: 'Tarjeta roja', visible: false },
-     { id: 'yellow', label: 'Tarjeta amarilla', visible: false },
-     { id: 'blue', label: 'Tarjeta azul', visible: false },
-     { id: 'allCards', label: 'Todas las tarjetas', visible: false },
-     { id: 'fairPlay', label: 'Juego Limpio', visible: false },
-     { id: 'technique', label: 'Index technique', visible: false },
-   ])
-   const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null)
+  const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
+  const [showTableConfig, setShowTableConfig] = useState(false)
+  const [tableColumns, setTableColumns] = useState([
+    { id: 'points', label: 'Puntos', visible: true },
+    { id: 'played', label: 'Juegos', visible: true },
+    { id: 'won', label: 'Ganados', visible: true },
+    { id: 'drawn', label: 'Empates', visible: true },
+    { id: 'lost', label: 'Perdido', visible: true },
+    { id: 'gf', label: 'Goles a Favor', visible: true },
+    { id: 'ga', label: 'Goles Contra', visible: true },
+    { id: 'diff', label: 'Diferencia de Goles', visible: true },
+    { id: 'avg', label: 'Promedio de goles', visible: false },
+    { id: 'perc', label: 'Aprovechamiento', visible: true },
+    { id: 'pe', label: 'Puntos Extras', visible: true },
+    { id: 'red', label: 'Tarjeta roja', visible: false },
+    { id: 'yellow', label: 'Tarjeta amarilla', visible: false },
+    { id: 'blue', label: 'Tarjeta azul', visible: false },
+    { id: 'allCards', label: 'Todas las tarjetas', visible: false },
+    { id: 'fairPlay', label: 'Juego Limpio', visible: false },
+    { id: 'technique', label: 'Index technique', visible: false },
+  ])
+  const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null)
   const [showRoundActions, setShowRoundActions] = useState(false)
   const roundActionsRef = useRef<HTMLDivElement>(null)
 
@@ -477,97 +522,117 @@ export default function TournamentPage() {
     const hasTeams = (m.homeTeam && m.awayTeam) || isBye;
 
     return (
-      <div 
-        key={m.id} 
-        onClick={() => hasTeams && handleOpenMatchModal(m)} 
-        className={`relative flex items-center justify-between p-4 group transition-all rounded-[2rem] border border-transparent ${
-          hasTeams 
-            ? 'cursor-pointer hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-100' 
-            : 'cursor-not-allowed opacity-75'
-        } ${isE ? 'scale-[1.02] bg-white shadow-2xl border-blue-100' : ''}`}
+      <div
+        key={m.id}
+        onClick={() => hasTeams && handleOpenMatchModal(m)}
+        className={`relative flex flex-col p-5 group transition-all rounded-[2rem] border border-transparent bg-slate-50/40 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-100 ${hasTeams
+          ? 'cursor-pointer'
+          : 'cursor-not-allowed opacity-75'
+          } ${isE ? 'scale-[1.02] bg-white shadow-2xl border-blue-100' : ''}`}
       >
-        {/* Home Team */}
-        <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
-          {isBye && !m.homeTeam ? (
-            <>
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-emerald-50 border-2 border-dashed border-emerald-200">
-                <span className="text-emerald-500 animate-bounce text-xl">🌴</span>
-              </div>
-              <span className="text-[10px] font-black text-emerald-600 text-center uppercase truncate w-full tracking-tighter">
-                LIBRE
-              </span>
-            </>
-          ) : (
-            <>
-              {m.advantageTeamId === m.homeTeam?.id && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
-              )}
-              <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.homeTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.homeTeam && !m.homeTeam.logo ? { backgroundColor: m.homeTeam.color || '#1e293b' } : undefined}>
-                {m.homeTeam ? (
-                  m.homeTeam.logo ? <img src={m.homeTeam.logo} alt={m.homeTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.homeTeam.name.charAt(0).toUpperCase()}</span>
-                ) : <span className="text-slate-300 text-sm">?</span>}
-              </div>
-              <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
-                {m.homeTeam?.name || m.homePlaceholder || 'Por definir'}
-              </span>
-            </>
-          )}
-        </div>
+        <div className="flex items-center justify-between w-full">
+          {/* Home Team */}
+          <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
+            {isBye && !m.homeTeam ? (
+              <>
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-emerald-50 border-2 border-dashed border-emerald-200">
+                  <span className="text-emerald-500 animate-bounce text-xl">🌴</span>
+                </div>
+                <span className="text-[10px] font-black text-emerald-600 text-center uppercase truncate w-full tracking-tighter">
+                  LIBRE
+                </span>
+              </>
+            ) : (
+              <>
+                {m.advantageTeamId === m.homeTeam?.id && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+                )}
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.homeTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.homeTeam && !m.homeTeam.logo ? { backgroundColor: m.homeTeam.color || '#1e293b' } : undefined}>
+                  {m.homeTeam ? (
+                    m.homeTeam.logo ? <img src={m.homeTeam.logo} alt={m.homeTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.homeTeam.name.charAt(0).toUpperCase()}</span>
+                  ) : <span className="text-slate-300 text-sm">?</span>}
+                </div>
+                <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
+                  {m.homeTeam?.name || m.homePlaceholder || 'Por definir'}
+                </span>
+              </>
+            )}
+          </div>
 
-        {/* Score Block */}
-        <div className="flex flex-col items-center">
-          {isBye ? (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-1.5 shadow-sm flex flex-col items-center min-w-[100px] text-center">
-              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Fecha Libre</span>
-              <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">Descanso</span>
-            </div>
-          ) : (
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px] group-hover:bg-white transition-colors">
-              <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
-                {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : <span className="text-slate-300">VS</span>}
-                {st === 'FINALIZADO' && m.homePenaltyScore !== null && m.awayPenaltyScore !== null && (
-                  <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest text-center">Pen: {m.homePenaltyScore}-{m.awayPenaltyScore}</span>
+          {/* Score Block */}
+          <div className="flex flex-col items-center">
+            {isBye ? (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-1.5 shadow-sm flex flex-col items-center min-w-[100px] text-center">
+                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Fecha Libre</span>
+                <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">Descanso</span>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px] group-hover:bg-white transition-colors">
+                <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
+                  {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : <span className="text-slate-300">VS</span>}
+                  {st === 'FINALIZADO' && m.homePenaltyScore !== null && m.awayPenaltyScore !== null && (
+                    <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest text-center">Pen: {m.homePenaltyScore}-{m.awayPenaltyScore}</span>
+                  )}
+                </div>
+                {st !== 'NO_REALIZADO' && (
+                  <div className="flex flex-col items-center mt-1 gap-1">
+                    <div className={`text-[8px] font-black px-3 py-0.5 rounded-md uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
+                      {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
+                    </div>
+                    {st === 'EN_VIVO' && matchNotes && matchNotes.startsWith('{') && <LiveMatchTimer notes={matchNotes} />}
+                  </div>
                 )}
               </div>
-              {st !== 'NO_REALIZADO' && (
-                <div className="flex flex-col items-center mt-1 gap-1">
-                  <div className={`text-[8px] font-black px-3 py-0.5 rounded-md uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
-                    {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
-                  </div>
-                  {st === 'EN_VIVO' && matchNotes && matchNotes.startsWith('{') && <LiveMatchTimer notes={matchNotes} />}
+            )}
+          </div>
+
+          {/* Away Team */}
+          <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
+            {isBye && !m.awayTeam ? (
+              <>
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-emerald-50 border-2 border-dashed border-emerald-200">
+                  <span className="text-emerald-500 animate-bounce text-xl">🌴</span>
                 </div>
-              )}
-            </div>
-          )}
+                <span className="text-[10px] font-black text-emerald-600 text-center uppercase truncate w-full tracking-tighter">
+                  LIBRE
+                </span>
+              </>
+            ) : (
+              <>
+                {m.advantageTeamId === m.awayTeam?.id && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+                )}
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.awayTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.awayTeam && !m.awayTeam.logo ? { backgroundColor: m.awayTeam.color || '#1e293b' } : undefined}>
+                  {m.awayTeam ? (
+                    m.awayTeam.logo ? <img src={m.awayTeam.logo} alt={m.awayTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.awayTeam.name.charAt(0).toUpperCase()}</span>
+                  ) : <span className="text-slate-300 text-sm">?</span>}
+                </div>
+                <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
+                  {m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Away Team */}
-        <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
-          {isBye && !m.awayTeam ? (
-            <>
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-emerald-50 border-2 border-dashed border-emerald-200">
-                <span className="text-emerald-500 animate-bounce text-xl">🌴</span>
-              </div>
-              <span className="text-[10px] font-black text-emerald-600 text-center uppercase truncate w-full tracking-tighter">
-                LIBRE
-              </span>
-            </>
-          ) : (
-            <>
-              {m.advantageTeamId === m.awayTeam?.id && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
-              )}
-              <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.awayTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.awayTeam && !m.awayTeam.logo ? { backgroundColor: m.awayTeam.color || '#1e293b' } : undefined}>
-                {m.awayTeam ? (
-                  m.awayTeam.logo ? <img src={m.awayTeam.logo} alt={m.awayTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.awayTeam.name.charAt(0).toUpperCase()}</span>
-                ) : <span className="text-slate-300 text-sm">?</span>}
-              </div>
-              <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
-                {m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}
-              </span>
-            </>
-          )}
-        </div>
+        {/* Date and Location block - beautifully matched vertically to match mockup */}
+        {!isBye && (
+          <div className="text-center border-t border-slate-100 pt-3 mt-3 w-full flex flex-col items-center justify-center gap-0.5">
+            <span className="text-[10px] font-black text-slate-800 tracking-tight">{m.location ? m.location.split(' @ ')[0] : 'Por definir'}</span>
+            <span className="text-[9px] font-bold text-slate-500 lowercase first-letter:uppercase">
+              {formatMatchDate(m.matchDate)}
+            </span>
+            {m.location && m.location.includes(' @ ') && m.location.split(' @ ')[1] && (
+              <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📍 {m.location.split(' @ ')[1]}</span>
+            )}
+            {m.referee && (
+              <span className="text-[8px] text-[#00C853] font-black uppercase tracking-wider mt-0.5">👤 Árbitro: {m.referee}</span>
+            )}
+            {getDisplayNotes(m.notes) && (
+              <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📝 {getDisplayNotes(m.notes)}</span>
+            )}
+          </div>
+        )}
 
         {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2.5rem] pointer-events-none animate-pulse"></div>}
       </div>
@@ -600,7 +665,7 @@ export default function TournamentPage() {
       setLoading(false)
       return
     }
-    
+
     try {
       const tRes = await fetch(`/api/tournaments/${tournamentId}`, { headers: { Authorization: `Bearer ${token}` } })
       let currentFormat = ''
@@ -621,7 +686,7 @@ export default function TournamentPage() {
           const cData = await catRes.json()
           setCategories(cData)
           cats = cData
-          
+
           // Auto-select category if categoryId query parameter exists in URL
           const urlCatId = searchParams.get('categoryId')
           if (urlCatId) {
@@ -654,7 +719,7 @@ export default function TournamentPage() {
         fetch('/api/teams', { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`/api/tournaments/${tournamentId}/phases?t=${Date.now()}${categoryQueryParam}`, { headers: { Authorization: `Bearer ${token}` } }),
       ])
-      
+
       if (phasesRes && phasesRes.ok) {
         const pData = await phasesRes.json()
         setPhases(pData)
@@ -665,9 +730,17 @@ export default function TournamentPage() {
 
       if (matchesRes.ok) {
         const m = await matchesRes.json()
-        setMatches(m)
-        const phaseRoundsWithOrder = Array.from(new Set(m.filter((x: any) => (x.phaseName || firstPhaseName) === selectedPhase).map((x: any) => String(x.roundName)))).map(r => {
-          const firstMatch = m.find((x: any) => (x.phaseName || firstPhaseName) === selectedPhase && String(x.roundName) === r)
+        // Ordenamos los partidos por fecha de creación o ID para evitar que cambien de lugar al editarlos
+        const sortedMatches = m.sort((a: any, b: any) => {
+          if (a.createdAt && b.createdAt) {
+            const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            if (diff !== 0) return diff
+          }
+          return String(a.id).localeCompare(String(b.id))
+        })
+        setMatches(sortedMatches)
+        const phaseRoundsWithOrder = Array.from(new Set(sortedMatches.filter((x: any) => (x.phaseName || firstPhaseName) === selectedPhase).map((x: any) => String(x.roundName)))).map(r => {
+          const firstMatch = sortedMatches.find((x: any) => (x.phaseName || firstPhaseName) === selectedPhase && String(x.roundName) === r)
           return { name: r, order: firstMatch?.roundOrder || 0 }
         }).sort((a, b) => {
           if (a.order !== b.order) return a.order - b.order
@@ -807,7 +880,7 @@ export default function TournamentPage() {
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateSemifinals`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         phaseName: selectedPhase,
         categoryId: activeCategory?.id || null,
       }),
@@ -836,7 +909,7 @@ export default function TournamentPage() {
     const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateFinal`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         phaseName: selectedPhase,
         categoryId: activeCategory?.id || null,
       }),
@@ -900,13 +973,13 @@ export default function TournamentPage() {
   const handleAddNextRound = () => {
     const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase)
     const existingRounds = new Set(phaseMatches.map(m => Number(m.roundName)).filter(n => !isNaN(n)))
-    
+
     // Find the first available number starting from 1
     let nextNum = 1
     while (existingRounds.has(nextNum)) {
       nextNum++
     }
-    
+
     const nextRound = String(nextNum)
     setSelectedRound(nextRound)
     setShowRoundActions(false)
@@ -1019,10 +1092,10 @@ export default function TournamentPage() {
     // La confirmación ocurre en el botón de la interfaz
     const m = matches.find(x => x.id === matchId)
     const hasResult = m && (
-      m.status === 'FINALIZADO' || 
-      m.status === 'EN_VIVO' || 
-      (m.homeScore !== null && m.homeScore !== undefined) || 
-      (m.awayScore !== null && m.awayScore !== undefined) || 
+      m.status === 'FINALIZADO' ||
+      m.status === 'EN_VIVO' ||
+      (m.homeScore !== null && m.homeScore !== undefined) ||
+      (m.awayScore !== null && m.awayScore !== undefined) ||
       (m.events && m.events.length > 0)
     )
 
@@ -1036,7 +1109,7 @@ export default function TournamentPage() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
-      
+
       if (res.ok) {
         setConfirmRemoveMatchId(null);
         setConfirmResetMatch(false);
@@ -1173,22 +1246,22 @@ export default function TournamentPage() {
 
   const handleRemoveRound = async () => {
     const roundMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)
-    const hasResults = roundMatches.some(m => 
-      m.status === 'FINALIZADO' || 
-      m.status === 'EN_VIVO' || 
-      (m.homeScore !== null && m.homeScore !== undefined) || 
-      (m.awayScore !== null && m.awayScore !== undefined) || 
+    const hasResults = roundMatches.some(m =>
+      m.status === 'FINALIZADO' ||
+      m.status === 'EN_VIVO' ||
+      (m.homeScore !== null && m.homeScore !== undefined) ||
+      (m.awayScore !== null && m.awayScore !== undefined) ||
       (m.events && m.events.length > 0)
     )
-    
+
     if (hasResults) {
       return alert('No se puede eliminar la fecha porque contiene partidos con resultados o eventos. Borra los resultados primero para poder quitar la fecha.')
     }
 
     if (!confirm(`¿Estás seguro de eliminar la fecha ${selectedRound}?`)) return
-    
+
     const token = localStorage.getItem('token')
-    
+
     // If it has matches, delete them via API
     if (roundMatches.length > 0) {
       const categoryQuery = activeCategory ? `&categoryId=${activeCategory.id}` : ''
@@ -1197,18 +1270,18 @@ export default function TournamentPage() {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) return alert('Error al eliminar los partidos de la fecha')
-      
+
       // Auto-reorder rounds to close the gap
       await fetch(`/api/tournaments/${tournamentId}/matches?action=reorderRounds`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           phaseName: selectedPhase,
           categoryId: activeCategory?.id || null,
         })
       })
     }
-    
+
     // Refresh data
     await fetchData()
     setShowRoundActions(false)
@@ -1217,10 +1290,10 @@ export default function TournamentPage() {
     // We should probably stay on the same index or the new maximum
     const phaseMatches = matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) !== selectedRound)
     if (phaseMatches.length > 0) {
-       // Since we reordered, the new max round will be current total rounds
-       const uniqueRounds = new Set(phaseMatches.map(m => m.roundName))
-       const maxR = String(uniqueRounds.size)
-       setSelectedRound(maxR)
+      // Since we reordered, the new max round will be current total rounds
+      const uniqueRounds = new Set(phaseMatches.map(m => m.roundName))
+      const maxR = String(uniqueRounds.size)
+      setSelectedRound(maxR)
     } else {
       setSelectedRound('1')
     }
@@ -1255,8 +1328,8 @@ export default function TournamentPage() {
     const res = await fetch(`/api/tournaments/${tournamentId}/teams/groups`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        numGroups, 
+      body: JSON.stringify({
+        numGroups,
         seedTeamIds: selectedSeeds,
         continueFromId
       }),
@@ -1276,7 +1349,7 @@ export default function TournamentPage() {
   const getStandings = (forceFlat: boolean = false, targetPhaseName?: string) => {
     const activePhaseName = targetPhaseName || selectedPhase
     const stats: Record<string, any> = {}
-    
+
     // Find current phase object to get its specific teams
     const currentPhaseObj = phases.find(p => p.name === activePhaseName)
     let phaseTeamIds: string[] | null = null
@@ -1289,13 +1362,13 @@ export default function TournamentPage() {
       } catch (e) { }
     }
 
-    tournamentTeams.forEach(tt => { 
+    tournamentTeams.forEach(tt => {
       // If phase has specific teams, only include those. Otherwise, include all.
       if (!phaseTeamIds || phaseTeamIds.includes(tt.team.id)) {
-        stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, logo: tt.team.logo || null, color: tt.team.color || null, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, red: 0, yellow: 0 } 
+        stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, logo: tt.team.logo || null, color: tt.team.color || null, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, red: 0, yellow: 0 }
       }
     })
-    
+
     // Gather all phases to include
     const phaseNamesToInclude = [activePhaseName]
     let currentIterPhase = currentPhaseObj
@@ -1308,10 +1381,10 @@ export default function TournamentPage() {
         break
       }
     }
-    
+
     // Filter matches by selected phase (and any parent phases)
     const phaseMatches = matches.filter((m: any) => phaseNamesToInclude.includes(m.phaseName || firstPhaseName))
-    
+
     phaseMatches.forEach(m => {
       const isE = editingMatchData?.id === m.id
       const hS = isE ? editingMatchData.homeScore : m.homeScore
@@ -1376,8 +1449,8 @@ export default function TournamentPage() {
         if (criterion === 'PUNTOS' && b.points !== a.points) return b.points - a.points
         if (criterion === 'GOLES' && b.diff !== a.diff) return b.diff - a.diff
         if (criterion === 'GOLES_A_FAVOR' && b.gf !== a.gf) return b.gf - a.gf
-        if (criterion === 'TARJETAS_ROJAS' && a.red !== b.red) return a.red - b.red 
-        if (criterion === 'TARJETAS_AMARILLAS' && a.yellow !== b.yellow) return a.yellow - b.yellow 
+        if (criterion === 'TARJETAS_ROJAS' && a.red !== b.red) return a.red - b.red
+        if (criterion === 'TARJETAS_AMARILLAS' && a.yellow !== b.yellow) return a.yellow - b.yellow
       }
       return 0
     })
@@ -1411,7 +1484,7 @@ export default function TournamentPage() {
 
     const qualifiedTeamIds: string[] = []
     const sortedGroups = [...groupPhases].sort((a, b) => a.name.localeCompare(b.name))
-    
+
     sortedGroups.forEach(gp => {
       const stats = getStandings(true, gp.name)
       const topTeams = stats.slice(0, 2)
@@ -1425,8 +1498,8 @@ export default function TournamentPage() {
 
   const getTeamRankings = () => {
     const stats: Record<string, any> = {}
-    tournamentTeams.forEach(tt => { 
-      stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, gf: 0, ga: 0, red: 0, yellow: 0, totalCards: 0 } 
+    tournamentTeams.forEach(tt => {
+      stats[tt.team.id] = { id: tt.team.id, name: tt.team.name, gf: 0, ga: 0, red: 0, yellow: 0, totalCards: 0 }
     })
 
     matches.forEach(m => {
@@ -1464,10 +1537,10 @@ export default function TournamentPage() {
           const isPenal = e.detail === 'PENAL'
           const displayName = pName ? (e.type === 'OWN_GOAL' ? `${pName} (A.G.)` : pName) : (e.type === 'OWN_GOAL' ? 'Autogol' : 'Desconocido')
           const key = e.type === 'OWN_GOAL' ? `AG_${pName || 'anon'}_${e.id}` : (pName || 'Desconocido')
-          
+
           const isBasketMatch = m.category?.sportType === 'BALONCESTO' || m.category?.sportType === 'BASQUET' || m.tournament?.sportType === 'BALONCESTO' || m.tournament?.sportType === 'BASQUET'
           const pointsValue = isBasketMatch ? (parseInt(e.detail) || 2) : 1
-          
+
           if (!scorers[key]) scorers[key] = { name: displayName, team: tName, goals: 0, penalties: 0 }
           scorers[key].goals += pointsValue
           if (isPenal) scorers[key].penalties++
@@ -1509,12 +1582,11 @@ export default function TournamentPage() {
     const aTeamName = match.awayTeam?.name || match.awayPlaceholder || 'Por definir'
     const hasTeams = match.homeTeam && match.awayTeam
     return (
-      <div 
-        className={`bg-white rounded-3xl p-5 border border-slate-100 shadow-sm transition-all ${
-          hasTeams 
-            ? 'cursor-pointer hover:shadow-md' 
-            : 'cursor-not-allowed opacity-75'
-        }`} 
+      <div
+        className={`bg-white rounded-3xl p-5 border border-slate-100 shadow-sm transition-all ${hasTeams
+          ? 'cursor-pointer hover:shadow-md'
+          : 'cursor-not-allowed opacity-75'
+          }`}
         onClick={() => hasTeams && handleOpenMatchModal(match)}
       >
         <div className="flex items-center justify-between mb-4">
@@ -1555,7 +1627,7 @@ export default function TournamentPage() {
       <div className="w-64 bg-[#0A1128] text-slate-400 flex flex-col h-full z-10 border-r border-white/5">
         <div className="p-8">
           <div className="flex items-center gap-3 mb-12">
-            <div 
+            <div
               onClick={(e) => {
                 e.stopPropagation()
                 setLogoEditTarget('tournament_logo')
@@ -1574,8 +1646,8 @@ export default function TournamentPage() {
                 📷
               </div>
             </div>
-            
-            <h1 
+
+            <h1
               onClick={() => {
                 if (tournament?.format === 'categorias') {
                   setActiveMenu('inicio')
@@ -1592,13 +1664,13 @@ export default function TournamentPage() {
           </div>
 
           <nav className="space-y-2">
-            <button 
+            <button
               onClick={() => {
                 if (tournament?.format === 'categorias') {
                   router.replace(`/tournaments/${tournamentId}`)
                 }
                 setActiveMenu('inicio')
-              }} 
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'inicio' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
             >
               <span className="text-lg">🏠</span> Inicio
@@ -1618,8 +1690,8 @@ export default function TournamentPage() {
             <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
               <span className="text-lg">📸</span> Fotos, vídeos y noticias
             </button>
-            <button 
-              onClick={() => setActiveMenu('configuracion')} 
+            <button
+              onClick={() => setActiveMenu('configuracion')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all mt-8 ${activeMenu === 'configuracion' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400'}`}
             >
               <span className="text-lg">⚙️</span> Configuración
@@ -1651,8 +1723,8 @@ export default function TournamentPage() {
           <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
             {/* Banner Portada con Logo Oficial */}
             <div className="relative h-72 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
-              <div 
-                className="absolute inset-0 bg-cover bg-center" 
+              <div
+                className="absolute inset-0 bg-cover bg-center"
                 style={
                   (tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined' && tournament.banner !== '[object Object]')
                     ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
@@ -1660,7 +1732,7 @@ export default function TournamentPage() {
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
-              
+
               {/* Organizador Badge */}
               <div className="absolute top-5 left-6 z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/5 shadow-xl">
                 <span className="text-[9px] font-black text-white/90 uppercase tracking-widest block mb-0.5">Organizador</span>
@@ -1668,7 +1740,7 @@ export default function TournamentPage() {
               </div>
 
               {/* Cambiar Portada Button */}
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation()
                   setLogoEditTarget('tournament_banner')
@@ -1709,7 +1781,7 @@ export default function TournamentPage() {
 
               {/* Botón Nueva Categoría Fila Grande */}
               <div className="mb-6">
-                <button 
+                <button
                   onClick={handleStartNewCategoryFlow}
                   className="w-full py-4 bg-[#0A1128] hover:bg-[#1e293b] text-white font-black text-xs uppercase tracking-widest rounded-2xl border border-transparent transition-all hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg"
                 >
@@ -1725,8 +1797,8 @@ export default function TournamentPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 animate-in fade-in duration-500">
                   {categories.map((cat: any) => (
-                    <div 
-                      key={cat.id} 
+                    <div
+                      key={cat.id}
                       onClick={() => {
                         setActiveCategory(cat)
                         router.replace(`/tournaments/${tournamentId}?categoryId=${cat.id}`)
@@ -1750,12 +1822,12 @@ export default function TournamentPage() {
             <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
               <h2 className="text-2xl font-black text-slate-900 mb-6">💬 Mensajes</h2>
               <form onSubmit={handleSendMessage} className="flex gap-3 mb-8">
-                <input 
-                  type="text" 
-                  value={newMessage} 
-                  onChange={e => setNewMessage(e.target.value)} 
-                  placeholder="Publicar un anuncio importante..." 
-                  className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" 
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  placeholder="Publicar un anuncio importante..."
+                  className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
                 />
                 <button type="submit" className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Publicar</button>
               </form>
@@ -1794,10 +1866,10 @@ export default function TournamentPage() {
                 <div className="grid grid-cols-1 gap-6">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nombre del Torneo</label>
-                    <input 
-                      type="text" 
-                      value={configName} 
-                      onChange={e => setConfigName(e.target.value)} 
+                    <input
+                      type="text"
+                      value={configName}
+                      onChange={e => setConfigName(e.target.value)}
                       required
                       placeholder="Ej. Copa de Campeones"
                       className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
@@ -1805,9 +1877,9 @@ export default function TournamentPage() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descripción / Subtítulo</label>
-                    <textarea 
-                      value={configDescription} 
-                      onChange={e => setConfigDescription(e.target.value)} 
+                    <textarea
+                      value={configDescription}
+                      onChange={e => setConfigDescription(e.target.value)}
                       placeholder="Ej. Edición Aniversario - Torneo Oficial de Categorías"
                       rows={3}
                       className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 transition-all resize-none"
@@ -1817,19 +1889,19 @@ export default function TournamentPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha de Inicio</label>
-                      <input 
-                        type="date" 
-                        value={configStartDate} 
-                        onChange={e => setConfigStartDate(e.target.value)} 
+                      <input
+                        type="date"
+                        value={configStartDate}
+                        onChange={e => setConfigStartDate(e.target.value)}
                         className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha de Finalización</label>
-                      <input 
-                        type="date" 
-                        value={configEndDate} 
-                        onChange={e => setConfigEndDate(e.target.value)} 
+                      <input
+                        type="date"
+                        value={configEndDate}
+                        onChange={e => setConfigEndDate(e.target.value)}
                         className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
                       />
                     </div>
@@ -1845,20 +1917,20 @@ export default function TournamentPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contacto (WhatsApp / Email)</label>
-                    <input 
-                      type="text" 
-                      value={configContact} 
-                      onChange={e => setConfigContact(e.target.value)} 
+                    <input
+                      type="text"
+                      value={configContact}
+                      onChange={e => setConfigContact(e.target.value)}
                       placeholder="Ej. contacto@torneo.com o +595 981 123456"
                       className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ubicación / Canchas</label>
-                    <input 
-                      type="text" 
-                      value={configLocation} 
-                      onChange={e => setConfigLocation(e.target.value)} 
+                    <input
+                      type="text"
+                      value={configLocation}
+                      onChange={e => setConfigLocation(e.target.value)}
                       placeholder="Ej. Complejo Deportivo Sajonia - Cancha 1 y 2"
                       className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 transition-all"
                     />
@@ -1867,9 +1939,9 @@ export default function TournamentPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reglas del Campeonato</label>
-                    <textarea 
-                      value={configRules} 
-                      onChange={e => setConfigRules(e.target.value)} 
+                    <textarea
+                      value={configRules}
+                      onChange={e => setConfigRules(e.target.value)}
                       placeholder="Escribe aquí el reglamento oficial, formato de puntuación, desempates, tarjetas, etc..."
                       rows={5}
                       className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 transition-all resize-none"
@@ -1877,9 +1949,9 @@ export default function TournamentPage() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Premios del Torneo</label>
-                    <textarea 
-                      value={configPrizes} 
-                      onChange={e => setConfigPrizes(e.target.value)} 
+                    <textarea
+                      value={configPrizes}
+                      onChange={e => setConfigPrizes(e.target.value)}
                       placeholder="Ej. 🥇 1º Puesto: Copa + Medallas Oro, 🥈 2º Puesto: Medallas Plata..."
                       rows={5}
                       className="px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 transition-all resize-none"
@@ -1912,7 +1984,7 @@ export default function TournamentPage() {
                         type="button"
                         onClick={() => setConfigThemeColor(preset.hex)}
                         className={`w-10 h-10 rounded-full border-4 transition-all hover:scale-110 shadow-sm relative`}
-                        style={{ 
+                        style={{
                           backgroundColor: preset.hex,
                           borderColor: configThemeColor === preset.hex ? '#3B82F6' : 'white',
                           outline: configThemeColor === preset.hex ? '2px solid #3B82F6' : 'none'
@@ -1922,10 +1994,10 @@ export default function TournamentPage() {
                     ))}
                     {/* Custom Color Input */}
                     <div className="flex items-center gap-2 pl-4 border-l border-slate-200">
-                      <input 
-                        type="color" 
-                        value={configThemeColor} 
-                        onChange={e => setConfigThemeColor(e.target.value)} 
+                      <input
+                        type="color"
+                        value={configThemeColor}
+                        onChange={e => setConfigThemeColor(e.target.value)}
                         className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 shadow-sm bg-transparent"
                       />
                       <span className="font-mono text-xs text-slate-500 font-bold uppercase">{configThemeColor}</span>
@@ -1937,10 +2009,10 @@ export default function TournamentPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                   <div className="md:col-span-2 space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">URL del Logotipo (Imagen Cuadrada)</label>
-                    <input 
-                      type="text" 
-                      value={configLogo} 
-                      onChange={e => setConfigLogo(e.target.value)} 
+                    <input
+                      type="text"
+                      value={configLogo}
+                      onChange={e => setConfigLogo(e.target.value)}
                       placeholder="Ej. https://tusitio.com/logo.png"
                       className="w-full px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 text-sm transition-all"
                     />
@@ -1965,7 +2037,7 @@ export default function TournamentPage() {
                       </button>
                     </div>
                   </div>
-                  <div 
+                  <div
                     onClick={() => {
                       setLogoEditTarget('tournament_logo')
                       setLogoEditUrl(configLogo || '')
@@ -1976,16 +2048,16 @@ export default function TournamentPage() {
                   >
                     <span className="text-[9px] font-black text-slate-400 group-hover:text-blue-600 uppercase tracking-widest mb-3 transition-colors">Vista Previa (Editar 📷)</span>
                     {configLogo ? (
-                      <img 
-                        src={configLogo} 
-                        alt="Logo Torneo" 
+                      <img
+                        src={configLogo}
+                        alt="Logo Torneo"
                         className="w-20 h-20 rounded-full object-cover border border-slate-200 shadow-md group-hover:scale-105 transition-all"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect width="80" height="80" fill="%23f1f5f9"/><text x="40" y="45" font-family="sans-serif" font-size="12" fill="%2394a3b8" text-anchor="middle">Error</text></svg>';
                         }}
                       />
                     ) : (
-                      <div 
+                      <div
                         className="w-20 h-20 rounded-full bg-white/60 flex items-center justify-center text-4xl shadow-sm border border-slate-200 group-hover:scale-105 transition-all"
                         style={{ backgroundColor: configThemeColor + '15', color: configThemeColor }}
                       >
@@ -2000,14 +2072,14 @@ export default function TournamentPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                     <div className="md:col-span-2 space-y-4">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">URL de la Portada / Banner (Imagen Horizontal)</label>
-                      <input 
-                        type="text" 
-                        value={configBanner} 
-                        onChange={e => setConfigBanner(e.target.value)} 
+                      <input
+                        type="text"
+                        value={configBanner}
+                        onChange={e => setConfigBanner(e.target.value)}
                         placeholder="Ej. https://tusitio.com/banner.jpg"
                         className="w-full px-6 py-4 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 text-sm transition-all"
                       />
-                      
+
                       <div className="space-y-2">
                         <div className="flex justify-between items-center mb-1 flex-wrap gap-2">
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Aplicar Portadas Recomendadas:</span>
@@ -2058,7 +2130,7 @@ export default function TournamentPage() {
                         </div>
                       </div>
                     </div>
-                    <div 
+                    <div
                       onClick={() => {
                         setLogoEditTarget('tournament_banner')
                         setLogoEditUrl(configBanner || '')
@@ -2069,9 +2141,9 @@ export default function TournamentPage() {
                     >
                       <span className="text-[9px] font-black text-slate-400 group-hover:text-blue-600 uppercase tracking-widest mb-3 transition-colors">Vista Previa (Editar 📷)</span>
                       <div className="w-full h-20 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-200 relative group-hover:scale-[1.02] transition-all">
-                        <img 
-                          src={configBanner || 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600'} 
-                          alt="Banner Torneo" 
+                        <img
+                          src={configBanner || 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600'}
+                          alt="Banner Torneo"
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="80" viewBox="0 0 300 80"><rect width="300" height="80" fill="%23f1f5f9"/><text x="150" y="45" font-family="sans-serif" font-size="12" fill="%2394a3b8" text-anchor="middle">Error al cargar imagen</text></svg>';
@@ -2120,8 +2192,8 @@ export default function TournamentPage() {
           <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
             {/* Banner de Categoría con Portada */}
             <div className="relative h-72 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
-              <div 
-                className="absolute inset-0 bg-cover bg-center" 
+              <div
+                className="absolute inset-0 bg-cover bg-center"
                 style={
                   (activeCategory?.banner && activeCategory.banner !== 'null' && activeCategory.banner !== 'undefined' && activeCategory.banner !== '[object Object]')
                     ? { backgroundImage: `url('${activeCategory.banner}')`, opacity: 0.5 }
@@ -2129,7 +2201,7 @@ export default function TournamentPage() {
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
-              
+
               {/* Organizador Badge */}
               <div className="absolute top-5 left-6 z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/5 shadow-xl">
                 <span className="text-[9px] font-black text-white/90 uppercase tracking-widest block mb-0.5">Organizador</span>
@@ -2137,7 +2209,7 @@ export default function TournamentPage() {
               </div>
 
               {/* Cambiar Portada Button */}
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation()
                   setLogoEditTarget(activeCategory ? 'category_banner' : 'tournament_banner')
@@ -2231,7 +2303,7 @@ export default function TournamentPage() {
                 )}
               </div>
               {tournament?.format === 'categorias' && (
-                <button 
+                <button
                   onClick={() => setActiveCategory(null)}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm"
                 >
@@ -2244,42 +2316,42 @@ export default function TournamentPage() {
                 {/* Centered Tab Button - Floating */}
                 <div className="absolute left-1/2 -translate-x-1/2 top-0 z-50">
                   <div className="relative group">
-                     <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
-                       <span className="text-lg font-light leading-none mb-1">+</span>
-                     </button>
-                     
-                     {/* Dropdown Menu */}
-                     <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
-                       <div className="py-2">
-                         <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                           <span className="text-lg">📋</span> Equipos
-                         </button>
-                         <button onClick={() => setShowGroupsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                           <span className="text-lg">⛖</span> Grupos
-                         </button>
-                         <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                           <span className="text-lg">📚</span> Fases
-                         </button>
-                         <button onClick={() => { setExportView('menu'); setShowExportModal(true); }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                           <span className="text-lg">⬇</span> Exportar
-                         </button>
-                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                           <span className="text-lg">☰</span> Tabla
-                         </button>
-                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                           <span className="text-lg">☑</span> Criterios de clasificación
-                         </button>
-                         <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
-                           <span className="text-lg">⇅</span> Reordenar
-                         </button>
-                       </div>
-                     </div>
+                    <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
+                      <span className="text-lg font-light leading-none mb-1">+</span>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
+                      <div className="py-2">
+                        <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                          <span className="text-lg">📋</span> Equipos
+                        </button>
+                        <button onClick={() => setShowGroupsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                          <span className="text-lg">⛖</span> Grupos
+                        </button>
+                        <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                          <span className="text-lg">📚</span> Fases
+                        </button>
+                        <button onClick={() => { setExportView('menu'); setShowExportModal(true); }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                          <span className="text-lg">⬇</span> Exportar
+                        </button>
+                        <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                          <span className="text-lg">☰</span> Tabla
+                        </button>
+                        <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                          <span className="text-lg">☑</span> Criterios de clasificación
+                        </button>
+                        <button className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors cursor-not-allowed opacity-50">
+                          <span className="text-lg">⇅</span> Reordenar
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <div className="text-center">
                   <p className="text-slate-500 font-bold mb-6 italic">Aún no hay equipos</p>
-                  <button 
+                  <button
                     onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)}
                     className="bg-[#0A1128] text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:scale-105 transition-all shadow-xl shadow-slate-200"
                   >
@@ -2295,7 +2367,7 @@ export default function TournamentPage() {
                     <div className="flex justify-between items-center mb-12 relative">
                       <div className="flex items-center gap-4">
                         <div className="relative">
-                          <select 
+                          <select
                             value={activeMenu === 'estadisticas' ? 'estadisticas' : selectedPhase}
                             onChange={(e) => handlePhaseChange(e.target.value)}
                             className="bg-transparent border border-slate-300 rounded-full pl-4 pr-8 py-1.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
@@ -2311,43 +2383,43 @@ export default function TournamentPage() {
                       {/* Centered Tab Button */}
                       <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50">
                         <div className="relative group">
-                           <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
-                             <span className="text-lg font-light leading-none mb-1">+</span>
-                           </button>
-                           
-                           {/* Dropdown Menu */}
-                           <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
-                             <div className="py-2">
-                               <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                                 <span className="text-lg">📋</span> Equipos
-                               </button>
-                               <button onClick={() => setShowGroupsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                                 <span className="text-lg">⛖</span> Grupos
-                               </button>
-                               <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                                 <span className="text-lg">📚</span> Fases
-                               </button>
-                               <button onClick={() => { setExportView('menu'); setShowExportModal(true); }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                                 <span className="text-lg">⬇</span> Exportar
-                               </button>
-                               <button onClick={() => setShowTableConfig(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                                 <span className="text-lg">☰</span> Tabla
-                               </button>
-                               <button onClick={() => { 
-                                 setTempCriteria((activeCategory?.classificationCriteria || tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
-                                 setShowCriteriaModal(true); 
-                               }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                                 <span className="text-lg">☑</span> Criterios de clasificación
-                               </button>
-                               <button onClick={() => setShowReorderTeamsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
-                                 <span className="text-lg">⇅</span> Reordenar
-                               </button>
-                             </div>
-                           </div>
+                          <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
+                            <span className="text-lg font-light leading-none mb-1">+</span>
+                          </button>
+
+                          {/* Dropdown Menu */}
+                          <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
+                            <div className="py-2">
+                              <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                <span className="text-lg">📋</span> Equipos
+                              </button>
+                              <button onClick={() => setShowGroupsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                <span className="text-lg">⛖</span> Grupos
+                              </button>
+                              <button onClick={() => setShowPhasesList(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                <span className="text-lg">📚</span> Fases
+                              </button>
+                              <button onClick={() => { setExportView('menu'); setShowExportModal(true); }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                <span className="text-lg">⬇</span> Exportar
+                              </button>
+                              <button onClick={() => setShowTableConfig(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                <span className="text-lg">☰</span> Tabla
+                              </button>
+                              <button onClick={() => {
+                                setTempCriteria((activeCategory?.classificationCriteria || tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
+                                setShowCriteriaModal(true);
+                              }} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                <span className="text-lg">☑</span> Criterios de clasificación
+                              </button>
+                              <button onClick={() => setShowReorderTeamsModal(true)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
+                                <span className="text-lg">⇅</span> Reordenar
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    
+
                     {activeMenu === 'estadisticas' ? (
                       <div className="space-y-12 animate-in fade-in duration-500">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -2369,7 +2441,7 @@ export default function TournamentPage() {
                                     <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">{isBasketball ? 'No hay puntos registrados aún' : 'No hay goles registrados aún'}</td></tr>
                                   ) : getTopScorers().map((p: any, i: number) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-all">
-                                      <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                                      <td className="p-4 text-center font-black text-slate-400">{i + 1}</td>
                                       <td className="p-4 font-black text-slate-800">{p.name}</td>
                                       <td className="p-4 text-slate-500 font-bold text-xs uppercase">{p.team}</td>
                                       <td className="p-4 text-center font-black text-blue-600 text-lg">{p.goals}</td>
@@ -2398,7 +2470,7 @@ export default function TournamentPage() {
                                     <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">Sin sanciones registradas</td></tr>
                                   ) : getTeamRankings().totalCards.slice(0, 5).map((p: any, i: number) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-all">
-                                      <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                                      <td className="p-4 text-center font-black text-slate-400">{i + 1}</td>
                                       <td className="p-4 font-black text-slate-800">{p.name}</td>
                                       <td className="p-4 text-center font-black text-yellow-500">{p.yellow}</td>
                                       <td className="p-4 text-center font-black text-red-500">{p.red}</td>
@@ -2427,7 +2499,7 @@ export default function TournamentPage() {
                           const hasParent = currentPhaseObj?.continueFromId !== null && currentPhaseObj?.continueFromId !== undefined;
                           const isEliminatoria = currentPhaseObj?.type === 'ELIMINATORIA' || selectedPhase.toLowerCase().includes('final') || selectedPhase.toLowerCase().includes('eliminatoria');
                           const isClassification = currentPhaseObj?.isClassification !== false;
-                          
+
                           if (!isClassification) {
                             return (
                               <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
@@ -2441,7 +2513,7 @@ export default function TournamentPage() {
                           if (!isEliminatoria || hasParent || isFirstPhase) {
                             const standingsData = getStandings()
                             const hasGroups = tournamentTeams.some((tt: any) => tt.groupName !== null && tt.groupName !== undefined);
-                            
+
                             const renderStandingsTable = (rows: any[], groupName?: string) => (
                               <div key={groupName || 'all'} className="space-y-4 mb-10 last:mb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 {groupName && (
@@ -2499,7 +2571,7 @@ export default function TournamentPage() {
                                   <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Clasificación</h2>
                                   <div className="flex items-center gap-2">
                                     <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${!hasGroups ? 'text-slate-300' : 'text-slate-400'}`}>Clasificación por Grupo</span>
-                                    <button 
+                                    <button
                                       onClick={() => hasGroups && setGroupByGroup(!groupByGroup)}
                                       disabled={!hasGroups}
                                       title={!hasGroups ? "Realiza el sorteo de grupos primero" : ""}
@@ -2509,7 +2581,7 @@ export default function TournamentPage() {
                                     </button>
                                   </div>
                                 </div>
-                                
+
                                 {groupByGroup ? (
                                   Object.entries(standingsData as Record<string, any[]>)
                                     .sort(([a], [b]) => a.localeCompare(b))
@@ -2534,7 +2606,7 @@ export default function TournamentPage() {
                               <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">🌳 Cuadro de Llaves</h2>
                               <span className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase italic">Esquema Visual</span>
                             </div>
-                            
+
                             <div className="grid grid-cols-3 gap-10">
                               <BracketColumn title="Cuartos" matches={matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('cuarto'))} />
                               <BracketColumn title="Semis" matches={matches.filter((m: any) => (m.phaseName || firstPhaseName) === selectedPhase && m.roundName.toLowerCase().includes('semi'))} />
@@ -2552,8 +2624,8 @@ export default function TournamentPage() {
                   <div className="bg-[#0F172A] p-6 flex justify-between items-center relative z-10">
                     <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
                     <div className="flex border border-white rounded-full overflow-hidden">
-                      <select 
-                        value={selectedPhase} 
+                      <select
+                        value={selectedPhase}
                         onChange={(e) => handlePhaseChange(e.target.value)}
                         className="bg-transparent text-white text-[10px] font-black px-3 py-1.5 outline-none border-r border-white appearance-none cursor-pointer text-center"
                         style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -2595,25 +2667,25 @@ export default function TournamentPage() {
                     <div className="bg-[#0F172A] px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:bg-slate-800 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)}>
                       <span className="text-white font-black text-lg group-hover:scale-110 transition-transform">+</span>
                     </div>
-                    
+
                     {showRoundActions && (
                       <div className="absolute top-10 w-64 bg-[#0A1128] rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="p-2 space-y-1">
                           <MenuOption icon="➕" label="Agregar fecha" onClick={handleAddNextRound} />
                           <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
-                          <MenuOption icon="🔄" label="Regenerar Fixture" onClick={() => { 
+                          <MenuOption icon="🔄" label="Regenerar Fixture" onClick={() => {
                             const currentPhaseObj = phases.find((p: any) => p.name === selectedPhase);
                             if (currentPhaseObj?.type === 'ELIMINATORIA') setShowPlayoffDraw(true);
                             else setShowGenType(true);
-                            setShowRoundActions(false); 
+                            setShowRoundActions(false);
                           }} />
                           <MenuOption icon="✏️" label="Editar Fecha" onClick={() => { setEditingRoundName(selectedRound); setShowEditRoundModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="⇅" label="Reordenar rondas" onClick={() => { setShowReorderModal(true); setShowRoundActions(false); }} />
                           <MenuOption icon="📥" label="Exportar" onClick={() => { setShowRoundActions(false); setExportView('menu'); setShowExportModal(true); }} />
-                          <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
+                          <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => {
                             setTempCriteria((activeCategory?.classificationCriteria || tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
-                            setShowRoundActions(false); 
-                            setShowCriteriaModal(true); 
+                            setShowRoundActions(false);
+                            setShowCriteriaModal(true);
                           }} />
                           <div className="h-px bg-white/10 my-1 mx-2"></div>
                           <MenuOption icon="✕" label="Eliminar fecha" color="text-red-400" onClick={handleRemoveRound} />
@@ -2621,12 +2693,12 @@ export default function TournamentPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-8 animate-in fade-in zoom-in-95 duration-500">
                       <div className="w-24 h-24 bg-slate-50 rounded-[2rem] flex items-center justify-center text-4xl shadow-inner">⚽</div>
                       <div className="space-y-4 w-full px-4">
-                        <button 
+                        <button
                           onClick={() => {
                             if (tournamentTeams.length === 0) return alert('Debes agregar equipos al torneo antes de generar los partidos.');
                             const currentPhaseObj = phases.find((p: any) => p.name === selectedPhase);
@@ -2638,7 +2710,7 @@ export default function TournamentPage() {
                           Generar Partidos
                         </button>
                         <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">— o —</div>
-                        <button 
+                        <button
                           onClick={() => {
                             if (tournamentTeams.length === 0) return alert('Debes agregar equipos al torneo antes de agregar una fecha.');
                             setShowAddMatchModal(true);
@@ -2656,7 +2728,7 @@ export default function TournamentPage() {
                         <p className="text-slate-400 font-bold italic text-sm">No hay partidos programados</p>
                         <p className="text-slate-300 text-[10px] uppercase font-black tracking-tighter mt-1">Selecciona otra fase o agrega uno nuevo</p>
                       </div>
-                      <button 
+                      <button
                         onClick={() => setShowAddMatchModal(true)}
                         className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg active:scale-95"
                       >
@@ -2666,9 +2738,9 @@ export default function TournamentPage() {
                   ) : (
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
                       {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).map(m => renderMatchCard(m))}
-                      
+
                       <div className="pt-4">
-                        <button 
+                        <button
                           onClick={() => setShowAddMatchModal(true)}
                           className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg active:scale-95"
                         >
@@ -2729,7 +2801,7 @@ export default function TournamentPage() {
                         <tr><td colSpan={4} className="p-12 text-center text-slate-300 font-bold italic">{isBasketball ? 'No hay puntos registrados aún' : 'No hay goles registrados aún'}</td></tr>
                       ) : getTopScorers().map((p: any, i: number) => (
                         <tr key={i} className="hover:bg-slate-50 transition-all">
-                          <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                          <td className="p-4 text-center font-black text-slate-400">{i + 1}</td>
                           <td className="p-4 font-black text-slate-800">{p.name}</td>
                           <td className="p-4 text-slate-500 font-bold text-xs uppercase">{p.team}</td>
                           <td className="p-4 text-center font-black text-blue-600 text-lg">{p.goals}</td>
@@ -2762,7 +2834,7 @@ export default function TournamentPage() {
                         <tr><td colSpan={5} className="p-12 text-center text-slate-300 font-bold italic">Sin tarjetas registradas</td></tr>
                       ) : getTopDisciplined().map((p: any, i: number) => (
                         <tr key={i} className="hover:bg-slate-50 transition-all">
-                          <td className="p-4 text-center font-black text-slate-400">{i+1}</td>
+                          <td className="p-4 text-center font-black text-slate-400">{i + 1}</td>
                           <td className="p-4 font-black text-slate-800">{p.name}</td>
                           <td className="p-4 text-slate-500 font-bold text-xs uppercase">{p.team}</td>
                           <td className="p-4 text-center font-black text-yellow-500 text-lg">{p.yellow}</td>
@@ -2789,11 +2861,20 @@ export default function TournamentPage() {
       {/* REFINED CENTERED MODAL - ALIGNED TO LEAVE CALENDAR VISIBLE */}
       {showEditResult && editingMatchId && (
         <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-[100] p-4 lg:pr-[480px]">
-          <EditResultModal 
-            matchId={editingMatchId} 
+          <EditResultModal
+            matchId={editingMatchId}
             isBasketball={isBasketball}
             onUpdate={d => setEditingMatchData({ id: editingMatchId, ...d })}
-            onClose={() => { setShowEditResult(false); setEditingMatchId(null); setEditingMatchData(null); fetchData(); }} 
+            onClose={() => { setShowEditResult(false); setEditingMatchId(null); setEditingMatchData(null); fetchData(); }}
+          />
+        </div>
+      )}
+
+      {showEditInfo && selectedMatchId && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[120] p-4 animate-in fade-in duration-300">
+          <EditInfoModal
+            matchId={selectedMatchId}
+            onClose={() => { setShowEditInfo(false); setSelectedMatchId(null); fetchData(); }}
           />
         </div>
       )}
@@ -2856,7 +2937,7 @@ export default function TournamentPage() {
                 <>
                   <h3 className="text-xl font-black text-center mb-2 text-slate-900">Restaurar Resultados</h3>
                   <p className="text-center text-xs text-slate-500 mb-8 leading-relaxed">
-                    Esta fase tiene partidos con resultados.<br/>
+                    Esta fase tiene partidos con resultados.<br />
                     Podés limpiar todos los datos (goles, tarjetas, eventos) y dejar los partidos sin resultado.
                   </p>
                   <div className="space-y-3">
@@ -2898,7 +2979,7 @@ export default function TournamentPage() {
                       ? `Se eliminarán los ${phaseMatches.length} partidos actuales y se generará el fixture desde cero.`
                       : (hasGroups ? 'Elegí el formato del fixture para esta fase.' : 'Elegí la modalidad de los partidos para esta fase.')}
                   </p>
-                   <div className="space-y-3">
+                  <div className="space-y-3">
                     {!hasGroups || genStep === 2 ? (
                       <>
                         <button
@@ -2984,10 +3065,10 @@ export default function TournamentPage() {
               <MenuOption icon="💎" label="Fases" onClick={() => { setShowConfigMenu(false); setShowPhasesList(true); }} />
               <MenuOption icon="📥" label="Exportar" onClick={() => { setShowConfigMenu(false); setExportView('menu'); setShowExportModal(true); }} />
               <MenuOption icon="📋" label="Tabla" onClick={() => { setShowConfigMenu(false); setShowTableConfig(true); }} />
-              <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => { 
+              <MenuOption icon="📑" label="Criterios de clasificación" onClick={() => {
                 setTempCriteria((activeCategory?.classificationCriteria || tournament?.classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR').split(','));
-                setShowConfigMenu(false); 
-                setShowCriteriaModal(true); 
+                setShowConfigMenu(false);
+                setShowCriteriaModal(true);
               }} />
               <MenuOption icon="⇅" label="Reordenar" onClick={() => { setShowConfigMenu(false); setShowReorderTeamsModal(true); }} />
             </div>
@@ -3005,8 +3086,8 @@ export default function TournamentPage() {
             <h3 className="text-xl font-black text-center mb-8 text-slate-900">Criterios de Desempate</h3>
             <div className="space-y-3 mb-10">
               {tempCriteria.map((c, i) => (
-                <div 
-                  key={c} 
+                <div
+                  key={c}
                   draggable
                   onDragStart={() => setDraggedIndex(i)}
                   onDragOver={(e) => e.preventDefault()}
@@ -3024,8 +3105,8 @@ export default function TournamentPage() {
                     <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center shadow-lg">{i + 1}</span>
                     <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
                       {c === 'GOLES' && isBasketball ? 'Diferencia Anotaciones' :
-                       c === 'GOLES_A_FAVOR' && isBasketball ? 'Anotaciones a Favor' :
-                       c.replace(/_/g, ' ')}
+                        c === 'GOLES_A_FAVOR' && isBasketball ? 'Anotaciones a Favor' :
+                          c.replace(/_/g, ' ')}
                     </span>
                   </div>
                   <div className="text-slate-300 group-hover:text-blue-500 transition-colors">
@@ -3048,11 +3129,11 @@ export default function TournamentPage() {
           <div className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
             <h3 className="text-2xl font-black text-slate-900 mb-2">Grupos</h3>
             <p className="text-slate-400 font-bold mb-8 text-sm">Número de grupos</p>
-            
+
             <div className="flex items-center gap-6 mb-8 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-              <input 
-                type="range" min="0" max="10" step="1" 
-                value={numGroups} 
+              <input
+                type="range" min="0" max="10" step="1"
+                value={numGroups}
                 onChange={(e) => setNumGroups(parseInt(e.target.value))}
                 className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
@@ -3071,7 +3152,7 @@ export default function TournamentPage() {
                     <span className="block text-slate-400 text-xs font-bold leading-tight mt-0.5">Continuar con la tabla de {selectedPhase}</span>
                   </div>
                   <div className="relative flex items-center select-none">
-                    <input 
+                    <input
                       type="checkbox"
                       checked={continueFromPrevPhase}
                       onChange={(e) => setContinueFromPrevPhase(e.target.checked)}
@@ -3099,7 +3180,7 @@ export default function TournamentPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[140] p-4" onClick={() => setShowSeedConfirm(false)}>
           <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-black text-slate-900 mb-8">¿Definir Cabeza de Serie?</h3>
-            
+
             <div className="flex gap-4">
               <button onClick={() => { setShowSeedConfirm(false); handleGenerateGroups(); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">No</button>
               <button onClick={() => { setShowSeedConfirm(false); setShowSeedSelection(true); }} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Si</button>
@@ -3113,26 +3194,25 @@ export default function TournamentPage() {
           <div className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
             <h3 className="text-2xl font-black text-slate-900 mb-2">Seleccionar equipos</h3>
             <p className="text-slate-400 font-bold mb-6 text-sm italic">Seleccioná los cabezas de serie para el sorteo (Máximo {numGroups})</p>
-            
+
             <div className="flex-1 overflow-y-auto pr-2 space-y-2 mb-8 custom-scrollbar">
               {tournamentTeams.map(tt => {
                 const isSelected = selectedSeeds.includes(tt.team.id);
                 const isLimitReached = selectedSeeds.length >= numGroups;
                 const isDisabled = !isSelected && isLimitReached;
-                
+
                 return (
-                  <label 
-                    key={tt.team.id} 
-                    className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${
-                      isSelected 
-                        ? 'bg-blue-50 border-blue-200' 
-                        : isDisabled
-                          ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-100'
-                          : 'bg-slate-50 border-slate-100 hover:border-slate-200'
-                    }`}
+                  <label
+                    key={tt.team.id}
+                    className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${isSelected
+                      ? 'bg-blue-50 border-blue-200'
+                      : isDisabled
+                        ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-100'
+                        : 'bg-slate-50 border-slate-100 hover:border-slate-200'
+                      }`}
                   >
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="w-5 h-5 rounded-lg border-2 border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
                       checked={isSelected}
                       disabled={isDisabled}
@@ -3154,7 +3234,7 @@ export default function TournamentPage() {
 
             <div className="flex gap-4">
               <button onClick={() => setShowSeedSelection(false)} className="flex-1 py-4 text-slate-400 font-black text-xs uppercase tracking-widest">Cancelar</button>
-              <button 
+              <button
                 onClick={handleGenerateGroups}
                 disabled={selectedSeeds.length === 0}
                 className="flex-1 py-4 bg-[#0A1128] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl disabled:opacity-30 disabled:cursor-not-allowed"
@@ -3190,7 +3270,7 @@ export default function TournamentPage() {
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[130] p-4 backdrop-blur-sm" onClick={() => setShowEditRoundModal(false)}>
           <div className="bg-[#f4eff4] rounded-sm p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <h3 className="text-2xl text-slate-800 mb-6">Editar Fecha</h3>
-            
+
             <form onSubmit={handleRenameRound} className="space-y-6">
               <div>
                 <label className="block text-slate-600 text-sm mb-1">Título</label>
@@ -3218,14 +3298,14 @@ export default function TournamentPage() {
               </div>
 
               <div className="flex justify-end gap-6 pt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowEditRoundModal(false)}
                   className="text-red-500 font-bold hover:text-red-600 transition-colors"
                 >
                   Quitar
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="text-blue-500 font-bold hover:text-blue-600 transition-colors"
                 >
@@ -3238,12 +3318,12 @@ export default function TournamentPage() {
       )}
 
       {showAddMatchModal && (
-        <AddMatchModal 
-          teams={tournamentTeams} 
+        <AddMatchModal
+          teams={tournamentTeams}
           tournamentId={tournamentId}
           phaseName={selectedPhase}
-          onClose={() => setShowAddMatchModal(false)} 
-          onSuccess={() => { setShowAddMatchModal(false); fetchData(); }} 
+          onClose={() => setShowAddMatchModal(false)}
+          onSuccess={() => { setShowAddMatchModal(false); fetchData(); }}
         />
       )}
 
@@ -3277,20 +3357,20 @@ export default function TournamentPage() {
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">1° Fase</div>
             <div className="space-y-3">
               <button onClick={() => { setEditPhaseData({ name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', type: 'LIGA', order: phases.length, isClassification: true, continueFromId: null, categoryId: activeCategory?.id || null, teams: tournamentTeams.map((t: any) => t.team.id) }); setShowPhaseType(false); setShowEditPhase(true); }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Todos contra Todos</button>
-              <button onClick={() => { 
+              <button onClick={() => {
                 const suggested = getSuggestedQualifiedTeams();
                 const defaultTeams = suggested.length > 0 ? suggested : tournamentTeams.map((t: any) => t.team.id);
-                setEditPhaseData({ 
-                  name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase', 
-                  type: 'ELIMINATORIA', 
-                  order: phases.length, 
-                  isClassification: true, 
-                  continueFromId: null, 
+                setEditPhaseData({
+                  name: phases.length > 0 ? `${phases.length + 1}° Fase` : '1° Fase',
+                  type: 'ELIMINATORIA',
+                  order: phases.length,
+                  isClassification: true,
+                  continueFromId: null,
                   categoryId: activeCategory?.id || null,
-                  teams: defaultTeams 
-                }); 
-                setShowPhaseType(false); 
-                setShowEditPhase(true); 
+                  teams: defaultTeams
+                });
+                setShowPhaseType(false);
+                setShowEditPhase(true);
               }} className="w-full p-5 bg-slate-50 text-slate-800 rounded-[1.5rem] font-black hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100 text-left active:scale-95">Eliminatoria</button>
             </div>
             <button onClick={() => setShowPhaseType(false)} className="w-full mt-6 py-4 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cancelar</button>
@@ -3307,9 +3387,9 @@ export default function TournamentPage() {
               <div className="space-y-5 mb-8">
                 <div>
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título</label>
-                  <input 
-                    type="text" 
-                    value={editPhaseData.name} 
+                  <input
+                    type="text"
+                    value={editPhaseData.name}
                     onChange={e => {
                       const val = e.target.value;
                       let newTeams = editPhaseData.teams;
@@ -3321,15 +3401,15 @@ export default function TournamentPage() {
                           .map((tt: any) => tt.team.id);
                         if (matchingTeams.length > 0) newTeams = matchingTeams;
                       }
-                      setEditPhaseData({...editPhaseData, name: val, teams: newTeams});
-                    }} 
-                    className="w-full py-2 bg-transparent font-bold text-slate-800 outline-none border-b border-slate-400 focus:border-blue-600 transition-colors" 
-                    placeholder="Ej: FASE FINAL" 
+                      setEditPhaseData({ ...editPhaseData, name: val, teams: newTeams });
+                    }}
+                    className="w-full py-2 bg-transparent font-bold text-slate-800 outline-none border-b border-slate-400 focus:border-blue-600 transition-colors"
+                    placeholder="Ej: FASE FINAL"
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm text-slate-700">Clasificación</span>
-                  <div className="w-6 h-6 border-2 border-slate-400 rounded bg-transparent flex items-center justify-center cursor-pointer" onClick={() => setEditPhaseData({...editPhaseData, isClassification: !editPhaseData.isClassification})}>
+                  <div className="w-6 h-6 border-2 border-slate-400 rounded bg-transparent flex items-center justify-center cursor-pointer" onClick={() => setEditPhaseData({ ...editPhaseData, isClassification: !editPhaseData.isClassification })}>
                     {editPhaseData.isClassification && <div className="w-3 h-3 bg-slate-800 rounded-sm"></div>}
                   </div>
                 </div>
@@ -3343,8 +3423,8 @@ export default function TournamentPage() {
                       const isSelected = (editPhaseData.teams || []).includes(t.team.id);
                       return (
                         <div key={t.id} className="flex items-center gap-2 mb-2">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={isSelected}
                             onChange={(e) => {
                               const currentTeams = editPhaseData.teams || [];
@@ -3354,7 +3434,7 @@ export default function TournamentPage() {
                                 setEditPhaseData({ ...editPhaseData, teams: currentTeams.filter(id => id !== t.team.id) });
                               }
                             }}
-                            className="w-4 h-4 rounded text-blue-600 cursor-pointer" 
+                            className="w-4 h-4 rounded text-blue-600 cursor-pointer"
                           />
                           <span className="text-sm font-bold text-slate-700">{t.team.name}</span>
                         </div>
@@ -3362,17 +3442,17 @@ export default function TournamentPage() {
                     })}
                   </div>
                 )}
-                
+
                 <div className="flex justify-between items-center py-2">
                   <div className="flex items-center gap-3"><span className="text-slate-500 text-lg">📄</span> <span className="text-sm font-bold text-slate-700">Continuar tabla</span></div>
                   <button onClick={() => setShowPhaseContinue(!showPhaseContinue)} className="text-blue-500 font-bold text-sm hover:text-blue-700">Editar</button>
                 </div>
                 {showPhaseContinue && (
                   <div className="bg-white rounded-xl p-2 border border-slate-200">
-                    <select 
+                    <select
                       className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none"
                       value={editPhaseData.continueFromId || ''}
-                      onChange={e => setEditPhaseData({...editPhaseData, continueFromId: e.target.value === '' ? null : e.target.value})}
+                      onChange={e => setEditPhaseData({ ...editPhaseData, continueFromId: e.target.value === '' ? null : e.target.value })}
                     >
                       <option value="">Ninguno</option>
                       {phases.map(p => (
@@ -3404,7 +3484,7 @@ export default function TournamentPage() {
                     <>
                       <MenuOption icon="⚽" label="Sustituir Equipos (Cambiar Descanso)" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
                       <div className="h-px bg-slate-800 my-2 mx-4"></div>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirmRemoveMatchId !== selectedMatchId) {
@@ -3430,7 +3510,7 @@ export default function TournamentPage() {
                   <>
                     <MenuOption icon="📖" label="Ver partido" onClick={() => setShowMatchMenu(false)} />
                     <MenuOption icon="📋" label="Seleccionar equipos" onClick={() => setShowMatchMenu(false)} />
-                    <MenuOption icon="✔️" label="Editar resultado" onClick={() => { 
+                    <MenuOption icon="✔️" label="Editar resultado" onClick={() => {
                       if (m) {
                         setEditingMatchData({ id: m.id, homeScore: m.homeScore, awayScore: m.awayScore, status: m.status });
                         setEditingMatchId(m.id);
@@ -3438,12 +3518,12 @@ export default function TournamentPage() {
                       }
                       setShowMatchMenu(false);
                     }} />
-                    <MenuOption icon="✏️" label="Editar informacion" onClick={() => setShowMatchMenu(false)} />
-                    
+                    <MenuOption icon="✏️" label="Editar informacion" onClick={() => { setShowMatchMenu(false); setShowEditInfo(true); }} />
+
                     <div className="h-px bg-slate-800 my-2 mx-4"></div>
-                    
+
                     <MenuOption icon="⚽" label="Sustituir Equipos" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!confirmResetMatch) {
@@ -3460,7 +3540,7 @@ export default function TournamentPage() {
                         {confirmResetMatch ? '¿ESTÁS SEGURO? (CLICK AQUÍ)' : 'Restaurar / Limpiar (Goles, Tarjetas, etc)'}
                       </span>
                     </button>
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         if (confirmRemoveMatchId !== selectedMatchId) {
@@ -3487,10 +3567,10 @@ export default function TournamentPage() {
               })()}
             </div>
             <div className="p-4 bg-slate-800/50 text-center">
-              <button onClick={() => { 
-                setConfirmRemoveMatchId(null); 
-                setConfirmResetMatch(false); 
-                setShowMatchMenu(false); 
+              <button onClick={() => {
+                setConfirmRemoveMatchId(null);
+                setConfirmResetMatch(false);
+                setShowMatchMenu(false);
               }} className="w-full py-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-white transition-all">Cerrar</button>
             </div>
           </div>
@@ -3499,24 +3579,24 @@ export default function TournamentPage() {
 
 
       {showChangeTeamsModal && selectedMatchId && (
-        <ChangeTeamsModal 
-          matchId={selectedMatchId} 
-          onClose={() => setShowChangeTeamsModal(false)} 
-          onSuccess={() => { setShowChangeTeamsModal(false); fetchData(); }} 
+        <ChangeTeamsModal
+          matchId={selectedMatchId}
+          onClose={() => setShowChangeTeamsModal(false)}
+          onSuccess={() => { setShowChangeTeamsModal(false); fetchData(); }}
           matches={matches}
           allTeams={tournamentTeams}
         />
       )}
-      
+
       {/* TABLE CONFIG MODAL (Drag and Drop) */}
       {showTableConfig && (
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[110] p-4 backdrop-blur-sm" onClick={() => setShowTableConfig(false)}>
           <div className="bg-[#F8F7FB] rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-black mb-8 text-slate-900">Tabla</h3>
-            
+
             <div className="space-y-1 mb-8 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
               {tableColumns.map((col, idx) => (
-                <div 
+                <div
                   key={col.id}
                   draggable
                   onDragStart={() => setDraggedColIdx(idx)}
@@ -3533,8 +3613,8 @@ export default function TournamentPage() {
                 >
                   <span className="text-sm font-bold text-slate-600">{getColLabel(col.id, isBasketball)}</span>
                   <div className="flex items-center gap-3">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={col.visible}
                       onChange={() => {
                         const newCols = [...tableColumns]
@@ -3548,9 +3628,9 @@ export default function TournamentPage() {
                 </div>
               ))}
             </div>
-            
+
             <p className="text-[10px] text-slate-400 text-center font-bold mb-6">Mantenga presionado y arrastre para cambiar</p>
-            
+
             <button onClick={() => setShowTableConfig(false)} className="w-full py-5 bg-[#0F172A] text-white rounded-[1.5rem] font-black text-sm hover:bg-blue-600 transition-all shadow-xl active:scale-95">
               Listo
             </button>
@@ -3617,7 +3697,7 @@ export default function TournamentPage() {
             <p className="text-slate-400 font-bold text-center mb-8 text-xs uppercase tracking-widest">
               {logoEditTarget.includes('logo') ? 'Cambia el logo oficial' : 'Cambia la imagen que aparece de fondo'}
             </p>
-            
+
             {/* Preview */}
             <div className="flex justify-center mb-8 w-full">
               {logoEditTarget.includes('logo') ? (
@@ -3647,10 +3727,10 @@ export default function TournamentPage() {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
                   {logoEditTarget.includes('logo') ? 'URL del Logo' : 'URL de la Imagen'}
                 </label>
-                <input 
-                  type="text" 
-                  value={logoEditUrl} 
-                  onChange={e => setLogoEditUrl(e.target.value)} 
+                <input
+                  type="text"
+                  value={logoEditUrl}
+                  onChange={e => setLogoEditUrl(e.target.value)}
                   placeholder={logoEditTarget.includes('logo') ? "https://ejemplo.com/logo.png" : "https://ejemplo.com/banner.jpg"}
                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 text-sm transition-all"
                 />
@@ -3662,9 +3742,9 @@ export default function TournamentPage() {
                 <label className="flex items-center justify-center gap-2 w-full py-3.5 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer hover:bg-slate-100 hover:border-blue-400 transition-all">
                   <span className="text-sm">📁</span>
                   <span className="text-xs font-bold text-slate-500">Seleccionar archivo</span>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    accept="image/*"
                     className="hidden"
                     onChange={async (e) => {
                       const file = e.target.files?.[0]
@@ -3681,13 +3761,13 @@ export default function TournamentPage() {
 
             {/* Actions */}
             <div className="flex gap-3 mt-8">
-              <button 
+              <button
                 onClick={() => { setLogoEditUrl(''); }}
                 className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest rounded-2xl transition-all"
               >
                 {logoEditTarget.includes('logo') ? 'Quitar Logo' : 'Quitar Portada'}
               </button>
-              <button 
+              <button
                 onClick={handleSaveLogoEdit}
                 disabled={logoUploading}
                 className="flex-1 py-4 bg-[#0A1128] hover:bg-blue-600 disabled:bg-slate-400 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2"
@@ -3700,7 +3780,7 @@ export default function TournamentPage() {
               </button>
             </div>
 
-            <button 
+            <button
               onClick={() => setShowLogoEditModal(false)}
               className="w-full mt-4 py-3 text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest transition-all text-center"
             >
@@ -3715,7 +3795,7 @@ export default function TournamentPage() {
           <div className="bg-white rounded-[2rem] p-8 max-w-3xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-black text-slate-800 mb-2 text-center">🎯 Selecciona la Modalidad</h2>
             <p className="text-slate-500 font-bold text-center mb-6">Elige el deporte para la nueva categoría</p>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {sports.map((sport) => (
                 <button
@@ -3745,7 +3825,7 @@ export default function TournamentPage() {
           <div className="bg-white rounded-[2rem] p-8 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-black text-slate-800 mb-2 text-center">Criterio de Clasificación</h2>
             <p className="text-slate-500 font-bold text-center mb-6">Arrastra los criterios para cambiar el orden de prioridad</p>
-            
+
             <div className="space-y-3 mb-6">
               {catClassificationCriteria.map((criterionId, index) => {
                 const criterion = CRITERIA_OPTIONS.find(c => c.id === criterionId)
@@ -3766,13 +3846,13 @@ export default function TournamentPage() {
                     <div className="flex-1">
                       <p className="font-black text-slate-800 text-sm uppercase tracking-tight">
                         {criterionId === 'GOLES' && selectedCatSport === 'BALONCESTO' ? 'Diferencia Anotaciones' :
-                         criterionId === 'GOLES_A_FAVOR' && selectedCatSport === 'BALONCESTO' ? 'Anotaciones a Favor' :
-                         criterion?.label}
+                          criterionId === 'GOLES_A_FAVOR' && selectedCatSport === 'BALONCESTO' ? 'Anotaciones a Favor' :
+                            criterion?.label}
                       </p>
                       <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">
                         {criterionId === 'GOLES' && selectedCatSport === 'BALONCESTO' ? 'Diferencia de anotaciones marcadas y recibidas' :
-                         criterionId === 'GOLES_A_FAVOR' && selectedCatSport === 'BALONCESTO' ? 'Total de anotaciones marcadas' :
-                         criterion?.description}
+                          criterionId === 'GOLES_A_FAVOR' && selectedCatSport === 'BALONCESTO' ? 'Total de anotaciones marcadas' :
+                            criterion?.description}
                       </p>
                     </div>
                     <div className="flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 rounded-full font-black text-xs">
@@ -3811,7 +3891,7 @@ export default function TournamentPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500]" onClick={() => setShowNewCategoryModal(false)}>
           <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4 shadow-2xl animate-in zoom-in fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-black text-slate-800 mb-6 text-center">Nueva categoría</h2>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nombre de la Categoría</label>
@@ -3827,11 +3907,10 @@ export default function TournamentPage() {
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Modalidad</label>
                 <div className="space-y-3">
-                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${
-                    categoryPhasesFormat === 'todos_contra_todos'
-                      ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
-                      : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
-                  }`}>
+                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${categoryPhasesFormat === 'todos_contra_todos'
+                    ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
+                    : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
+                    }`}>
                     <input
                       type="radio"
                       name="catFormat"
@@ -3845,11 +3924,10 @@ export default function TournamentPage() {
                       <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">Una única fase donde todos los equipos juegan entre sí</p>
                     </div>
                   </label>
-                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${
-                    categoryPhasesFormat === 'liga_eliminacion'
-                      ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
-                      : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
-                  }`}>
+                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${categoryPhasesFormat === 'liga_eliminacion'
+                    ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
+                    : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
+                    }`}>
                     <input
                       type="radio"
                       name="catFormat"
@@ -3863,11 +3941,10 @@ export default function TournamentPage() {
                       <p className="text-[10px] text-slate-400 font-bold leading-normal mt-0.5">Liga inicial seguida de fase eliminatoria con los mejores equipos</p>
                     </div>
                   </label>
-                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${
-                    categoryPhasesFormat === 'eliminacion'
-                      ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
-                      : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
-                  }`}>
+                  <label className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${categoryPhasesFormat === 'eliminacion'
+                    ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/30'
+                    : 'border-slate-100 bg-white hover:border-blue-300 hover:bg-slate-50/50'
+                    }`}>
                     <input
                       type="radio"
                       name="catFormat"
@@ -3918,7 +3995,7 @@ function ReorderTeamsModal({ tournamentTeams, tournamentId, onClose, onSuccess }
   const [isSaving, setIsSaving] = useState(false)
 
   const groups = Array.from(new Set(tournamentTeams.map((tt: any) => tt.groupName).filter(Boolean))).sort() as string[]
-  
+
   useEffect(() => {
     if (groups.length > 0 && !activeGroup) {
       setActiveGroup(groups[0])
@@ -3926,23 +4003,23 @@ function ReorderTeamsModal({ tournamentTeams, tournamentId, onClose, onSuccess }
     setOrderedTeams([...tournamentTeams].sort((a, b) => a.order - b.order))
   }, [tournamentTeams])
 
-  const currentTeams = activeGroup 
+  const currentTeams = activeGroup
     ? orderedTeams.filter(t => t.groupName === activeGroup)
     : orderedTeams
 
   const handleDragStart = (idx: number) => setDraggedIdx(idx)
-  
+
   const handleDragOver = (e: any, idx: number) => {
     e.preventDefault()
     if (draggedIdx === null || draggedIdx === idx) return
-    
+
     const newTeams = [...orderedTeams]
     const currentGroupTeams = activeGroup ? newTeams.filter(t => t.groupName === activeGroup) : newTeams
-    
+
     const draggedItem = currentGroupTeams[draggedIdx]
     currentGroupTeams.splice(draggedIdx, 1)
     currentGroupTeams.splice(idx, 0, draggedItem)
-    
+
     // Update the main list with the new order for this group
     if (activeGroup) {
       let groupIdx = 0
@@ -4027,13 +4104,13 @@ function ReorderTeamsModal({ tournamentTeams, tournamentId, onClose, onSuccess }
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center mb-10">Mantenga presionado y arrastre para cambiar</p>
 
           <div className="flex gap-4">
-            <button 
+            <button
               onClick={onClose}
               className="flex-1 py-5 bg-white text-slate-400 font-black rounded-3xl hover:bg-slate-100 transition-all uppercase tracking-widest text-xs border border-slate-100"
             >
               Cancelar
             </button>
-            <button 
+            <button
               onClick={handleSave}
               disabled={isSaving}
               className="flex-[2] py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest text-xs flex items-center justify-center disabled:opacity-50"
@@ -4069,7 +4146,7 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
       const h = stats[m.homeTeam.id]; const a = stats[m.awayTeam.id]
       if (!h || !a) return
       h.played++; a.played++; h.gf += (m.homeScore || 0); h.ga += (m.awayScore || 0); a.gf += (m.awayScore || 0); a.ga += (m.homeScore || 0)
-      
+
       const isWO = m.notes === 'W.O'
       if (isWO && m.advantageTeamId) {
         if (m.advantageTeamId === m.homeTeam.id) { h.points += 3; h.won++; a.lost++ }
@@ -4092,9 +4169,9 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
       if (generationMode === 'seleccion') {
         const suggested = getSuggestedQualifiedTeams ? getSuggestedQualifiedTeams() : [];
         if (suggested && suggested.length > 0) {
-          const initial = standings.map(t => ({ 
-            ...t, 
-            checked: suggested.includes(t.id) 
+          const initial = standings.map(t => ({
+            ...t,
+            checked: suggested.includes(t.id)
           }))
           const sortedInitial = [...initial].sort((a, b) => {
             if (a.checked && !b.checked) return -1;
@@ -4124,14 +4201,14 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
     setLoading(true)
     const token = localStorage.getItem('token')
     const finalTeams = selectedTeams.filter(t => t.checked)
-    
+
     try {
       const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateKnockoutTree`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          teamIds: finalTeams.map(t => t.id), 
-          phaseName, 
+        body: JSON.stringify({
+          teamIds: finalTeams.map(t => t.id),
+          phaseName,
           matchType,
           selectionMode,
           generationMode,
@@ -4257,9 +4334,9 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
         <div className="max-h-[40vh] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
           {selectedTeams.map((t, i) => (
             <div key={t.id} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-3 group">
-              <input 
-                type="checkbox" 
-                checked={t.checked} 
+              <input
+                type="checkbox"
+                checked={t.checked}
                 onChange={() => {
                   const nt = [...selectedTeams]
                   nt[i].checked = !nt[i].checked
@@ -4280,7 +4357,7 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
           <div className={`font-black text-sm uppercase tracking-widest ${checkedCount === teamCount ? 'text-green-500' : 'text-orange-500'}`}>
             Equipos {checkedCount}/{teamCount === 'indefinido' ? selectedTeams.length : teamCount}
           </div>
-          <button 
+          <button
             onClick={handleComplete}
             disabled={loading || (teamCount !== 'indefinido' && checkedCount !== teamCount)}
             className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl disabled:opacity-50"
@@ -4358,7 +4435,7 @@ function AddMatchModal({ teams, tournamentId, onClose, onSuccess, ...props }: an
 
 function MenuOption({ icon, label, onClick, color = "text-white" }: { icon: string, label: string, onClick: () => void, color?: string }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-800 transition-all rounded-[1.5rem] group text-left"
     >
@@ -4376,7 +4453,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   const getBasketballScore = (gList: any[]) => {
     return gList.reduce((acc, g) => acc + (parseInt(g.detail) || 2), 0)
   }
-  
+
   const [hG, setHG] = useState<any[]>([]); const [aG, setAG] = useState<any[]>([])
   const [hC, setHC] = useState<any[]>([]); const [aC, setAC] = useState<any[]>([])
   const [hF, setHF] = useState<any[]>([]); const [aF, setAF] = useState<any[]>([])
@@ -4390,7 +4467,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   const [awayPenalties, setAwayPenalties] = useState<number | ''>('')
   const [useAdvantage, setUseAdvantage] = useState<boolean>(true)
   const [advancingTeamId, setAdvancingTeamId] = useState<string>('')
-  
+
   const [isWO, setIsWO] = useState(false)
   const [woWinnerId, setWoWinnerId] = useState<string>('')
   const [manualHomeScore, setManualHomeScore] = useState<number>(0)
@@ -4421,13 +4498,13 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   }, [timerRunning])
 
   useEffect(() => { fetchMatch() }, [matchId])
-  useEffect(() => { 
+  useEffect(() => {
     if (match) {
-      onUpdate({ 
-        homeScore: isWO ? manualHomeScore : (isBasketball ? getBasketballScore(hG) : (hG.length + aO.length)), 
-        awayScore: isWO ? manualAwayScore : (isBasketball ? getBasketballScore(aG) : (aG.length + hO.length)), 
-        status: st, 
-        advantageTeamId: isWO ? woWinnerId : advancingTeamId, 
+      onUpdate({
+        homeScore: isWO ? manualHomeScore : (isBasketball ? getBasketballScore(hG) : (hG.length + aO.length)),
+        awayScore: isWO ? manualAwayScore : (isBasketball ? getBasketballScore(aG) : (aG.length + hO.length)),
+        status: st,
+        advantageTeamId: isWO ? woWinnerId : advancingTeamId,
         notes: isWO ? 'W.O' : (st === 'EN_VIVO' ? JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now() } }) : null)
       })
     }
@@ -4444,19 +4521,19 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
     else if (aS > hS) setAdvancingTeamId(match.awayTeam.id)
     else { // Tie
       if (['Cuartos de final', 'Cuartos'].includes(match.roundName)) {
-         if (useAdvantage && match.advantageTeamId) {
-            setAdvancingTeamId(match.advantageTeamId)
-         } else {
-            const hP = Number(homePenalties); const aP = Number(awayPenalties);
-            if (hP > aP) setAdvancingTeamId(match.homeTeam.id)
-            else if (aP > hP) setAdvancingTeamId(match.awayTeam.id)
-            else setAdvancingTeamId('')
-         }
+        if (useAdvantage && match.advantageTeamId) {
+          setAdvancingTeamId(match.advantageTeamId)
+        } else {
+          const hP = Number(homePenalties); const aP = Number(awayPenalties);
+          if (hP > aP) setAdvancingTeamId(match.homeTeam.id)
+          else if (aP > hP) setAdvancingTeamId(match.awayTeam.id)
+          else setAdvancingTeamId('')
+        }
       } else {
-         const hP = Number(homePenalties); const aP = Number(awayPenalties);
-         if (hP > aP) setAdvancingTeamId(match.homeTeam.id)
-         else if (aP > hP) setAdvancingTeamId(match.awayTeam.id)
-         else setAdvancingTeamId('')
+        const hP = Number(homePenalties); const aP = Number(awayPenalties);
+        if (hP > aP) setAdvancingTeamId(match.homeTeam.id)
+        else if (aP > hP) setAdvancingTeamId(match.awayTeam.id)
+        else setAdvancingTeamId('')
       }
     }
   }, [hG, aG, homePenalties, awayPenalties, useAdvantage, match, isBasketball])
@@ -4467,8 +4544,8 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       const res = await fetch(`/api/matches/${matchId}`, { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) throw new Error('No se pudo cargar el partido')
       const data = await res.json()
-      
-      setMatch(data); 
+
+      setMatch(data);
       setSt(data.status || 'NO_REALIZADO')
       if (data.notes === 'W.O') {
         setIsWO(true)
@@ -4491,20 +4568,20 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
               setTimerSeconds(parsed.timer.s)
             }
           }
-        } catch(e) {}
+        } catch (e) { }
       }
       setHomePenalties(data.homePenaltyScore ?? '')
       setAwayPenalties(data.awayPenaltyScore ?? '')
-      
+
       const parse = (tId: string, type: any) => (data.events || [])
         .filter((e: any) => e.teamId === tId && (Array.isArray(type) ? type.includes(e.type) : e.type === type))
-        .map((e: any) => ({ 
-          ...e, 
-          minutes: e.minute || 0, 
-          timeType: e.timeType || '1°', 
-          detail: e.detail || '', 
-          x: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).x : 0, 
-          y: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).y : 0 
+        .map((e: any) => ({
+          ...e,
+          minutes: e.minute || 0,
+          timeType: e.timeType || '1°',
+          detail: e.detail || '',
+          x: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).x : 0,
+          y: e.detail && e.type === 'LINEUP' ? JSON.parse(e.detail).y : 0
         }))
 
       let hM = [], aM = []
@@ -4517,28 +4594,28 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
         if (ar.ok) aM = await ar.json()
       }
 
-      setHG(parse(data.homeTeam?.id, 'GOAL')); 
-      setHC(parse(data.homeTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'])); 
-      setHF(parse(data.homeTeam?.id, 'FOUL')); 
-      setHS(parse(data.homeTeam?.id, 'SUBSTITUTION')); 
-      setHO(parse(data.homeTeam?.id, 'OWN_GOAL')); 
-      setHK(parse(data.homeTeam?.id, 'GOALKEEPER')); 
-      setHHi(parse(data.homeTeam?.id, 'HIGHLIGHT')); 
+      setHG(parse(data.homeTeam?.id, 'GOAL'));
+      setHC(parse(data.homeTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD']));
+      setHF(parse(data.homeTeam?.id, 'FOUL'));
+      setHS(parse(data.homeTeam?.id, 'SUBSTITUTION'));
+      setHO(parse(data.homeTeam?.id, 'OWN_GOAL'));
+      setHK(parse(data.homeTeam?.id, 'GOALKEEPER'));
+      setHHi(parse(data.homeTeam?.id, 'HIGHLIGHT'));
       setHL(parse(data.homeTeam?.id, 'LINEUP'))
 
-      setAG(parse(data.awayTeam?.id, 'GOAL')); 
-      setAC(parse(data.awayTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD'])); 
-      setAF(parse(data.awayTeam?.id, 'FOUL')); 
-      setAS(parse(data.awayTeam?.id, 'SUBSTITUTION')); 
-      setAO(parse(data.awayTeam?.id, 'OWN_GOAL')); 
-      setAK(parse(data.awayTeam?.id, 'GOALKEEPER')); 
-      setAHi(parse(data.awayTeam?.id, 'HIGHLIGHT')); 
+      setAG(parse(data.awayTeam?.id, 'GOAL'));
+      setAC(parse(data.awayTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD']));
+      setAF(parse(data.awayTeam?.id, 'FOUL'));
+      setAS(parse(data.awayTeam?.id, 'SUBSTITUTION'));
+      setAO(parse(data.awayTeam?.id, 'OWN_GOAL'));
+      setAK(parse(data.awayTeam?.id, 'GOALKEEPER'));
+      setAHi(parse(data.awayTeam?.id, 'HIGHLIGHT'));
       setAL(parse(data.awayTeam?.id, 'LINEUP'))
 
-      setMatch((p: any) => ({ 
-        ...p, 
-        homeTeam: p.homeTeam ? { ...p.homeTeam, players: hM } : null, 
-        awayTeam: p.awayTeam ? { ...p.awayTeam, players: aM } : null 
+      setMatch((p: any) => ({
+        ...p,
+        homeTeam: p.homeTeam ? { ...p.homeTeam, players: hM } : null,
+        awayTeam: p.awayTeam ? { ...p.awayTeam, players: aM } : null
       }))
     } catch (err: any) {
       alert(err.message)
@@ -4557,18 +4634,18 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
         return evs.map(e => {
           const m = parseInt(e.minutes as any);
           return {
-            teamId: tId, 
-            playerId: e.playerId || null, 
+            teamId: tId,
+            playerId: e.playerId || null,
             assistId: e.assistId || null,
-            type: e.type, 
-            minute: isNaN(m) ? null : m, 
+            type: e.type,
+            minute: isNaN(m) ? null : m,
             second: 0,
-            timeType: e.timeType || '1°', 
+            timeType: e.timeType || '1°',
             detail: e.type === 'LINEUP' ? JSON.stringify({ x: e.x, y: e.y }) : (e.detail || '')
           }
         })
       }
-      
+
       const all = [
         ...serialize(hG, match.homeTeam?.id), ...serialize(aG, match.awayTeam?.id),
         ...serialize(hC, match.homeTeam?.id), ...serialize(aC, match.awayTeam?.id),
@@ -4586,15 +4663,15 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       const res = await fetch(`/api/matches/${matchId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ 
-          status: st, 
-          homeScore: isNR ? null : finalHomeScore, 
-          awayScore: isNR ? null : finalAwayScore, 
+        body: JSON.stringify({
+          status: st,
+          homeScore: isNR ? null : finalHomeScore,
+          awayScore: isNR ? null : finalAwayScore,
           homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
           awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
           advancingTeamId: isWO ? woWinnerId : (advancingTeamId || null),
           notes: isWO ? 'W.O' : JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now() } }),
-          events: all 
+          events: all
         })
       })
       if (!res.ok) throw new Error('Error al guardar los cambios')
@@ -4610,13 +4687,13 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
 
   return (
     <div className="bg-white rounded-[3rem] w-full max-w-5xl h-[85vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-500 relative">
-      
+
       {/* Timer Modal */}
       {showTimerModal && (
         <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center z-[110] backdrop-blur-sm rounded-[3rem]" onClick={() => setShowTimerModal(false)}>
           <div className="bg-[#F8F9FA] rounded-[2rem] p-6 max-w-xs w-full shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Tiempo</h3>
-            
+
             <div className="flex flex-col items-center gap-6 w-full mb-8">
               <div className="flex gap-2">
                 {[1, 2, 3, 4].map(p => (
@@ -4721,7 +4798,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
                 <label htmlFor="advCheck" className="text-xs font-black text-blue-900 cursor-pointer uppercase tracking-wider">Aplicar Ventaja Deportiva</label>
               </div>
             )}
-            
+
             {(!['Cuartos de final', 'Cuartos'].includes(match.roundName) || !useAdvantage) && (
               <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
                 <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Penales:</span>
@@ -4734,12 +4811,12 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
             )}
 
             <div className="flex-1 flex items-center justify-end gap-3 min-w-[250px]">
-               <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Avanza:</span>
-               <select value={advancingTeamId} onChange={e => setAdvancingTeamId(e.target.value)} className="bg-slate-900 text-white font-black text-xs px-4 py-3 rounded-xl outline-none shadow-md flex-1">
-                 <option value="">- SELECCIONAR GANADOR -</option>
-                 <option value={match.homeTeam.id}>{match.homeTeam.name} {match.advantageTeamId === match.homeTeam.id && '(V)'}</option>
-                 <option value={match.awayTeam.id}>{match.awayTeam.name} {match.advantageTeamId === match.awayTeam.id && '(V)'}</option>
-               </select>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Avanza:</span>
+              <select value={advancingTeamId} onChange={e => setAdvancingTeamId(e.target.value)} className="bg-slate-900 text-white font-black text-xs px-4 py-3 rounded-xl outline-none shadow-md flex-1">
+                <option value="">- SELECCIONAR GANADOR -</option>
+                <option value={match.homeTeam.id}>{match.homeTeam.name} {match.advantageTeamId === match.homeTeam.id && '(V)'}</option>
+                <option value={match.awayTeam.id}>{match.awayTeam.name} {match.advantageTeamId === match.awayTeam.id && '(V)'}</option>
+              </select>
             </div>
           </div>
         </div>
@@ -4754,9 +4831,338 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   )
 }
 
+function EditInfoModal({ matchId, onClose }: { matchId: string, onClose: () => void }) {
+  const [match, setMatch] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const [title, setTitle] = useState('')
+  const [site, setSite] = useState('')
+  const [dateTime, setDateTime] = useState('')
+  const [referee, setReferee] = useState('')
+  const [notes, setNotes] = useState('')
+  const [timerState, setTimerState] = useState<any>(null)
+
+  const [activeTab, setActiveTab] = useState<string | null>(null)
+
+  const fetchMatch = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/matches/${matchId}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error('No se pudo cargar el partido')
+      const data = await res.json()
+
+      setMatch(data)
+
+      // Parse location: Título @ Sitio
+      if (data.location) {
+        if (data.location.includes(' @ ')) {
+          const parts = data.location.split(' @ ')
+          setTitle(parts[0] || '')
+          setSite(parts[1] || '')
+        } else {
+          setTitle(data.location)
+          setSite('')
+        }
+      } else {
+        setTitle('')
+        setSite('')
+      }
+
+      // Parse date for datetime-local
+      setDateTime(toDatetimeLocal(data.matchDate))
+      setReferee(data.referee || '')
+
+      // Safe notes and timer parsing
+      if (data.notes) {
+        if (data.notes.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(data.notes)
+            if (parsed.timer) {
+              setTimerState(parsed.timer)
+              setNotes(parsed.customNotes || '')
+            } else {
+              setNotes(data.notes)
+            }
+          } catch (e) {
+            setNotes(data.notes)
+          }
+        } else {
+          setNotes(data.notes)
+        }
+      } else {
+        setNotes('')
+      }
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMatch()
+  }, [matchId])
+
+  const handleSave = async () => {
+    if (!title.trim()) {
+      alert('Por favor, ingresa un Título (ej. Cancha 1)')
+      return
+    }
+    if (!dateTime) {
+      alert('Por favor, selecciona una Fecha y Hora')
+      return
+    }
+    setSaving(true)
+    try {
+      const token = localStorage.getItem('token')
+      const fullLocation = site.trim() ? `${title.trim()} @ ${site.trim()}` : title.trim()
+
+      // Build structured notes if timer exists, otherwise plain text
+      let notesPayload: string | null = notes.trim() || null
+      if (timerState) {
+        notesPayload = JSON.stringify({
+          timer: timerState,
+          customNotes: notes.trim() || undefined
+        })
+      }
+
+      const res = await fetch(`/api/matches/${matchId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          location: fullLocation,
+          matchDate: dateTime ? new Date(dateTime).toISOString() : null,
+          referee: referee.trim() || null,
+          notes: notesPayload
+        })
+      })
+
+      if (!res.ok) throw new Error('Error al guardar la información')
+      onClose()
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-[#F1EDF5] rounded-[2.5rem] w-full max-w-md p-8 flex flex-col items-center justify-center gap-4 text-slate-850">
+        <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+        <span className="font-bold text-xs uppercase tracking-widest text-slate-500">Cargando...</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-[#F1EDF5] rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl p-8 flex flex-col gap-5 text-slate-850 animate-in zoom-in-95 duration-300 relative border border-slate-200/50" onClick={e => e.stopPropagation()}>
+      <button onClick={onClose} className="absolute top-8 right-8 text-slate-400 hover:text-slate-600 transition-colors font-bold text-lg">✕</button>
+
+      <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">Editar informacion</h2>
+
+      <div className="space-y-4">
+        {/* Título Input */}
+        <div className="relative border border-[#C5BFC9] rounded-xl px-4 py-3 bg-white/70 backdrop-blur-sm focus-within:border-purple-650 focus-within:bg-white transition-all">
+          <label className="absolute -top-2 left-3 bg-[#F1EDF5] px-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">
+            Título
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            className="w-full bg-transparent outline-none font-bold text-slate-800 text-sm"
+            placeholder="Cancha 1, Estadio..."
+          />
+        </div>
+
+        {/* Fecha y hora Input with Calendar Icon */}
+        <div className="flex items-center gap-3 w-full">
+          <div className="w-12 h-12 rounded-xl bg-white border border-[#C5BFC9] flex items-center justify-center text-xl shadow-sm shrink-0">
+            📅
+          </div>
+          <div className="relative flex-1 border border-[#C5BFC9] rounded-xl px-4 py-3 bg-white/70 backdrop-blur-sm focus-within:border-purple-650 focus-within:bg-white transition-all">
+            <label className="absolute -top-2 left-3 bg-[#F1EDF5] px-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">
+              Fecha y hora
+            </label>
+            <input
+              type="datetime-local"
+              value={dateTime}
+              onChange={e => setDateTime(e.target.value)}
+              className="w-full bg-transparent outline-none font-bold text-slate-800 text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Sitio Input */}
+        <div className="relative border border-[#C5BFC9] rounded-xl px-4 py-3 bg-white/70 backdrop-blur-sm focus-within:border-purple-650 focus-within:bg-white transition-all">
+          <label className="absolute -top-2 left-3 bg-[#F1EDF5] px-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">
+            Sitio
+          </label>
+          <input
+            type="text"
+            value={site}
+            onChange={e => setSite(e.target.value)}
+            className="w-full bg-transparent outline-none font-bold text-slate-800 text-sm"
+            placeholder="Dirección, Complejo..."
+          />
+        </div>
+
+        {/* Información Input */}
+        <div className="relative border border-[#C5BFC9] rounded-xl px-4 py-3 bg-white/70 backdrop-blur-sm focus-within:border-purple-650 focus-within:bg-white transition-all">
+          <label className="absolute -top-2 left-3 bg-[#F1EDF5] px-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">
+            Información
+          </label>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={3}
+            className="w-full bg-transparent outline-none font-bold text-slate-800 text-sm resize-none"
+            placeholder="Detalles del partido..."
+          />
+        </div>
+      </div>
+
+      {/* Expandable Options List */}
+      <div className="space-y-0 border-t border-slate-200/50 pt-2">
+
+        {/* Anexos */}
+        <button
+          onClick={() => setActiveTab(activeTab === 'anexos' ? null : 'anexos')}
+          className="w-full flex items-center justify-between py-3.5 border-b border-slate-200/40 hover:bg-slate-200/20 transition-all px-2 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-[#00C853] text-lg font-bold">📎</span>
+            <span className="font-bold text-slate-700 text-sm">Anexos</span>
+          </div>
+          <span className="text-slate-400 text-xs">{activeTab === 'anexos' ? '▲' : '▼'}</span>
+        </button>
+        {activeTab === 'anexos' && (
+          <div className="p-4 bg-white/50 rounded-2xl border border-slate-200/60 my-2 animate-in slide-in-from-top-2 duration-200 text-xs font-bold text-slate-500">
+            Adjuntar fotos, archivos o enlaces del partido
+          </div>
+        )}
+
+        {/* Puntos extra */}
+        <button
+          onClick={() => setActiveTab(activeTab === 'puntos' ? null : 'puntos')}
+          className="w-full flex items-center justify-between py-3.5 border-b border-slate-200/40 hover:bg-slate-200/20 transition-all px-2 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-[#00C853] text-lg font-bold">➕</span>
+            <span className="font-bold text-slate-700 text-sm">Puntos extra</span>
+          </div>
+          <span className="text-slate-400 text-xs">{activeTab === 'puntos' ? '▲' : '▼'}</span>
+        </button>
+        {activeTab === 'puntos' && (
+          <div className="p-4 bg-white/50 rounded-2xl border border-slate-200/60 my-2 animate-in slide-in-from-top-2 duration-200 text-xs font-bold text-slate-500">
+            Asignar puntos extra o fair play
+          </div>
+        )}
+
+        {/* Arbitraje */}
+        <button
+          onClick={() => setActiveTab(activeTab === 'arbitraje' ? null : 'arbitraje')}
+          className="w-full flex items-center justify-between py-3.5 border-b border-slate-200/40 hover:bg-slate-200/20 transition-all px-2 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-[#00C853] text-lg font-bold">👤</span>
+            <span className="font-bold text-slate-700 text-sm">Arbitraje</span>
+          </div>
+          <span className="text-slate-400 text-xs">{activeTab === 'arbitraje' ? '▲' : '▼'}</span>
+        </button>
+        {activeTab === 'arbitraje' && (
+          <div className="p-4 bg-white/60 rounded-2xl border border-[#C5BFC9]/50 my-2 animate-in slide-in-from-top-2 duration-200 space-y-3">
+            <div className="relative border border-[#C5BFC9] rounded-xl px-4 py-3 bg-white focus-within:border-purple-650 transition-all">
+              <label className="absolute -top-2 left-3 bg-white px-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">
+                Nombre del Árbitro
+              </label>
+              <input
+                type="text"
+                value={referee}
+                onChange={e => setReferee(e.target.value)}
+                className="w-full bg-transparent outline-none font-bold text-slate-800 text-sm"
+                placeholder="Ej: Juan Pérez"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Encuestas */}
+        <button
+          onClick={() => setActiveTab(activeTab === 'encuestas' ? null : 'encuestas')}
+          className="w-full flex items-center justify-between py-3.5 border-b border-slate-200/40 hover:bg-slate-200/20 transition-all px-2 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-[#00C853] text-lg font-bold">📊</span>
+            <span className="font-bold text-slate-700 text-sm">Encuestas</span>
+          </div>
+          <span className="text-slate-400 text-xs">{activeTab === 'encuestas' ? '▲' : '▼'}</span>
+        </button>
+        {activeTab === 'encuestas' && (
+          <div className="p-4 bg-white/50 rounded-2xl border border-slate-200/60 my-2 animate-in slide-in-from-top-2 duration-200 text-xs font-bold text-slate-500">
+            Añadir encuesta de mejor jugador o resultado
+          </div>
+        )}
+
+        {/* Acta */}
+        <button
+          onClick={() => setActiveTab(activeTab === 'acta' ? null : 'acta')}
+          className="w-full flex items-center justify-between py-3.5 border-b border-slate-200/40 hover:bg-slate-200/20 transition-all px-2 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-[#00C853] text-lg font-bold">📄</span>
+            <span className="font-bold text-slate-700 text-sm">Acta</span>
+          </div>
+          <span className="text-slate-400 text-xs">{activeTab === 'acta' ? '▲' : '▼'}</span>
+        </button>
+        {activeTab === 'acta' && (
+          <div className="p-4 bg-white/50 rounded-2xl border border-slate-200/60 my-2 animate-in slide-in-from-top-2 duration-200 text-xs font-bold text-slate-500">
+            Ver o configurar acta oficial de firmas del partido
+          </div>
+        )}
+
+        {/* Art du jeu */}
+        <button
+          onClick={() => setActiveTab(activeTab === 'art' ? null : 'art')}
+          className="w-full flex items-center justify-between py-3.5 hover:bg-slate-200/20 transition-all px-2 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-[#00C853] text-lg font-bold">✨</span>
+            <span className="font-bold text-slate-700 text-sm">Art du jeu</span>
+          </div>
+          <span className="text-slate-400 text-xs">{activeTab === 'art' ? '▲' : '▼'}</span>
+        </button>
+        {activeTab === 'art' && (
+          <div className="p-4 bg-white/50 rounded-2xl border border-slate-200/60 my-2 animate-in slide-in-from-top-2 duration-200 text-xs font-bold text-slate-500">
+            Reglas especiales del juego
+          </div>
+        )}
+
+      </div>
+
+      {/* Save Button */}
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="text-[#007FFF] font-black text-base hover:text-blue-700 hover:scale-105 transition-all outline-none"
+        >
+          {saving ? 'Guardando...' : 'Guardar'}
+        </button>
+      </div>
+
+    </div>
+  )
+}
+
 function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, fouls, setFouls, subs, setSubs, own, setOwn, gk, setGk, hi, setHi, lin, setLin, color }: any) {
   const [tab, setTab] = useState('goles')
-  
+
   const getBasketballScore = (gList: any[]) => {
     return gList.reduce((acc, g) => acc + (parseInt(g.detail) || 2), 0)
   }
@@ -4771,7 +5177,7 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
     { id: 'otros', label: 'Otros', i: '✨' },
     ...(!isBasketball ? [{ id: 'alineacion', label: 'Cancha', i: '⚽' }] : []),
   ]
-  
+
   return (
     <div className="flex gap-5">
       {/* Left: Info & Tabs */}
@@ -4782,14 +5188,14 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
           <div>
             <h3 className="font-black text-base text-slate-800 leading-tight">{team.name.toUpperCase()}</h3>
             <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-              {isBasketball 
-                ? `${score} puntos anotados` 
+              {isBasketball
+                ? `${score} puntos anotados`
                 : `${goals.length} ${goals.length === 1 ? 'gol' : 'goles'} registrados`
               }
             </div>
           </div>
         </div>
-        
+
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-50 p-1 rounded-2xl mb-3 overflow-x-auto no-scrollbar">
           {tabs.map(t => (
@@ -4802,24 +5208,24 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
         {/* Content */}
         <div className="min-h-[180px]">
           {tab === 'goles' && (
-            <RowFormSection 
-              title={isBasketball ? "🏀 Puntos anotados" : "⚽ Goles anotados"} 
-              evs={goals} 
-              setEvs={setGoals} 
-              players={team.players || []} 
-              color={color} 
-              assist={!isBasketball} 
-              type="GOAL" 
-              pLabel={isBasketball ? "Anotador" : "Goleador"} 
-              aLabel="Asistente" 
-              isGoalType={true} 
+            <RowFormSection
+              title={isBasketball ? "🏀 Puntos anotados" : "⚽ Goles anotados"}
+              evs={goals}
+              setEvs={setGoals}
+              players={team.players || []}
+              color={color}
+              assist={!isBasketball}
+              type="GOAL"
+              pLabel={isBasketball ? "Anotador" : "Goleador"}
+              aLabel="Asistente"
+              isGoalType={true}
               isBasketball={isBasketball}
             />
           )}
           {tab === 'tarjetas' && <RowFormSection title="🟨 Tarjetas disciplinarias" evs={cards} setEvs={setCards} players={team.players || []} color={color} isType={true} type="YELLOW_CARD" opts={[
-            { v: 'YELLOW_CARD',        label: '🟨 Amarilla',            hint: '1ª falta' },
+            { v: 'YELLOW_CARD', label: '🟨 Amarilla', hint: '1ª falta' },
             { v: 'DOUBLE_YELLOW_CARD', label: '🟨🟥 2ª Amarilla → Expulsado', hint: 'Acumulación' },
-            { v: 'RED_CARD',           label: '🟥 Roja Directa',       hint: 'Expulsión inmediata' },
+            { v: 'RED_CARD', label: '🟥 Roja Directa', hint: 'Expulsión inmediata' },
           ]} />}
           {tab === 'faltas' && <RowFormSection title="⚠️ Faltas cometidas" evs={fouls} setEvs={setFouls} players={team.players || []} color={color} detail={true} type="FOUL" pLabel="Infractor" />}
           {tab === 'subs' && <RowFormSection title="🔄 Sustituciones" evs={subs} setEvs={setSubs} players={team.players || []} color={color} assist={true} pLabel="Entra al campo" aLabel="Sale del campo" type="SUBSTITUTION" />}
@@ -4927,9 +5333,8 @@ function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = '
                 <div className="flex flex-col gap-1">
                   {opts.map((o: any) => (
                     <button key={o.v} onClick={() => up(e.id, 'type', o.v)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black transition-all text-left ${
-                        e.type === o.v ? 'bg-slate-800 text-white shadow-md' : 'bg-white border border-slate-100 text-slate-500 hover:border-slate-300'
-                      }`}>
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-black transition-all text-left ${e.type === o.v ? 'bg-slate-800 text-white shadow-md' : 'bg-white border border-slate-100 text-slate-500 hover:border-slate-300'
+                        }`}>
                       <span>{o.label}</span>
                       {o.hint && <span className={`text-[8px] font-bold uppercase tracking-widest ${e.type === o.v ? 'text-slate-400' : 'text-slate-300'}`}>{o.hint}</span>}
                     </button>
@@ -4980,8 +5385,8 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
       const res = await fetch(`/api/matches/${matchId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ 
-          [side === 'home' ? 'homeTeamId' : 'awayTeamId']: newTeamId 
+        body: JSON.stringify({
+          [side === 'home' ? 'homeTeamId' : 'awayTeamId']: newTeamId
         }),
       })
       if (res.ok) onSuccess()
@@ -5006,16 +5411,16 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
 
           {!editingSide ? (
             <div className="flex items-center gap-4 bg-white/50 p-6 rounded-[2.5rem] border border-white shadow-inner">
-              <TeamSwapCard 
-                team={match.homeTeam} 
-                label="Local" 
-                onClick={() => setEditingSide('home')} 
+              <TeamSwapCard
+                team={match.homeTeam}
+                label="Local"
+                onClick={() => setEditingSide('home')}
               />
               <div className="text-slate-300 font-black text-2xl italic px-2">VS</div>
-              <TeamSwapCard 
-                team={match.awayTeam} 
-                label="Visitante" 
-                onClick={() => setEditingSide('away')} 
+              <TeamSwapCard
+                team={match.awayTeam}
+                label="Visitante"
+                onClick={() => setEditingSide('away')}
               />
             </div>
           ) : (
@@ -5025,7 +5430,7 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
                 <button onClick={() => setEditingSide(null)} className="text-[10px] font-black text-blue-600 uppercase hover:underline">Volver</button>
               </div>
               <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-                <button 
+                <button
                   onClick={() => handleUpdateTeam(editingSide as any, null as any)}
                   className="w-full flex items-center justify-between p-4 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 transition-all rounded-2xl group border border-emerald-100 shadow-sm"
                 >
@@ -5037,8 +5442,8 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
                 </button>
 
                 {allTeams.map((t: any) => (
-                  <button 
-                    key={t.team.id} 
+                  <button
+                    key={t.team.id}
                     onClick={() => handleUpdateTeam(editingSide as any, t.team.id)}
                     className="w-full flex items-center justify-between p-4 bg-white hover:bg-blue-600 hover:text-white transition-all rounded-2xl group border border-slate-100 shadow-sm"
                   >
@@ -5066,7 +5471,7 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
 
 function TeamSwapCard({ team, label, onClick }: any) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className="flex-1 group transition-all"
     >
@@ -5154,7 +5559,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
     const aS = m.awayScore
     if (hS !== null) stats.goals += hS
     if (aS !== null) stats.goals += aS
-    
+
     m.events?.forEach((e: any) => {
       const pName = e.player?.name;
       const tName = e.team?.name || ''
@@ -5162,7 +5567,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
         const isPenal = e.detail === 'PENAL'
         const displayName = pName ? (e.type === 'OWN_GOAL' ? `${pName} (A.G.)` : pName) : (e.type === 'OWN_GOAL' ? 'Autogol' : 'Desconocido')
         const key = e.type === 'OWN_GOAL' ? `AG_${pName || 'anon'}_${e.id}` : (pName || 'Desconocido')
-        
+
         if (!stats.scorers[key]) (stats.scorers as any)[key] = { name: displayName, team: tName, goals: 0, penalties: 0 }
         stats.scorers[key].goals++
         if (isPenal) stats.scorers[key].penalties++
@@ -5279,13 +5684,13 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
         if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
         return a.name.localeCompare(b.name)
       })
-    
+
     setRounds(sortedRounds.map(r => r.name))
   }, [matches, phaseName])
 
   const handleDragStart = (index: number) => setDraggedIndex(index)
   const handleDragOver = (e: React.DragEvent, index: number) => e.preventDefault()
-  
+
   const handleDrop = (index: number) => {
     if (draggedIndex === null || draggedIndex === index) return
     const newRounds = [...rounds]
@@ -5302,8 +5707,8 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
       const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=reassignRounds`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          phaseName, 
+        body: JSON.stringify({
+          phaseName,
           roundSequence: rounds,
           categoryId: categoryId || null,
         }),
@@ -5327,11 +5732,11 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
       <div className="bg-[#f4eff4] rounded-sm w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
         <div className="p-6">
           <h3 className="text-2xl text-slate-800 mb-6">Reordenar rondas</h3>
-          
+
           <div className="space-y-0 mb-8 max-h-[50vh] overflow-y-auto custom-scrollbar pr-2">
             {rounds.map((r, i) => (
-              <div 
-                key={r} 
+              <div
+                key={r}
                 draggable
                 onDragStart={() => handleDragStart(i)}
                 onDragOver={(e) => handleDragOver(e, i)}
@@ -5346,11 +5751,11 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
               </div>
             ))}
           </div>
-          
+
           <p className="text-xs text-slate-400 mb-8">Mantenga presionado y arrastre para cambiar</p>
-          
+
           <div className="flex justify-end pt-2">
-            <button 
+            <button
               onClick={handleSave}
               disabled={isSaving}
               className="text-blue-500 font-bold text-lg hover:text-blue-600 transition-colors disabled:opacity-50"
@@ -5386,13 +5791,13 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
     }, 150)
   }
 
-  const exportStandings = showAllGroups 
+  const exportStandings = showAllGroups
     ? [...tournamentTeams]
-        .sort((a, b) => (a.order || 0) - (b.order || 0))
-        .map(tt => {
-          const stats = standings.find((s: any) => s.id === tt.team.id) || { points: 0, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, diff: 0 }
-          return { ...stats, ...tt, name: tt.team.name }
-        })
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map(tt => {
+        const stats = standings.find((s: any) => s.id === tt.team.id) || { points: 0, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, diff: 0 }
+        return { ...stats, ...tt, name: tt.team.name }
+      })
     : standings
 
   const handleExportImage = async () => {
@@ -5420,12 +5825,12 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
     const dataToExport = exportStandings
     const rows: any[] = []
     const visibleCols = tableColumns.filter((c: any) => c.visible)
-    
+
     // Header Row Object
     const headerRow: any = { Pos: 'Pos', Equipo: 'Equipo' }
-    visibleCols.forEach((col: any) => { 
+    visibleCols.forEach((col: any) => {
       const label = getColLabel(col.id, isBasketball)
-      headerRow[label] = label 
+      headerRow[label] = label
     })
 
     if (isGrouped) {
@@ -5441,9 +5846,9 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
         rows.push(headerRow)
         teams.forEach((s: any, idx: number) => {
           const row: any = { Pos: idx + 1, Equipo: s.name }
-          visibleCols.forEach((col: any) => { 
+          visibleCols.forEach((col: any) => {
             const label = getColLabel(col.id, isBasketball)
-            row[label] = s[col.id] || 0 
+            row[label] = s[col.id] || 0
           })
           rows.push(row)
         })
@@ -5453,9 +5858,9 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
       rows.push(headerRow)
       dataToExport.forEach((s: any, idx: number) => {
         const row: any = { Pos: idx + 1, Equipo: s.name }
-        visibleCols.forEach((col: any) => { 
+        visibleCols.forEach((col: any) => {
           const label = getColLabel(col.id, isBasketball)
-          row[label] = s[col.id] || 0 
+          row[label] = s[col.id] || 0
         })
         rows.push(row)
       })
@@ -5545,7 +5950,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
         <div ref={tableRef} className="bg-[#020617] p-10 rounded-3xl border border-white/10 relative overflow-hidden w-full">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 blur-[100px] rounded-full -mr-32 -mt-32"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-600/10 blur-[100px] rounded-full -ml-32 -mb-32"></div>
-          
+
           <div className="relative z-10">
             <div className="flex justify-between items-end mb-10">
               <div>
@@ -5560,11 +5965,11 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
             {Object.entries(groupedStandings).map(([group, teams]: [any, any]) => (
               <div key={group} className="mb-10 last:mb-0">
                 {group !== 'General' && (
-                   <div className="flex items-center gap-4 mb-4">
-                     <span className="h-px flex-1 bg-white/10"></span>
-                     <h3 className="text-emerald-400 font-black text-xs uppercase tracking-[0.2em]">Grupo {group}</h3>
-                     <span className="h-px flex-1 bg-white/10"></span>
-                   </div>
+                  <div className="flex items-center gap-4 mb-4">
+                    <span className="h-px flex-1 bg-white/10"></span>
+                    <h3 className="text-emerald-400 font-black text-xs uppercase tracking-[0.2em]">Grupo {group}</h3>
+                    <span className="h-px flex-1 bg-white/10"></span>
+                  </div>
                 )}
                 <div className="overflow-hidden rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
                   <table className="w-full text-xs">
@@ -5607,9 +6012,9 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
       return (
         <div ref={tableRef} className="bg-gradient-to-br from-[#2D0B5A] to-[#14052D] p-12 rounded-[3rem] relative overflow-hidden w-full">
           <div className="absolute inset-0 opacity-20 pointer-events-none">
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,0,255,0.2),transparent_70%)]"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,0,255,0.2),transparent_70%)]"></div>
           </div>
-          
+
           <div className="relative z-10">
             <h2 className="text-5xl font-black text-white text-center mb-12 drop-shadow-2xl uppercase tracking-tighter italic">Clasificación</h2>
 
@@ -5624,7 +6029,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
                   {teams.map((s: any, i: number) => (
                     <div key={s.id} className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:bg-white/20 transition-all hover:scale-[1.02] cursor-default">
                       <div className="flex items-center gap-6">
-                        <span className="text-white/40 font-black text-2xl italic w-8">#{i+1}</span>
+                        <span className="text-white/40 font-black text-2xl italic w-8">#{i + 1}</span>
                         <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-500 p-0.5">
                           <div className="w-full h-full rounded-[10px] bg-[#14052D] flex items-center justify-center font-black text-white">
                             {s.name[0]}
@@ -5632,7 +6037,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
                         </div>
                         <span className="text-xl font-black text-white uppercase tracking-tight">{s.name}</span>
                       </div>
-                      
+
                       <div className="flex items-center gap-8 pr-4">
                         {visibleCols.filter(c => ['points', 'played', 'diff'].includes(c.id)).map(col => (
                           <div key={col.id} className="text-center">
@@ -5681,7 +6086,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
                   {teams.map((s: any, i: number) => (
                     <div key={s.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors border border-white/5 group">
                       <div className="flex items-center gap-3">
-                        <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-blue-600 text-white' : 'text-white/30'}`}>{i+1}</span>
+                        <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-blue-600 text-white' : 'text-white/30'}`}>{i + 1}</span>
                         <span className="text-sm font-black text-white uppercase group-hover:text-blue-400 transition-colors">{s.name}</span>
                       </div>
                       <div className="flex gap-4 text-xs font-black">
@@ -5729,15 +6134,15 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
         <div className="flex h-[700px] print-h-auto print-no-scroll">
           <div className="w-64 bg-white border-r border-slate-100 p-8 flex flex-col no-print">
             <h3 className="text-xl font-black text-slate-800 mb-8 uppercase tracking-tighter">Exportar</h3>
-            
+
             <div className="space-y-2 flex-1">
-              <button 
+              <button
                 onClick={() => setExportView('menu')}
                 className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${exportView === 'menu' ? 'bg-[#0F172A] text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-slate-50'}`}
               >
                 <span className="text-lg">☰</span> Menú Principal
               </button>
-              <button 
+              <button
                 onClick={() => setExportView('styles')}
                 className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${exportView === 'styles' ? 'bg-[#0F172A] text-white shadow-xl scale-105' : 'text-slate-400 hover:bg-slate-50'}`}
               >
@@ -5747,14 +6152,14 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
               <div className="mt-8 pt-8 border-t border-slate-100 space-y-6">
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <div className="relative">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
-                      checked={showAllGroups} 
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={showAllGroups}
                       onChange={() => {
                         setShowAllGroups(!showAllGroups);
                         if (!showAllGroups) setIsGrouped(false);
-                      }} 
+                      }}
                     />
                     <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
                   </div>
@@ -5763,14 +6168,14 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
 
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <div className="relative">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
-                      checked={isGrouped} 
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={isGrouped}
                       onChange={() => {
                         setIsGrouped(!isGrouped);
                         if (!isGrouped) setShowAllGroups(false);
-                      }} 
+                      }}
                     />
                     <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
                   </div>
@@ -5787,28 +6192,28 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
           <div className="flex-1 bg-slate-100/50 p-8 flex flex-col overflow-hidden print-full-width print-no-scroll print-h-auto relative">
             {exportView === 'menu' ? (
               <div className="grid grid-cols-2 gap-6 h-full items-center max-w-2xl mx-auto w-full no-print z-10">
-                <ExportOption 
-                  icon="🖨" 
-                  title="Imprimir" 
-                  desc="Versión optimizada para papel" 
+                <ExportOption
+                  icon="🖨"
+                  title="Imprimir"
+                  desc="Versión optimizada para papel"
                   onClick={handlePrint}
                 />
-                <ExportOption 
-                  icon="🎨" 
-                  title="Diseño Social" 
-                  desc="4 estilos para compartir" 
+                <ExportOption
+                  icon="🎨"
+                  title="Diseño Social"
+                  desc="4 estilos para compartir"
                   onClick={() => setExportView('styles')}
                 />
-                <ExportOption 
-                  icon="📊" 
-                  title="Excel" 
-                  desc="Descargar datos .xlsx" 
+                <ExportOption
+                  icon="📊"
+                  title="Excel"
+                  desc="Descargar datos .xlsx"
                   onClick={handleExportExcel}
                 />
-                <ExportOption 
-                  icon="🔗" 
-                  title="Embed" 
-                  desc="Código para tu web" 
+                <ExportOption
+                  icon="🔗"
+                  title="Embed"
+                  desc="Código para tu web"
                   onClick={() => setShowEmbedCode(true)}
                 />
               </div>
@@ -5827,7 +6232,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
                     ))}
                   </div>
 
-                  <button 
+                  <button
                     onClick={handleExportImage}
                     disabled={isGenerating}
                     className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-2xl font-black text-xs transition-all shadow-lg shadow-blue-200 active:scale-95 disabled:opacity-50"
@@ -5857,24 +6262,24 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
 
       {showEmbedCode && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[500] flex items-center justify-center p-8" onClick={() => setShowEmbedCode(false)}>
-           <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-2xl animate-in zoom-in fade-in" onClick={e => e.stopPropagation()}>
-              <h4 className="text-2xl font-black text-slate-800 mb-6">Código de incorporación</h4>
-              <p className="text-slate-500 mb-6 font-medium">Copia este código para mostrar la tabla en tu sitio web:</p>
-              <textarea 
-                readOnly
-                value={getEmbedCode()}
-                className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm mb-8 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(getEmbedCode())
-                  alert('Código copiado!')
-                }}
-                className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest text-xs"
-              >
-                Copiar Código
-              </button>
-           </div>
+          <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-2xl animate-in zoom-in fade-in" onClick={e => e.stopPropagation()}>
+            <h4 className="text-2xl font-black text-slate-800 mb-6">Código de incorporación</h4>
+            <p className="text-slate-500 mb-6 font-medium">Copia este código para mostrar la tabla en tu sitio web:</p>
+            <textarea
+              readOnly
+              value={getEmbedCode()}
+              className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm mb-8 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(getEmbedCode())
+                alert('Código copiado!')
+              }}
+              className="w-full py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest text-xs"
+            >
+              Copiar Código
+            </button>
+          </div>
         </div>
       )}
     </div>,
@@ -5884,7 +6289,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
 
 function ExportOption({ icon, title, desc, onClick }: any) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:scale-105 hover:border-blue-200 transition-all group text-left h-48 flex flex-col justify-center"
     >

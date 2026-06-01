@@ -28,6 +28,22 @@ interface Match {
 
 type MenuType = 'inicio' | 'clasificacion' | 'estadisticas'
 
+const formatMatchDate = (dateStr: string) => {
+  try {
+    const d = new Date(dateStr)
+    const weekdays = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+    const weekday = weekdays[d.getDay()]
+    const day = d.getDate()
+    const month = d.getMonth() + 1
+    const year = d.getFullYear()
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${weekday}, ${day}/${month}/${year} ${hours}:${minutes}`
+  } catch (e) {
+    return dateStr
+  }
+}
+
 export default function PublicTournamentPage() {
   const params = useParams()
   const router = useRouter()
@@ -1157,6 +1173,24 @@ export default function PublicTournamentPage() {
                                       <span className="font-black text-slate-900 w-6 text-center">{m.awayScore !== null ? m.awayScore : '-'}</span>
                                     </div>
                                   </div>
+
+                                  {/* Date, Venue, Notes, Referee for brackets */}
+                                  <div className="border-t border-slate-200/20 pt-2.5 mt-0.5 w-full flex flex-col items-center justify-center gap-0.5">
+                                    <span className="text-[10px] font-black text-slate-800 tracking-tight">{m.location ? m.location.split(' @ ')[0] : 'Por definir'}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 lowercase first-letter:uppercase">
+                                      {formatMatchDate(m.matchDate)}
+                                    </span>
+                                    {m.location && m.location.includes(' @ ') && m.location.split(' @ ')[1] && (
+                                      <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📍 {m.location.split(' @ ')[1]}</span>
+                                    )}
+                                    {m.referee && (
+                                      <span className="text-[8px] text-[#00C853] font-black uppercase tracking-wider mt-0.5">👤 Árbitro: {m.referee}</span>
+                                    )}
+                                    {getDisplayNotes(m.notes) && (
+                                      <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📝 {getDisplayNotes(m.notes)}</span>
+                                    )}
+                                  </div>
+
                                 </div>
                               )
                             }
@@ -1282,10 +1316,20 @@ export default function PublicTournamentPage() {
                                       </div>
 
                                       {/* Match Date, Field, notes */}
-                                      <div className="text-[8px] text-slate-400 font-black uppercase tracking-wider border-t border-slate-200/40 pt-3 w-full flex items-center justify-center gap-2">
-                                        <span>📅 {new Date(m.matchDate).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                                        {m.location && <span>• 📍 {m.location}</span>}
-                                        {m.notes && m.notes !== 'FECHA_LIBRE' && <span>• 📝 {m.notes}</span>}
+                                      <div className="border-t border-slate-200/40 pt-3 w-full flex flex-col items-center justify-center gap-0.5">
+                                        <span className="text-[10px] font-black text-slate-800 tracking-tight">{m.location ? m.location.split(' @ ')[0] : 'Por definir'}</span>
+                                        <span className="text-[9px] font-bold text-slate-500 lowercase first-letter:uppercase">
+                                          {formatMatchDate(m.matchDate)}
+                                        </span>
+                                        {m.location && m.location.includes(' @ ') && m.location.split(' @ ')[1] && (
+                                          <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📍 {m.location.split(' @ ')[1]}</span>
+                                        )}
+                                        {m.referee && (
+                                          <span className="text-[8px] text-[#00C853] font-black uppercase tracking-wider mt-0.5">👤 Árbitro: {m.referee}</span>
+                                        )}
+                                        {getDisplayNotes(m.notes) && (
+                                          <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📝 {getDisplayNotes(m.notes)}</span>
+                                        )}
                                       </div>
                                     </div>
                                   )
