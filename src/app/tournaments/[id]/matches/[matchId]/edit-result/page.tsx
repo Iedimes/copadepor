@@ -214,11 +214,11 @@ function EventSection({
 function PitchLineup({ lineup, setLineup, players }: { lineup: BaseEvent[], setLineup: React.Dispatch<React.SetStateAction<BaseEvent[]>>, players: Player[] }) {
   const handlePitchClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('.player-node')) return; // Ignore clicks on existing players
-    
+
     const rect = e.currentTarget.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
-    
+
     setLineup(prev => [...prev, {
       id: Date.now().toString(),
       playerId: '',
@@ -246,8 +246,8 @@ function PitchLineup({ lineup, setLineup, players }: { lineup: BaseEvent[], setL
     <div className="mb-6 bg-gray-50 p-4 rounded-xl border">
       <h3 className="font-bold text-gray-700 mb-3">Alineación en Cancha</h3>
       <p className="text-xs text-gray-500 mb-2">Haz clic en la cancha para ubicar a un jugador.</p>
-      
-      <div 
+
+      <div
         className="relative w-full aspect-[4/3] bg-green-600 rounded-lg overflow-hidden border-4 border-green-700 cursor-crosshair shadow-inner"
         onClick={handlePitchClick}
         style={{
@@ -261,12 +261,12 @@ function PitchLineup({ lineup, setLineup, players }: { lineup: BaseEvent[], setL
         </div>
 
         {lineup.map(player => (
-          <div 
-            key={player.id} 
+          <div
+            key={player.id}
             className="player-node absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-10"
             style={{ left: `${player.x}%`, top: `${player.y}%` }}
           >
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); removePlayer(player.id) }}
               className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center hover:bg-red-600 z-20"
             >
@@ -309,7 +309,7 @@ function BasketballPointsSection({
   onEditClick: (player: Player, p1: number, p2: number, p3: number) => void
 }) {
   const scorerIds = Array.from(new Set(goals.filter(g => g.playerId).map(g => g.playerId)))
-  
+
   const playerStats = scorerIds.map(id => {
     const player = players.find(p => p.id === id)
     const playerEvts = goals.filter(g => g.playerId === id)
@@ -569,7 +569,7 @@ export default function EditResultPage() {
       })
 
       if (!res.ok) throw new Error('Failed to save match')
-      
+
       router.back()
     } catch (err) {
       console.error(err)
@@ -586,7 +586,7 @@ export default function EditResultPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6 pb-24">
       <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-        
+
         {/* Header Section */}
         <div className="bg-slate-800 p-6 text-white flex flex-col md:flex-row justify-between items-center gap-4 border-b border-slate-700">
           <div className="flex items-center gap-4">
@@ -614,7 +614,7 @@ export default function EditResultPage() {
         {/* Content Section */}
         <div className="p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
-            
+
             {/* Home Team */}
             <div className="pt-6 lg:pt-0 lg:pr-4">
               <div className="flex items-center justify-center gap-4 mb-8 bg-blue-50 py-4 rounded-xl border border-blue-100">
@@ -640,7 +640,7 @@ export default function EditResultPage() {
                     <EventSection title="Goles" events={homeGoals} setEvents={setHomeGoals} players={match.homeTeam.players || []} defaultType="GOAL" showAssist={true} playerLabel="Anotador" />
                   </>
                 )}
-                <EventSection title="Tarjetas" events={homeCards} setEvents={setHomeCards} players={match.homeTeam.players || []} defaultType="YELLOW_CARD" showType={true} typeOptions={[{value:'YELLOW_CARD',label:'Amarilla'},{value:'DOUBLE_YELLOW_CARD',label:'Doble Amarilla'},{value:'RED_CARD',label:'Roja Directa'}]} />
+                <EventSection title="Tarjetas" events={homeCards} setEvents={setHomeCards} players={match.homeTeam.players || []} defaultType="YELLOW_CARD" showType={true} typeOptions={[{ value: 'YELLOW_CARD', label: 'Amarilla' }, { value: 'DOUBLE_YELLOW_CARD', label: 'Doble Amarilla' }, { value: 'RED_CARD', label: 'Roja Directa' }]} />
                 <EventSection title="Faltas" events={homeFouls} setEvents={setHomeFouls} players={match.homeTeam.players || []} defaultType="FOUL" showDetail={true} detailLabel="Motivo de falta" />
                 <EventSection title="Sustituciones" events={homeSubs} setEvents={setHomeSubs} players={match.homeTeam.players || []} defaultType="SUBSTITUTION" showAssist={true} playerLabel="Entra" assistLabel="Sale" showDetail={true} detailLabel="Motivo" />
                 <EventSection title="Goles en Contra" events={homeOwnGoals} setEvents={setHomeOwnGoals} players={match.homeTeam.players || []} defaultType="OWN_GOAL" showDetail={true} />
@@ -674,7 +674,7 @@ export default function EditResultPage() {
                     <EventSection title="Goles" events={awayGoals} setEvents={setAwayGoals} players={match.awayTeam.players || []} defaultType="GOAL" showAssist={true} playerLabel="Anotador" />
                   </>
                 )}
-                <EventSection title="Tarjetas" events={awayCards} setEvents={setAwayCards} players={match.awayTeam.players || []} defaultType="YELLOW_CARD" showType={true} typeOptions={[{value:'YELLOW_CARD',label:'Amarilla'},{value:'DOUBLE_YELLOW_CARD',label:'Doble Amarilla'},{value:'RED_CARD',label:'Roja Directa'}]} />
+                <EventSection title="Tarjetas" events={awayCards} setEvents={setAwayCards} players={match.awayTeam.players || []} defaultType="YELLOW_CARD" showType={true} typeOptions={[{ value: 'YELLOW_CARD', label: 'Amarilla' }, { value: 'DOUBLE_YELLOW_CARD', label: 'Doble Amarilla' }, { value: 'RED_CARD', label: 'Roja Directa' }]} />
                 <EventSection title="Faltas" events={awayFouls} setEvents={setAwayFouls} players={match.awayTeam.players || []} defaultType="FOUL" showDetail={true} detailLabel="Motivo de falta" />
                 <EventSection title="Sustituciones" events={awaySubs} setEvents={setAwaySubs} players={match.awayTeam.players || []} defaultType="SUBSTITUTION" showAssist={true} playerLabel="Entra" assistLabel="Sale" showDetail={true} detailLabel="Motivo" />
                 <EventSection title="Goles en Contra" events={awayOwnGoals} setEvents={setAwayOwnGoals} players={match.awayTeam.players || []} defaultType="OWN_GOAL" showDetail={true} />
@@ -718,7 +718,7 @@ export default function EditResultPage() {
                     const p1 = playerEvts.filter(g => g.detail === '1').length
                     const p2 = playerEvts.filter(g => g.detail === '2' || g.detail === '').length
                     const p3 = playerEvts.filter(g => g.detail === '3').length
-                    
+
                     setBasketballEditingPlayer({
                       teamType,
                       player,
@@ -851,11 +851,11 @@ export default function EditResultPage() {
                 onClick={() => {
                   const { teamType, player, p1, p2, p3 } = basketballEditingPlayer
                   const setGoals = teamType === 'home' ? setHomeGoals : setAwayGoals
-                  
+
                   setGoals(prev => {
                     const filtered = prev.filter(g => g.playerId !== player.id)
                     const newEvts: BaseEvent[] = []
-                    
+
                     for (let i = 0; i < p1; i++) {
                       newEvts.push({
                         id: `BASKET_${player.id}_1_${Date.now()}_${i}`,
@@ -895,10 +895,10 @@ export default function EditResultPage() {
                         detail: '3'
                       })
                     }
-                    
+
                     return [...filtered, ...newEvts]
                   })
-                  
+
                   setBasketballEditingPlayer(null)
                 }}
                 className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs uppercase tracking-wider hover:shadow-lg hover:shadow-blue-500/20 rounded-xl shadow-md transition-all active:scale-95"

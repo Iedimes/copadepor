@@ -61,6 +61,8 @@ export default function PublicTournamentPage() {
   const [loggedUser, setLoggedUser] = useState<any>(null)
   const [sendingMessage, setSendingMessage] = useState(false)
 
+  const themeColor = tournament?.themeColor || '#FF6B00'
+
   // Check if user is already logged in
   useEffect(() => {
     const userStr = localStorage.getItem('user')
@@ -469,7 +471,7 @@ export default function PublicTournamentPage() {
       {/* SIDEBAR NAVIGATION */}
       <div 
         className="w-64 text-white/80 flex flex-col h-full z-10 border-r border-black/5 flex-shrink-0"
-        style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
+        style={{ backgroundColor: themeColor }}
       >
         <div className="p-8">
           <div 
@@ -756,7 +758,7 @@ export default function PublicTournamentPage() {
                           >
                             {phases.map(p => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
                             {!phases.some(p => p.name === selectedPhase) && <option value={selectedPhase}>{selectedPhase}</option>}
-                            <option value="estadisticas" className="text-[#FF6B00] font-black">📊 Estadísticas Generales</option>
+                            <option value="estadisticas" style={{ color: themeColor }} className="font-black">📊 Estadísticas Generales</option>
                           </select>
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 text-[10px]">▼</span>
                         </div>
@@ -771,7 +773,7 @@ export default function PublicTournamentPage() {
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             {/* Scorers */}
                             <div className="bg-white rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-xs">
-                              <div className="bg-[#FF6B00] p-4 text-center">
+                              <div style={{ backgroundColor: themeColor }} className="p-4 text-center">
                                 <h3 className="text-white font-black uppercase tracking-widest text-xs">⚽ Tabla de Goleadores</h3>
                               </div>
                               <div className="p-4">
@@ -792,7 +794,7 @@ export default function PublicTournamentPage() {
                                         <td className="p-3 text-center font-black text-slate-400">{i+1}</td>
                                         <td className="p-3 font-black text-slate-800">{p.name}</td>
                                         <td className="p-3 text-slate-500">{p.team}</td>
-                                        <td className="p-3 text-center font-black text-[#FF6B00] text-xs bg-[#FF6B00]/5">{p.goals}</td>
+                                        <td style={{ color: themeColor, backgroundColor: `${themeColor}0d` }} className="p-3 text-center font-black text-xs">{p.goals}</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -802,7 +804,7 @@ export default function PublicTournamentPage() {
 
                             {/* Discipline */}
                             <div className="bg-white rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-xs">
-                              <div className="bg-slate-800 p-4 text-center">
+                              <div style={{ backgroundColor: themeColor }} className="p-4 text-center">
                                 <h3 className="text-white font-black uppercase tracking-widest text-xs">🟨 Tabla de Sanciones</h3>
                               </div>
                               <div className="p-4">
@@ -836,10 +838,10 @@ export default function PublicTournamentPage() {
 
                           {/* 4 Ranking Cards */}
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <RankingCard title="Mejor ataque" label={isBasketball ? "Anotaciones" : "Goles"} data={getTeamRankings().bestAttack} field="gf" />
-                            <RankingCard title="Mejor defensa" label={isBasketball ? "Anotaciones" : "Goles"} data={getTeamRankings().bestDefense} field="ga" />
-                            <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" />
-                            <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" />
+                            <RankingCard title="Mejor ataque" label={isBasketball ? "Anotaciones" : "Goles"} data={getTeamRankings().bestAttack} field="gf" themeColor={themeColor} />
+                            <RankingCard title="Mejor defensa" label={isBasketball ? "Anotaciones" : "Goles"} data={getTeamRankings().bestDefense} field="ga" themeColor={themeColor} />
+                            <RankingCard title="Tarjeta roja" label="Ctd" data={getTeamRankings().redCards} field="red" themeColor={themeColor} />
+                            <RankingCard title="Todas las tarjetas" label="Ctd" data={getTeamRankings().totalCards} field="totalCards" themeColor={themeColor} />
                           </div>
                         </div>
                       ) : (
@@ -857,12 +859,12 @@ export default function PublicTournamentPage() {
                                 const renderSideTable = (list: any[], groupName?: string) => (
                                   <div key={groupName || 'all'} className="space-y-4">
                                     {groupName && (
-                                      <h3 className="text-center text-[10px] font-black text-[#FF6B00] uppercase tracking-[0.3em] mb-4">GRUPO {groupName}</h3>
+                                      <h3 style={{ color: themeColor }} className="text-center text-[10px] font-black uppercase tracking-[0.3em] mb-4">GRUPO {groupName}</h3>
                                     )}
                                     <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
                                       <table className="w-full text-xs text-left border-collapse">
                                         <thead>
-                                          <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider border-b border-slate-200">
+                                          <tr className="bg-[#EF4444] text-white text-[10px] font-black uppercase tracking-wider border-b border-red-600">
                                             <th className="p-3 text-center w-12">Pos</th>
                                             <th className="p-3 pl-2">EQUIPOS</th>
                                             <th className="p-3 text-center w-14">Pts</th>
@@ -884,7 +886,7 @@ export default function PublicTournamentPage() {
                                             >
                                               {/* Position square styled matching the screenshot */}
                                               <td className="p-3 text-center">
-                                                <span className="w-6 h-6 flex items-center justify-center rounded bg-[#FF6B00] text-white font-black text-[10px] mx-auto shadow-sm">
+                                                <span style={{ backgroundColor: themeColor }} className="w-6 h-6 flex items-center justify-center rounded text-white font-black text-[10px] mx-auto shadow-sm">
                                                   {idx + 1}
                                                 </span>
                                               </td>
@@ -939,7 +941,7 @@ export default function PublicTournamentPage() {
                     
                     {/* CARD 1: JUEGOS (Fixture) */}
                     <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                      <div className="bg-[#FF6B00] px-6 py-4 flex items-center justify-between shadow-xs">
+                      <div style={{ backgroundColor: themeColor }} className="px-6 py-4 flex items-center justify-between shadow-xs">
                         <span className="text-white font-black text-sm uppercase tracking-wider">Juegos</span>
                         <div className="flex items-center gap-2">
                           {/* Inline selectors inside orange header */}
@@ -993,7 +995,10 @@ export default function PublicTournamentPage() {
                                 >
                                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
                                     <span>{m.roundName} {m.groupName}</span>
-                                    <span className={isCompleted ? 'text-emerald-500' : 'text-[#FF6B00] animate-pulse'}>
+                                    <span 
+                                      style={!isCompleted ? { color: themeColor } : undefined} 
+                                      className={isCompleted ? 'text-emerald-500' : 'animate-pulse'}
+                                    >
                                       {isCompleted ? 'Finalizado' : 'Programado'}
                                     </span>
                                   </div>
@@ -1118,11 +1123,17 @@ export default function PublicTournamentPage() {
                                         {/* Score Column */}
                                         <div className="flex flex-col items-center shrink-0">
                                           <div className="flex items-center gap-3 px-4 py-1.5 bg-white border border-slate-200 rounded-xl font-black text-lg text-slate-900 shadow-xs min-w-[80px] justify-center">
-                                            <span className={m.homeScore !== null && m.awayScore !== null && m.homeScore > m.awayScore ? 'text-[#FF6B00]' : 'text-slate-700'}>
+                                            <span 
+                                              style={m.homeScore !== null && m.awayScore !== null && m.homeScore > m.awayScore ? { color: themeColor } : undefined} 
+                                              className={m.homeScore !== null && m.awayScore !== null && m.homeScore > m.awayScore ? 'font-bold' : 'text-slate-700'}
+                                            >
                                               {m.homeScore !== null ? m.homeScore : '-'}
                                             </span>
                                             <span className="text-slate-300 font-medium text-sm">:</span>
-                                            <span className={m.homeScore !== null && m.awayScore !== null && m.awayScore > m.homeScore ? 'text-[#FF6B00]' : 'text-slate-700'}>
+                                            <span 
+                                              style={m.homeScore !== null && m.awayScore !== null && m.awayScore > m.homeScore ? { color: themeColor } : undefined} 
+                                              className={m.homeScore !== null && m.awayScore !== null && m.awayScore > m.homeScore ? 'font-bold' : 'text-slate-700'}
+                                            >
                                               {m.awayScore !== null ? m.awayScore : '-'}
                                             </span>
                                           </div>
@@ -1163,7 +1174,7 @@ export default function PublicTournamentPage() {
 
                     {/* CARD 2: ESTADÍSTICAS DE LA FECHA */}
                     <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                      <div className="bg-[#FF6B00] px-6 py-4 shadow-xs">
+                      <div style={{ backgroundColor: themeColor }} className="px-6 py-4 shadow-xs">
                         <span className="text-white font-black text-sm uppercase tracking-wider">Estadísticas de la fecha</span>
                       </div>
 
@@ -1238,7 +1249,7 @@ export default function PublicTournamentPage() {
                                     <div className="font-black text-xs text-slate-800 truncate max-w-[180px]">{s.name}</div>
                                     <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate max-w-[180px] mt-0.5">{s.team}</div>
                                   </div>
-                                  <div className="font-black text-xs text-[#FF6B00] ml-auto shrink-0 bg-[#FF6B00]/5 w-8 h-8 rounded-full flex items-center justify-center border border-[#FF6B00]/10 shadow-xs">
+                                  <div style={{ color: themeColor, backgroundColor: `${themeColor}0d`, borderColor: `${themeColor}1a` }} className="font-black text-xs ml-auto shrink-0 w-8 h-8 rounded-full flex items-center justify-center border shadow-xs">
                                     {s.goals}
                                   </div>
                                 </div>
@@ -1526,15 +1537,15 @@ export default function PublicTournamentPage() {
   )
 }
 
-function RankingCard({ title, label, data, field }: any) {
+function RankingCard({ title, label, data, field, themeColor }: any) {
   return (
     <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100">
-      <div className="bg-[#4CAF50] p-4 text-center">
+      <div style={{ backgroundColor: themeColor }} className="p-4 text-center">
         <h3 className="text-white font-black uppercase tracking-widest text-sm">{title}</h3>
       </div>
       <div className="p-0">
         <table className="w-full">
-          <thead className="bg-[#4CAF50]/10 text-[10px] font-black text-[#4CAF50] uppercase tracking-widest">
+          <thead style={{ backgroundColor: `${themeColor}1a`, color: themeColor }} className="text-[10px] font-black uppercase tracking-widest">
             <tr>
               <th className="px-6 py-3 text-left">Equipos</th>
               <th className="px-6 py-3 text-right">{label}</th>
