@@ -1610,10 +1610,7 @@ export default function TournamentPage() {
                 style={
                   tournament?.banner
                     ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
-                    : { 
-                        background: `linear-gradient(135deg, ${themeColor}15 0%, #0f172a 60%, #020617 100%)`,
-                        opacity: 0.95
-                      }
+                    : { backgroundImage: `url('${getSportBanner(tournament?.sportType || '', true)}')`, opacity: 0.5 }
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
@@ -1970,7 +1967,7 @@ export default function TournamentPage() {
                 style={
                   activeCategory?.banner
                     ? { backgroundImage: `url('${activeCategory.banner}')`, opacity: 0.5 }
-                    : { backgroundImage: `url('${getSportBanner(sportType, true)}')`, opacity: 0.5 }
+                    : { backgroundImage: `url('${getSportBanner(sportType, activeCategory ? true : false)}')`, opacity: 0.5 }
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
