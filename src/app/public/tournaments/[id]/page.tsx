@@ -644,6 +644,79 @@ export default function PublicTournamentPage() {
                 })}
               </div>
             </div>
+
+            {/* Mensajes */}
+            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
+              <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
+                <span>💬</span> Mensajes
+              </h2>
+
+              {/* Message Input */}
+              <div className="flex gap-3 mb-8">
+                <input 
+                  type="text" 
+                  value={newMessage} 
+                  onChange={e => setNewMessage(e.target.value)} 
+                  placeholder="Escribe un mensaje..." 
+                  className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 border border-slate-100" 
+                />
+                <button 
+                  onClick={async () => {
+                    if (!newMessage.trim()) return
+                    const token = localStorage.getItem('token')
+                    if (!token) {
+                      setShowLoginModal(true)
+                      return
+                    }
+                    setSendingMessage(true)
+                    try {
+                      const res = await fetch(`/api/tournaments/${tournamentId}/messages`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: newMessage }),
+                      })
+                      if (res.ok) {
+                        setNewMessage('')
+                        const msgRes = await fetch(`/api/tournaments/${tournamentId}/messages`)
+                        if (msgRes.ok) setMessages(await msgRes.json())
+                      } else if (res.status === 401) {
+                        localStorage.removeItem('token')
+                        localStorage.removeItem('user')
+                        setLoggedUser(null)
+                        setShowLoginModal(true)
+                      } else {
+                        alert('Error al enviar mensaje')
+                      }
+                    } catch {
+                      alert('Error de conexión')
+                    }
+                    setSendingMessage(false)
+                  }}
+                  disabled={sendingMessage}
+                  className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
+                >
+                  {sendingMessage ? '...' : 'Enviar'}
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {messages.length === 0 && (
+                  <div className="text-center py-12 text-slate-300 font-black uppercase text-xs tracking-widest italic border border-dashed rounded-[2rem] p-6 bg-slate-50/50 border-slate-200">
+                    Aún no se han publicado mensajes para este torneo.
+                  </div>
+                )}
+                
+                {messages.map((m: any) => (
+                  <div key={m.id} className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-black text-sm text-slate-800">👤 {m.sender.name}</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{new Date(m.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-slate-600 text-sm leading-relaxed">{m.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           /* VIEW 2: ACTIVE CATEGORY PANEL */
