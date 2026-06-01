@@ -13,6 +13,7 @@ interface Tournament {
   description: string | null
   sportType: string
   status: string
+  format?: string
   organizer: { name: string }
   classificationCriteria: string
   phaseSystem: string
@@ -308,6 +309,67 @@ export default function TournamentPage() {
   const [configSaving, setConfigSaving] = useState(false)
   const [configSuccess, setConfigSuccess] = useState(false)
   const [configError, setConfigError] = useState('')
+
+  // Logo Edit Modal States
+  const [showLogoEditModal, setShowLogoEditModal] = useState(false)
+  const [logoEditTarget, setLogoEditTarget] = useState<'tournament_logo' | 'tournament_banner' | 'category_logo' | 'category_banner'>('tournament_logo')
+  const [logoEditUrl, setLogoEditUrl] = useState('')
+  const [logoUploading, setLogoUploading] = useState(false)
+
+  // Upload helper
+  const handleFileUpload = async (file: File, folder: string): Promise<string | null> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('folder', folder)
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      if (res.ok) {
+        const data = await res.json()
+        return data.url
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  const handleSaveLogoEdit = async () => {
+    setLogoUploading(true)
+    const token = localStorage.getItem('token')
+    try {
+      if (logoEditTarget === 'tournament_logo') {
+        await fetch(`/api/tournaments/${tournamentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ logo: logoEditUrl || null })
+        })
+      } else if (logoEditTarget === 'tournament_banner') {
+        await fetch(`/api/tournaments/${tournamentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ banner: logoEditUrl || null })
+        })
+      } else if (logoEditTarget === 'category_logo' && activeCategory) {
+        await fetch(`/api/categories/${activeCategory.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ logo: logoEditUrl || null })
+        })
+      } else if (logoEditTarget === 'category_banner' && activeCategory) {
+        await fetch(`/api/categories/${activeCategory.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ banner: logoEditUrl || null })
+        })
+      }
+      await fetchData()
+      setShowLogoEditModal(false)
+    } catch {
+      alert('Error al guardar los cambios')
+    } finally {
+      setLogoUploading(false)
+    }
+  }
 
   useEffect(() => {
     if (tournament) {
@@ -1540,21 +1602,48 @@ export default function TournamentPage() {
       <div className="flex-1 p-8 overflow-y-auto">
         {tournament?.format === 'categorias' && !activeCategory ? (
           <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            {/* Banner Portada */}
-            <div className="relative h-64 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
+            {/* Banner Portada con Logo Oficial */}
+            <div className="relative h-72 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
               <div 
-                className="absolute inset-0 bg-cover bg-center opacity-40" 
-                style={{ backgroundImage: `url('${getSportBanner(sportType)}')` }}
+                className="absolute inset-0 bg-cover bg-center" 
+                style={
+                  tournament?.banner
+                    ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
+                    : { 
+                        background: `linear-gradient(135deg, ${themeColor}15 0%, #0f172a 60%, #020617 100%)`,
+                        opacity: 0.95
+                      }
+                }
               ></div>
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
+              
+              {/* Organizador Badge */}
+              <div className="absolute top-5 left-6 z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/5 shadow-xl">
+                <span className="text-[9px] font-black text-white/90 uppercase tracking-widest block mb-0.5">Organizador</span>
+                <span className="text-[11px] font-black text-blue-400">{tournament?.organizer?.name}</span>
+              </div>
+
+              {/* Cambiar Portada Button */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setLogoEditTarget('tournament_banner')
+                  setLogoEditUrl(tournament.banner || '')
+                  setShowLogoEditModal(true)
+                }}
+                className="absolute top-5 right-6 z-10 bg-black/55 hover:bg-blue-600 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all shadow-lg flex items-center gap-1.5"
+              >
+                <span>📷</span> Cambiar Portada
+              </button>
+
               <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
                 <div>
                   <h1 className="text-4xl font-black text-white mb-2">{tournament.name}</h1>
-                  <p className="text-slate-300 font-medium flex items-center gap-2 italic">Organizado por <span className="text-blue-400 not-italic">{tournament?.organizer?.name}</span></p>
+                  <p className="text-slate-300 font-medium flex items-center gap-2 italic">{tournament.description || `Organizado por ${tournament?.organizer?.name}`}</p>
                 </div>
                 <div className="mt-4 md:mt-0 flex gap-3">
                   <button onClick={() => setShowQR(!showQR)} className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"><span>📤</span> Compartir Link</button>
-                  <span className="bg-blue-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-1">Privado - 0 Seguidores</span>
+                  <span className="bg-blue-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-1">Público · 0 Seguidores</span>
                 </div>
               </div>
             </div>
@@ -1872,55 +1961,113 @@ export default function TournamentPage() {
             </form>
           </div>
         ) : activeMenu === 'inicio' ? (
-          <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-5 text-8xl font-black">{sportIcon}</div>
+          <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
+            {/* Banner de Categoría con Portada */}
+            <div className="relative h-72 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
+              <div 
+                className="absolute inset-0 bg-cover bg-center" 
+                style={
+                  (activeCategory?.banner || tournament?.banner)
+                    ? { backgroundImage: `url('${activeCategory?.banner || tournament.banner}')`, opacity: 0.5 }
+                    : { 
+                        background: `linear-gradient(135deg, ${themeColor}15 0%, #0f172a 60%, #020617 100%)`,
+                        opacity: 0.95
+                      }
+                }
+              ></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
               
-              <div className="flex justify-between items-start mb-6">
+              {/* Organizador Badge */}
+              <div className="absolute top-5 left-6 z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/5 shadow-xl">
+                <span className="text-[9px] font-black text-white/90 uppercase tracking-widest block mb-0.5">Organizador</span>
+                <span className="text-[11px] font-black text-blue-400">{tournament?.organizer?.name}</span>
+              </div>
+
+              {/* Cambiar Portada Button */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setLogoEditTarget(activeCategory ? 'category_banner' : 'tournament_banner')
+                  setLogoEditUrl(activeCategory ? (activeCategory.banner || '') : (tournament.banner || ''))
+                  setShowLogoEditModal(true)
+                }}
+                className="absolute top-5 right-6 z-10 bg-black/55 hover:bg-blue-600 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all shadow-lg flex items-center gap-1.5"
+              >
+                <span>📷</span> Cambiar Portada
+              </button>
+
+              <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
                 <div>
-                  <h1 className="text-4xl font-black text-slate-900 mb-2">{tournament.name}</h1>
+                  <h1 className="text-4xl font-black text-white mb-1">{tournament.name}</h1>
                   {activeCategory && (
-                    <p className="text-lg font-black text-blue-600 mt-1 uppercase tracking-wider flex items-center gap-2">🏷️ Categoría: {activeCategory.name}</p>
+                    <p className="text-lg font-black text-blue-400 uppercase tracking-wider">{activeCategory.name}</p>
                   )}
                 </div>
-                {tournament?.format === 'categorias' && (
-                  <button 
-                    onClick={() => setActiveCategory(null)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm"
-                  >
-                    🗂️ Ver todas
-                  </button>
-                )}
+                <div className="mt-4 md:mt-0 flex gap-3">
+                  <button onClick={() => setShowQR(!showQR)} className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"><span>📤</span> Compartir</button>
+                  {tournament?.format === 'categorias' && (
+                    <button 
+                      onClick={() => setActiveCategory(null)}
+                      className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"
+                    >🗂️ Ver todas</button>
+                  )}
+                </div>
               </div>
+            </div>
 
-              <p className="text-slate-400 font-bold mb-8 flex items-center gap-2 italic">Organizado por <span className="text-blue-600 not-italic">{tournament?.organizer?.name}</span></p>
-              
-              <div className="flex gap-4 mb-10">
-                <button onClick={() => setShowQR(!showQR)} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-600 transition-all flex items-center gap-2 shadow-lg"><span>📤</span> Compartir Link</button>
-                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg">Agregar Equipos</button>
-                <button className="bg-slate-50 text-slate-600 px-6 py-3 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all">Configuración</button>
-              </div>
+            {showQR && <div className="p-6 bg-white rounded-[2rem] border border-slate-200/60 shadow-xl animate-in zoom-in-95"><div className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest text-center">URL Pública</div><div className="bg-slate-50 p-4 rounded-xl font-mono text-xs text-blue-600 break-all border border-slate-100 shadow-sm text-center">{shareUrl}</div></div>}
 
-              {showQR && <div className="p-6 bg-slate-50 rounded-[2rem] mb-10 border-2 border-dashed border-slate-200 animate-in zoom-in-95"><div className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest text-center">URL Pública</div><div className="bg-white p-4 rounded-xl font-mono text-xs text-blue-600 break-all border border-slate-100 shadow-sm">{shareUrl}</div></div>}
-              
-              <div className="border-t border-slate-100 pt-10">
-                <h2 className="text-2xl font-black text-slate-900 mb-6">💬 Mensajes</h2>
-                <form onSubmit={handleSendMessage} className="flex gap-3 mb-8">
-                  <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Publicar un anuncio importante..." className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" />
-                  <button type="submit" className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Publicar</button>
-                </form>
-                <div className="space-y-6">
-                  {messages.length === 0 && <div className="text-center py-10 text-slate-300 font-black uppercase text-xs tracking-widest italic">No hay mensajes aún</div>}
-                  {messages.map(m => (
-                    <div key={m.id} className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="font-black text-sm text-slate-800">{m.sender.name}</span>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{new Date(m.createdAt).toLocaleString()}</span>
+            {/* Equipos */}
+            {tournamentTeams.length > 0 && (
+              <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
+                <h2 className="text-2xl font-black text-slate-900 mb-6">Equipos</h2>
+                <div className="flex flex-wrap gap-6">
+                  {tournamentTeams.map((tt: any) => (
+                    <div key={tt.id} className="flex flex-col items-center gap-2 group cursor-pointer">
+                      <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-lg group-hover:scale-110 transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
+                        {tt.team.logo ? (
+                          <img src={tt.team.logo} alt={tt.team.name} className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <span className="text-white font-black text-lg">{tt.team.name.charAt(0)}</span>
+                        )}
                       </div>
-                      <p className="text-slate-600 text-sm leading-relaxed">{m.content}</p>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-center max-w-[80px] truncate">{tt.team.name}</span>
                     </div>
                   ))}
                 </div>
+                <div className="mt-6">
+                  <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg">Agregar Equipos</button>
+                </div>
+              </div>
+            )}
+
+            {tournamentTeams.length === 0 && (
+              <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-100 text-center">
+                <div className="py-10 text-slate-300 font-black uppercase text-xs tracking-widest italic border-2 border-dashed border-slate-200 rounded-3xl mb-6">
+                  No hay equipos registrados en esta categoría aún.
+                </div>
+                <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg">Agregar Equipos</button>
+              </div>
+            )}
+
+            {/* Mensajes */}
+            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-100">
+              <h2 className="text-2xl font-black text-slate-900 mb-6">💬 Mensajes</h2>
+              <form onSubmit={handleSendMessage} className="flex gap-3 mb-8">
+                <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Publicar un anuncio importante..." className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" />
+                <button type="submit" className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">Publicar</button>
+              </form>
+              <div className="space-y-6">
+                {messages.length === 0 && <div className="text-center py-10 text-slate-300 font-black uppercase text-xs tracking-widest italic">No hay mensajes aún</div>}
+                {messages.map(m => (
+                  <div key={m.id} className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-black text-sm text-slate-800">{m.sender.name}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{new Date(m.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-slate-600 text-sm leading-relaxed">{m.content}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -3305,6 +3452,112 @@ export default function TournamentPage() {
           isBasketball={isBasketball}
           onClose={() => setShowExportModal(false)}
         />
+      )}
+
+      {/* Logo Edit Modal */}
+      {showLogoEditModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[600]" onClick={() => setShowLogoEditModal(false)}>
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-lg w-full mx-4 shadow-2xl animate-in zoom-in-95 fade-in duration-300" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-black text-slate-800 mb-2 text-center">
+              {logoEditTarget === 'tournament_logo' && '🏆 Logo Oficial del Torneo'}
+              {logoEditTarget === 'tournament_banner' && '🖼️ Portada del Torneo'}
+              {logoEditTarget === 'category_logo' && '🏷️ Logo de la Categoría'}
+              {logoEditTarget === 'category_banner' && '🏷️ Portada de la Categoría'}
+            </h2>
+            <p className="text-slate-400 font-bold text-center mb-8 text-xs uppercase tracking-widest">
+              {logoEditTarget.includes('logo') ? 'Cambia el logo oficial' : 'Cambia la imagen que aparece de fondo'}
+            </p>
+            
+            {/* Preview */}
+            <div className="flex justify-center mb-8 w-full">
+              {logoEditTarget.includes('logo') ? (
+                <div className="w-28 h-28 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shadow-inner">
+                  {logoEditUrl ? (
+                    <img src={logoEditUrl} alt="Preview" className="w-full h-full object-contain p-2" onError={(e) => { (e.target as HTMLImageElement).src = ''; }} />
+                  ) : (
+                    <span className="text-5xl">{sportIcon}</span>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full h-32 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shadow-inner relative">
+                  {logoEditUrl ? (
+                    <img src={logoEditUrl} alt="Preview Banner" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = ''; }} />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center">
+                      <span className="text-xs font-black text-white/40 uppercase tracking-widest">Sin Portada (Fondo Limpio)</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* URL Input */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                  {logoEditTarget.includes('logo') ? 'URL del Logo' : 'URL de la Imagen'}
+                </label>
+                <input 
+                  type="text" 
+                  value={logoEditUrl} 
+                  onChange={e => setLogoEditUrl(e.target.value)} 
+                  placeholder={logoEditTarget.includes('logo') ? "https://ejemplo.com/logo.png" : "https://ejemplo.com/banner.jpg"}
+                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 text-sm transition-all"
+                />
+              </div>
+
+              {/* File Upload */}
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">O subir imagen</label>
+                <label className="flex items-center justify-center gap-2 w-full py-3.5 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer hover:bg-slate-100 hover:border-blue-400 transition-all">
+                  <span className="text-sm">📁</span>
+                  <span className="text-xs font-bold text-slate-500">Seleccionar archivo</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      setLogoUploading(true)
+                      const url = await handleFileUpload(file, logoEditTarget.includes('logo') ? 'logos' : 'banners')
+                      if (url) setLogoEditUrl(url)
+                      setLogoUploading(false)
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-8">
+              <button 
+                onClick={() => { setLogoEditUrl(''); }}
+                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest rounded-2xl transition-all"
+              >
+                {logoEditTarget.includes('logo') ? 'Quitar Logo' : 'Quitar Portada'}
+              </button>
+              <button 
+                onClick={handleSaveLogoEdit}
+                disabled={logoUploading}
+                className="flex-1 py-4 bg-[#0A1128] hover:bg-blue-600 disabled:bg-slate-400 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                {logoUploading ? (
+                  <><div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin"></div> Guardando...</>
+                ) : (
+                  <><span>💾</span> Guardar</>
+                )}
+              </button>
+            </div>
+
+            <button 
+              onClick={() => setShowLogoEditModal(false)}
+              className="w-full mt-4 py-3 text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest transition-all text-center"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
       )}
 
       {showCatSportModal && (

@@ -574,17 +574,31 @@ export default function PublicTournamentPage() {
         {/* VIEW 1: CATEGORY PORTAL (If Categories tournament and no category is active) */}
         {tournament?.format === 'categorias' && !activeCategory ? (
           <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full">
-            {/* Banner Header */}
-            <div className="relative h-64 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
+            {/* Banner Portada con Logo Oficial */}
+            <div className="relative h-72 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
               <div 
-                className="absolute inset-0 bg-cover bg-center opacity-40" 
-                style={{ backgroundImage: `url('${getSportBanner(sportType)}')` }}
+                className="absolute inset-0 bg-cover bg-center" 
+                style={
+                  tournament?.banner
+                    ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
+                    : { 
+                        background: `linear-gradient(135deg, ${themeColor}15 0%, #0f172a 60%, #020617 100%)`,
+                        opacity: 0.95
+                      }
+                }
               ></div>
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
+              
+              {/* Organizador Badge */}
+              <div className="absolute top-5 left-6 z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/5 shadow-xl">
+                <span className="text-[9px] font-black text-white/90 uppercase tracking-widest block mb-0.5">Organizador</span>
+                <span className="text-[11px] font-black text-blue-400">{tournament?.organizer?.name}</span>
+              </div>
+
               <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
                 <div>
                   <h1 className="text-4xl font-black text-white mb-2">{tournament.name}</h1>
-                  <p className="text-slate-300 font-medium flex items-center gap-2 italic">Organizado por <span className="text-blue-400 not-italic">{tournament?.organizer?.name}</span></p>
+                  <p className="text-slate-300 font-medium flex items-center gap-2 italic">{tournament.description || `Organizado por ${tournament?.organizer?.name}`}</p>
                 </div>
                 <div className="mt-4 md:mt-0 flex gap-3">
                   <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg">
@@ -608,7 +622,13 @@ export default function PublicTournamentPage() {
                     >
                       <div className="absolute top-0 right-0 p-6 text-6xl opacity-[0.03] group-hover:opacity-[0.08] group-hover:scale-110 transition-all duration-500 font-black">{catIcon}</div>
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl border border-blue-100 shadow-sm">{catIcon}</div>
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl border border-blue-100 shadow-sm">
+                          {cat.logo ? (
+                            <img src={cat.logo} alt="Logo" className="w-full h-full object-contain p-1" />
+                          ) : (
+                            catIcon
+                          )}
+                        </div>
                         <div>
                           <h3 className="font-black text-slate-800 text-lg group-hover:text-blue-600 transition-colors">{cat.name}</h3>
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">{cat.sportType.replace('_', ' ')}</span>
@@ -632,100 +652,137 @@ export default function PublicTournamentPage() {
           <div className="flex-1 flex flex-col h-full w-full">
             {/* V2.1: INICIO (Category Home & Messages/Announcements) */}
             {activeMenu === 'inicio' ? (
-              <div className="max-w-3xl mx-auto w-full animate-in fade-in slide-in-from-bottom-8 duration-700">
-                <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-10 relative overflow-hidden border border-slate-200/60">
-                  <div className="absolute top-0 right-0 p-8 opacity-5 text-8xl font-black">{sportIcon}</div>
+              <div className="max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
+                {/* Banner de Categoría con Portada */}
+                <div className="relative h-72 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center" 
+                    style={
+                      (activeCategory?.banner || tournament?.banner)
+                        ? { backgroundImage: `url('${activeCategory?.banner || tournament.banner}')`, opacity: 0.5 }
+                        : { 
+                            background: `linear-gradient(135deg, ${themeColor}15 0%, #0f172a 60%, #020617 100%)`,
+                            opacity: 0.95
+                          }
+                    }
+                  ></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
                   
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h1 className="text-4xl font-black text-slate-900 mb-2">{tournament.name}</h1>
-                      {activeCategory && (
-                        <p className="text-lg font-black text-blue-600 mt-1 uppercase tracking-wider flex items-center gap-2">🏷️ Categoría: {activeCategory.name}</p>
-                      )}
-                    </div>
-                    {tournament?.format === 'categorias' && (
-                      <button 
-                        onClick={() => setActiveCategory(null)}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm"
-                      >
-                        🗂️ Ver todas
-                      </button>
-                    )}
+                  {/* Organizador Badge */}
+                  <div className="absolute top-5 left-6 z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/5 shadow-xl">
+                    <span className="text-[9px] font-black text-white/90 uppercase tracking-widest block mb-0.5">Organizador</span>
+                    <span className="text-[11px] font-black text-blue-400">{tournament?.organizer?.name}</span>
                   </div>
 
-                  <p className="text-slate-400 font-bold mb-8 flex items-center gap-2 italic">Organizado por <span className="text-blue-600 not-italic">{tournament?.organizer?.name}</span></p>
-                  
-                  {/* MESSAGE BOARD / TIMELINE ANNOUNCEMENTS */}
-                  <div className="border-t border-slate-100 pt-10">
-                    <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                      <span>💬</span> Mensajes
-                    </h2>
-
-                    {/* Message Input */}
-                    <div className="flex gap-3 mb-8">
-                      <input 
-                        type="text" 
-                        value={newMessage} 
-                        onChange={e => setNewMessage(e.target.value)} 
-                        placeholder="Escribe un mensaje..." 
-                        className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 border border-slate-100" 
-                      />
-                      <button 
-                        onClick={async () => {
-                          if (!newMessage.trim()) return
-                          const token = localStorage.getItem('token')
-                          if (!token) {
-                            setShowLoginModal(true)
-                            return
-                          }
-                          setSendingMessage(true)
-                          try {
-                            const res = await fetch(`/api/tournaments/${tournamentId}/messages`, {
-                              method: 'POST',
-                              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ content: newMessage }),
-                            })
-                            if (res.ok) {
-                              setNewMessage('')
-                              const msgRes = await fetch(`/api/tournaments/${tournamentId}/messages`)
-                              if (msgRes.ok) setMessages(await msgRes.json())
-                            } else if (res.status === 401) {
-                              localStorage.removeItem('token')
-                              localStorage.removeItem('user')
-                              setLoggedUser(null)
-                              setShowLoginModal(true)
-                            } else {
-                              alert('Error al enviar mensaje')
-                            }
-                          } catch {
-                            alert('Error de conexión')
-                          }
-                          setSendingMessage(false)
-                        }}
-                        disabled={sendingMessage}
-                        className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
-                      >
-                        {sendingMessage ? '...' : 'Enviar'}
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-6">
-                      {messages.length === 0 && (
-                        <div className="text-center py-12 text-slate-300 font-black uppercase text-xs tracking-widest italic border border-dashed rounded-[2rem] p-6 bg-slate-50/50 border-slate-200">
-                          Aún no se han publicado mensajes para este torneo.
-                        </div>
+                  <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
+                    <div>
+                      <h1 className="text-4xl font-black text-white mb-1">{tournament.name}</h1>
+                      {activeCategory && (
+                        <p className="text-lg font-black text-blue-400 uppercase tracking-wider">{activeCategory.name}</p>
                       )}
-                      
-                      {messages.map(m => (
-                        <div key={m.id} className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="flex justify-between items-center mb-3">
-                            <span className="font-black text-sm text-slate-800">👤 {m.sender.name}</span>
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{new Date(m.createdAt).toLocaleString()}</span>
+                    </div>
+                    <div className="mt-4 md:mt-0 flex gap-3">
+                      {tournament?.format === 'categorias' && (
+                        <button 
+                          onClick={() => setActiveCategory(null)}
+                          className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"
+                        >🗂️ Ver todas</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Equipos */}
+                {tournamentTeams.length > 0 && (
+                  <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100 animate-in fade-in duration-500">
+                    <h2 className="text-2xl font-black text-slate-900 mb-6">Equipos</h2>
+                    <div className="flex flex-wrap gap-6">
+                      {tournamentTeams.map((tt: any) => (
+                        <div key={tt.id} className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => setSelectedTeam(tt.team)}>
+                          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-lg group-hover:scale-110 transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
+                            {tt.team.logo ? (
+                              <img src={tt.team.logo} alt={tt.team.name} className="w-full h-full object-contain p-1" />
+                            ) : (
+                              <span className="text-white font-black text-lg">{tt.team.name.charAt(0)}</span>
+                            )}
                           </div>
-                          <p className="text-slate-600 text-sm leading-relaxed">{m.content}</p>
+                          <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-center max-w-[80px] truncate">{tt.team.name}</span>
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Mensajes */}
+                <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
+                  <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
+                    <span>💬</span> Mensajes
+                  </h2>
+
+                  {/* Message Input */}
+                  <div className="flex gap-3 mb-8">
+                    <input 
+                      type="text" 
+                      value={newMessage} 
+                      onChange={e => setNewMessage(e.target.value)} 
+                      placeholder="Escribe un mensaje..." 
+                      className="flex-1 px-6 py-4 bg-slate-50 rounded-2xl outline-none transition-all focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 border border-slate-100" 
+                    />
+                    <button 
+                      onClick={async () => {
+                        if (!newMessage.trim()) return
+                        const token = localStorage.getItem('token')
+                        if (!token) {
+                          setShowLoginModal(true)
+                          return
+                        }
+                        setSendingMessage(true)
+                        try {
+                          const res = await fetch(`/api/tournaments/${tournamentId}/messages`, {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ content: newMessage }),
+                          })
+                          if (res.ok) {
+                            setNewMessage('')
+                            const msgRes = await fetch(`/api/tournaments/${tournamentId}/messages`)
+                            if (msgRes.ok) setMessages(await msgRes.json())
+                          } else if (res.status === 401) {
+                            localStorage.removeItem('token')
+                            localStorage.removeItem('user')
+                            setLoggedUser(null)
+                            setShowLoginModal(true)
+                          } else {
+                            alert('Error al enviar mensaje')
+                          }
+                        } catch {
+                          alert('Error de conexión')
+                        }
+                        setSendingMessage(false)
+                      }}
+                      disabled={sendingMessage}
+                      className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
+                    >
+                      {sendingMessage ? '...' : 'Enviar'}
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {messages.length === 0 && (
+                      <div className="text-center py-12 text-slate-300 font-black uppercase text-xs tracking-widest italic border border-dashed rounded-[2rem] p-6 bg-slate-50/50 border-slate-200">
+                        Aún no se han publicado mensajes para este torneo.
+                      </div>
+                    )}
+                    
+                    {messages.map(m => (
+                      <div key={m.id} className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="font-black text-sm text-slate-800">👤 {m.sender.name}</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{new Date(m.createdAt).toLocaleString()}</span>
+                        </div>
+                        <p className="text-slate-600 text-sm leading-relaxed">{m.content}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

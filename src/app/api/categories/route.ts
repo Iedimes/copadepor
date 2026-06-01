@@ -11,6 +11,8 @@ const categorySchema = z.object({
   maxAge: z.number().optional(),
   sportType: z.string().optional(),
   classificationCriteria: z.string().optional(),
+  logo: z.string().nullable().optional(),
+  banner: z.string().nullable().optional(),
 })
 
 function getAuthToken(request: NextRequest): string | null {

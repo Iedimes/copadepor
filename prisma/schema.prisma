@@ -154,6 +154,8 @@ model Category {
   
   sportType              String     @default("FUTBOL_11")
   classificationCriteria String     @default("PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O")
+  logo                   String?
+  banner                 String?
 
   matches         Match[]
   standings       Standings[]
