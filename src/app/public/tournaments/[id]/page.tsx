@@ -580,7 +580,7 @@ export default function PublicTournamentPage() {
               <div 
                 className="absolute inset-0 bg-cover bg-center" 
                 style={
-                  (tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined')
+                  (tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined' && tournament.banner !== '[object Object]')
                     ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
                     : { backgroundImage: `url('${getSportBanner(tournament?.sportType || '', true)}')`, opacity: 0.5 }
                 }
@@ -656,7 +656,7 @@ export default function PublicTournamentPage() {
                   <div 
                     className="absolute inset-0 bg-cover bg-center" 
                     style={
-                      (activeCategory?.banner && activeCategory.banner !== 'null' && activeCategory.banner !== 'undefined')
+                      (activeCategory?.banner && activeCategory.banner !== 'null' && activeCategory.banner !== 'undefined' && activeCategory.banner !== '[object Object]')
                         ? { backgroundImage: `url('${activeCategory.banner}')`, opacity: 0.5 }
                         : { backgroundImage: `url('${getSportBanner(sportType, activeCategory ? true : false)}')`, opacity: 0.5 }
                     }
