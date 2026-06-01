@@ -677,6 +677,9 @@ export default function PublicTournamentPage() {
                   <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
                     <div>
                       <h1 className="text-4xl font-black text-white mb-1">{tournament.name}</h1>
+                      {tournament.description && (
+                        <p className="text-slate-300 text-sm font-medium mb-2 italic">{tournament.description}</p>
+                      )}
                       {activeCategory && (
                         <p className="text-lg font-black text-blue-400 uppercase tracking-wider">{activeCategory.name}</p>
                       )}
