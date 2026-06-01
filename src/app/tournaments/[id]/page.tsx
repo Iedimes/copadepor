@@ -658,7 +658,7 @@ export default function TournamentPage() {
     }
   }, [searchParams, categories, activeCategory])
 
-  const fetchData = async () => {
+  const fetchData = async (options?: { forceResetRound?: boolean }) => {
     setLoading(true)
     const token = localStorage.getItem('token')
     if (!token) {
@@ -748,7 +748,7 @@ export default function TournamentPage() {
           return a.name.localeCompare(b.name)
         })
         const phaseRounds = phaseRoundsWithOrder.map(r => r.name)
-        if (phaseRounds.length > 0 && (!selectedRound || !phaseRounds.includes(selectedRound))) {
+        if (phaseRounds.length > 0 && (options?.forceResetRound || !selectedRound || !phaseRounds.includes(selectedRound))) {
           setSelectedRound(phaseRounds[0])
         }
       }
@@ -3666,7 +3666,7 @@ export default function TournamentPage() {
           matches={matches}
           tournamentId={tournamentId}
           onClose={() => setShowReorderModal(false)}
-          onSuccess={() => { setShowReorderModal(false); setSelectedRound(''); fetchData(); }}
+          onSuccess={() => { setShowReorderModal(false); fetchData({ forceResetRound: true }); }}
           categoryId={activeCategory?.id || null}
         />
       )}
