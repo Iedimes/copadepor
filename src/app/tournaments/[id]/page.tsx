@@ -561,7 +561,19 @@ export default function TournamentPage() {
     if (view === 'clasificacion' && activeMenu === 'inicio') {
       setActiveMenu('clasificacion')
     }
-  }, [searchParams])
+
+    const urlCatId = searchParams.get('categoryId')
+    if (urlCatId) {
+      const found = categories.find((c: any) => c.id === urlCatId)
+      if (found && activeCategory?.id !== urlCatId) {
+        setActiveCategory(found)
+      }
+    } else {
+      if (activeCategory !== null) {
+        setActiveCategory(null)
+      }
+    }
+  }, [searchParams, categories, activeCategory])
 
   const fetchData = async () => {
     setLoading(true)
@@ -584,7 +596,7 @@ export default function TournamentPage() {
 
       // If format is categories, fetch categories
       let cats: any[] = []
-      let loadedActiveCat = activeCategory
+      let loadedActiveCat = null
       if (currentFormat === 'categorias') {
         const catRes = await fetch(`/api/categories?tournamentId=${tournamentId}`, { headers: { Authorization: `Bearer ${token}` } })
         if (catRes.ok) {
@@ -597,7 +609,6 @@ export default function TournamentPage() {
           if (urlCatId) {
             const found = cData.find((c: any) => c.id === urlCatId)
             if (found) {
-              setActiveCategory(found)
               loadedActiveCat = found
             }
           }
@@ -1528,7 +1539,6 @@ export default function TournamentPage() {
           <div 
             onClick={() => {
               if (tournament?.format === 'categorias') {
-                setActiveCategory(null)
                 setActiveMenu('inicio')
                 router.replace(`/tournaments/${tournamentId}`)
               }
@@ -1549,7 +1559,6 @@ export default function TournamentPage() {
             <button 
               onClick={() => {
                 if (tournament?.format === 'categorias') {
-                  setActiveCategory(null)
                   router.replace(`/tournaments/${tournamentId}`)
                 }
                 setActiveMenu('inicio')
@@ -1610,8 +1619,8 @@ export default function TournamentPage() {
                 className="absolute inset-0 bg-cover bg-center" 
                 style={
                   (tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined')
-                    ? { backgroundImage: `url(${tournament.banner})`, opacity: 0.5 }
-                    : { backgroundImage: `url(${getSportBanner(tournament?.sportType || '', true)})`, opacity: 0.5 }
+                    ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
+                    : { backgroundImage: `url('${getSportBanner(tournament?.sportType || '', true)}')`, opacity: 0.5 }
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
@@ -1967,8 +1976,8 @@ export default function TournamentPage() {
                 className="absolute inset-0 bg-cover bg-center" 
                 style={
                   (activeCategory?.banner && activeCategory.banner !== 'null' && activeCategory.banner !== 'undefined')
-                    ? { backgroundImage: `url(${activeCategory.banner})`, opacity: 0.5 }
-                    : { backgroundImage: `url(${getSportBanner(sportType, activeCategory ? true : false)})`, opacity: 0.5 }
+                    ? { backgroundImage: `url('${activeCategory.banner}')`, opacity: 0.5 }
+                    : { backgroundImage: `url('${getSportBanner(sportType, activeCategory ? true : false)}')`, opacity: 0.5 }
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>

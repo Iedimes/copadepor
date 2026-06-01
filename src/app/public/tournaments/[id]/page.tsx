@@ -581,8 +581,8 @@ export default function PublicTournamentPage() {
                 className="absolute inset-0 bg-cover bg-center" 
                 style={
                   (tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined')
-                    ? { backgroundImage: `url(${tournament.banner})`, opacity: 0.5 }
-                    : { backgroundImage: `url(${getSportBanner(tournament?.sportType || '', true)})`, opacity: 0.5 }
+                    ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
+                    : { backgroundImage: `url('${getSportBanner(tournament?.sportType || '', true)}')`, opacity: 0.5 }
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
@@ -657,8 +657,8 @@ export default function PublicTournamentPage() {
                     className="absolute inset-0 bg-cover bg-center" 
                     style={
                       (activeCategory?.banner && activeCategory.banner !== 'null' && activeCategory.banner !== 'undefined')
-                        ? { backgroundImage: `url(${activeCategory.banner})`, opacity: 0.5 }
-                        : { backgroundImage: `url(${getSportBanner(sportType, activeCategory ? true : false)})`, opacity: 0.5 }
+                        ? { backgroundImage: `url('${activeCategory.banner}')`, opacity: 0.5 }
+                        : { backgroundImage: `url('${getSportBanner(sportType, activeCategory ? true : false)}')`, opacity: 0.5 }
                     }
                   ></div>
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
@@ -913,7 +913,10 @@ export default function PublicTournamentPage() {
                                     <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
                                       <table className="w-full text-xs text-left border-collapse">
                                         <thead>
-                                          <tr className="bg-[#EF4444] text-white text-[10px] font-black uppercase tracking-wider border-b border-red-600">
+                                          <tr 
+                                            style={{ backgroundColor: themeColor, borderBottom: '1px solid rgba(0,0,0,0.1)' }}
+                                            className="text-white text-[10px] font-black uppercase tracking-wider"
+                                          >
                                             <th className="p-3 text-center w-12">Pos</th>
                                             <th className="p-3 pl-2">EQUIPOS</th>
                                             <th className="p-3 text-center w-14">Pts</th>
