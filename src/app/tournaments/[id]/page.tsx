@@ -168,8 +168,8 @@ export default function TournamentPage() {
   const sportType = activeCategory?.sportType || tournament?.sportType || ''
   const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
   
-  const getSportBanner = (s: string) => {
-    if (tournament?.banner) return tournament.banner
+  const getSportBanner = (s: string, ignoreTournamentBanner?: boolean) => {
+    if (tournament?.banner && !ignoreTournamentBanner) return tournament.banner
     const key = (s || '').toUpperCase()
     if (key.includes('FUT')) {
       return 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1600' // fútbol
@@ -1970,10 +1970,7 @@ export default function TournamentPage() {
                 style={
                   (activeCategory?.banner || tournament?.banner)
                     ? { backgroundImage: `url('${activeCategory?.banner || tournament.banner}')`, opacity: 0.5 }
-                    : { 
-                        background: `linear-gradient(135deg, ${themeColor}15 0%, #0f172a 60%, #020617 100%)`,
-                        opacity: 0.95
-                      }
+                    : { backgroundImage: `url('${getSportBanner(sportType, true)}')`, opacity: 0.5 }
                 }
               ></div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
