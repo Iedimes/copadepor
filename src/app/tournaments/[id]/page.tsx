@@ -1968,8 +1968,8 @@ export default function TournamentPage() {
               <div 
                 className="absolute inset-0 bg-cover bg-center" 
                 style={
-                  (activeCategory?.banner || tournament?.banner)
-                    ? { backgroundImage: `url('${activeCategory?.banner || tournament.banner}')`, opacity: 0.5 }
+                  activeCategory?.banner
+                    ? { backgroundImage: `url('${activeCategory.banner}')`, opacity: 0.5 }
                     : { backgroundImage: `url('${getSportBanner(sportType, true)}')`, opacity: 0.5 }
                 }
               ></div>
