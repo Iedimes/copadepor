@@ -88,6 +88,14 @@ export async function POST(request: NextRequest) {
       'eliminacion': 'ELIMINATORIA',
     }
 
+    // Get the most recently updated tournament by the same organizer to inherit its graphical styles (themeColor)
+    const latestTournament = await prisma.tournament.findFirst({
+      where: { organizerId: payload.userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { themeColor: true }
+    })
+    const defaultThemeColor = latestTournament?.themeColor || '#FF6B00'
+
     const tournament = await prisma.tournament.create({
       data: {
         ...tournamentData,
@@ -95,6 +103,9 @@ export async function POST(request: NextRequest) {
         classificationCriteria: classificationCriteria || 'PUNTOS,GOLES,GOLES_A_FAVOR,RESULTADOS_ENTRE_SI,TARJETAS_AMARILLAS,TARJETAS_ROJAS,W_O',
         phaseSystem: phaseSystemMap[format] || 'TODOS_CONTRA_TODOS',
         organizerId: payload.userId,
+        themeColor: defaultThemeColor,
+        logo: null,
+        banner: null,
         categories: categories ? {
           create: categories
         } : undefined,
