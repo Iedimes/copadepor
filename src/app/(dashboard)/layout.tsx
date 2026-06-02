@@ -57,41 +57,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-[#0A1128] border-b border-white/10 fixed w-full z-20 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-all lg:hidden"
-              >
-                <span className="text-2xl">☰</span>
-              </button>
-              <Link href="/dashboard" className="flex items-center gap-2 group ml-2">
-                <span className="text-2xl group-hover:scale-110 transition-transform">🏆</span>
-                <span className="text-lg font-black text-white uppercase tracking-[0.2em] leading-none">
-                  Copa<span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Depor</span>
-                </span>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-slate-300 text-xs font-black uppercase tracking-wider bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-1.5">
-                <span className="text-[10px]">👤</span> {user.name}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl text-xs font-black uppercase tracking-wider border border-red-500/20 transition-all"
-              >
-                Cerrar sesión
-              </button>
-            </div>
+    <div className="min-h-screen bg-[#0A1128] text-white flex flex-col font-sans">
+      {/* Top Navbar - Starts after the sidebar on desktop */}
+      <nav className="bg-[#0A1128] border-b border-white/5 fixed top-0 right-0 left-0 lg:left-64 h-16 z-10 shadow-sm">
+        <div className="px-6 h-full flex items-center justify-between">
+          <div className="flex items-center">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-all lg:hidden"
+            >
+              <span className="text-2xl">☰</span>
+            </button>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-slate-300 text-xs font-black uppercase tracking-wider bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-1.5">
+              <span className="text-[10px]">👤</span> {user.name}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl text-xs font-black uppercase tracking-wider border border-red-500/20 transition-all"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </div>
       </nav>
 
+      {/* Main Layout Wrapper */}
       <div className="flex pt-16 h-screen overflow-hidden">
-        <aside className={`fixed inset-y-0 left-0 z-20 w-64 bg-[#0A1128] border-r border-white/5 shadow-2xl transform transition-transform duration-200 lg:translate-x-0 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col shrink-0`}>
+        {/* Sidebar - Spans full height containing the brand Logo */}
+        <aside className={`fixed inset-y-0 left-0 z-20 w-64 bg-[#0A1128] flex flex-col shrink-0 transform transition-transform duration-200 lg:translate-x-0 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          {/* Brand Logo at the top of Sidebar */}
+          <div className="h-16 flex items-center px-8 border-b border-white/5 shrink-0">
+            <Link href="/dashboard" className="flex items-center gap-2.5 group">
+              <span className="text-2xl group-hover:scale-110 transition-transform">🏆</span>
+              <span className="text-lg font-black text-white uppercase tracking-[0.2em] leading-none">
+                Copa<span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Depor</span>
+              </span>
+            </Link>
+          </div>
+
+          {/* Navigation Items */}
           <nav className="mt-6 px-4 space-y-1.5 overflow-y-auto flex-1 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             {navItems.map((item) => {
               const isActive = pathname === item.href
@@ -122,7 +128,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
         )}
 
-        <main className="flex-1 p-8 overflow-y-auto h-full">
+        {/* Main Content Card with rounded-tl corner forming a beautiful interface */}
+        <main className="flex-1 bg-[#F8FAFC] text-slate-800 rounded-tl-[2.5rem] p-8 overflow-y-auto h-full border-t border-l border-white/5 shadow-inner">
           {children}
         </main>
       </div>
