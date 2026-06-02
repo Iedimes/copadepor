@@ -90,23 +90,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </nav>
 
-      <div className="flex pt-16">
-        <aside className={`fixed inset-y-0 left-0 z-20 w-64 bg-white shadow-lg transform transition-transform duration-200 lg:translate-x-0 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <nav className="mt-8 px-4 space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center px-4 py-3 rounded-lg ${
-                  pathname === item.href
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <span className="mr-3">{item.icon}</span>
-                {item.label}
-              </Link>
-            ))}
+      <div className="flex pt-16 h-screen overflow-hidden">
+        <aside className={`fixed inset-y-0 left-0 z-20 w-64 bg-[#0A1128] border-r border-white/5 shadow-2xl transform transition-transform duration-200 lg:translate-x-0 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col shrink-0`}>
+          <nav className="mt-6 px-4 space-y-1.5 overflow-y-auto flex-1 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center px-4 py-3.5 transition-all duration-200 ${
+                    isActive
+                      ? 'bg-blue-600/10 text-blue-400 font-black border-l-4 border-blue-500 rounded-r-xl shadow-xs'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5 font-bold rounded-xl'
+                  } text-[11px] uppercase tracking-wider gap-3`}
+                >
+                  <span className={`text-base leading-none transition-transform ${isActive ? 'filter saturate-100 drop-shadow-sm' : 'filter saturate-50'}`}>
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
           </nav>
         </aside>
 
@@ -117,7 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
         )}
 
-        <main className="flex-1 p-8 lg:ml-64">
+        <main className="flex-1 p-8 overflow-y-auto h-full">
           {children}
         </main>
       </div>
