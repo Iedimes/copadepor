@@ -44,6 +44,19 @@ const formatMatchDate = (dateStr: string) => {
   }
 }
 
+const getDisplayNotes = (notesStr: string | null) => {
+  if (!notesStr || notesStr === 'FECHA_LIBRE') return ''
+  if (notesStr.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(notesStr)
+      return parsed.customNotes || ''
+    } catch (e) {
+      return ''
+    }
+  }
+  return notesStr
+}
+
 export default function PublicTournamentPage() {
   const params = useParams()
   const router = useRouter()
