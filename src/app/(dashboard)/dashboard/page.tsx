@@ -263,62 +263,156 @@ export default function DashboardPage() {
     }
   }
 
+  const getSportIcon = (sportType: string) => {
+    const sport = sports.find(s => s.id === sportType)
+    return sport ? sport.icon : '🏅'
+  }
+
+  const getSportName = (sportType: string) => {
+    const sport = sports.find(s => s.id === sportType)
+    return sport ? sport.name : sportType
+  }
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Mis Campeonatos</h1>
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-10">
+      {/* HEADER SECTION WITH CREATE BUTTON PROMINENTLY AT THE TOP */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
+        <div>
+          <h1 className="text-3xl font-black text-[#0A1128] uppercase tracking-tight">Mis Campeonatos</h1>
+          <p className="text-slate-500 font-medium text-sm mt-1">Administra, organiza y sigue el progreso de todos tus torneos activos.</p>
+        </div>
+        <button
+          onClick={() => setShowTypeModal(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all hover:scale-[1.02] flex items-center justify-center gap-2 self-start sm:self-auto"
+        >
+          <span>🏆</span> Nuevo Campeonato
+        </button>
       </div>
 
+      {/* STATS / KPI ROW - WIDESCREEN EXPLOITATION */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* KPI 1: Campeonatos */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 flex items-center gap-5 shadow-xs hover:shadow-md transition-all duration-300">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-2xl text-amber-500 shrink-0 shadow-sm">
+            🏆
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Mis Campeonatos</span>
+            <span className="text-2xl font-black text-slate-900 leading-none mt-1 block">{stats.tournaments}</span>
+          </div>
+        </div>
+
+        {/* KPI 2: Equipos */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 flex items-center gap-5 shadow-xs hover:shadow-md transition-all duration-300">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-2xl text-blue-500 shrink-0 shadow-sm">
+            🛡️
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Equipos Registrados</span>
+            <span className="text-2xl font-black text-slate-900 leading-none mt-1 block">{stats.teams}</span>
+          </div>
+        </div>
+
+        {/* KPI 3: Partidos */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 flex items-center gap-5 shadow-xs hover:shadow-md transition-all duration-300">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-2xl text-emerald-500 shrink-0 shadow-sm">
+            ⚽
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Partidos Agendados</span>
+            <span className="text-2xl font-black text-slate-900 leading-none mt-1 block">{stats.matches}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* TOURNAMENTS SECTION - VERTICAL LIST LAYOUT */}
       {tournaments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="text-6xl mb-4">🏆</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">No hay Campeonatos</h2>
-          <p className="text-gray-500 mb-8">Crea tu primer campeonato para comenzar</p>
-          <button 
+        <div className="bg-white rounded-[2.5rem] border border-slate-200/80 p-16 flex flex-col items-center justify-center text-center shadow-xs">
+          <div className="w-20 h-20 rounded-full bg-slate-50 border flex items-center justify-center text-4xl mb-6 shadow-inner">
+            🏆
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">No tienes campeonatos activos</h2>
+          <p className="text-slate-400 font-medium text-sm mt-2 max-w-sm">Crea tu primer torneo único o por categorías para comenzar a gestionar equipos y fixtures.</p>
+          <button
             onClick={() => setShowTypeModal(true)}
-            className="bg-blue-600 text-white px-8 py-4 rounded-xl font-medium hover:bg-blue-700 text-lg"
+            className="mt-8 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02]"
           >
-            + Nuevo Campeonato
+            Comenzar Ahora
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tournaments.map((tournament) => (
-            <div 
-              key={tournament.id} 
-              className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition cursor-pointer"
-              onClick={() => router.push(`/tournaments/${tournament.id}`)}
-            >
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
-                <div className="flex justify-between items-start">
-                  <span className="text-4xl">⚽</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(tournament.status)}`}>
-                    {getStatusLabel(tournament.status)}
-                  </span>
-                </div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-lg font-semibold mb-2">{tournament.name}</h3>
-                <div className="text-sm text-gray-500">
-                  <p>📅 {new Date(tournament.startDate).toLocaleDateString()}</p>
-                </div>
-                <button 
-                  onClick={(e) => handleDeleteTournament(e, tournament)}
-                  className="mt-3 text-red-600 hover:text-red-800 text-sm"
+        <div className="bg-white rounded-[2.5rem] border border-slate-200/80 shadow-sm overflow-hidden p-6 md:p-8 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <h2 className="text-base font-black text-[#0A1128] uppercase tracking-wider flex items-center gap-2">
+              <span>📋</span> Lista de Campeonatos
+            </h2>
+            <span className="text-[10px] bg-slate-100 border text-slate-500 font-black px-2.5 py-1 rounded-md uppercase tracking-wider">
+              {tournaments.length} creados
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {tournaments.map((tournament) => {
+              const sportIcon = getSportIcon(tournament.sportType)
+              const sportName = getSportName(tournament.sportType)
+              return (
+                <div
+                  key={tournament.id}
+                  onClick={() => router.push(`/tournaments/${tournament.id}`)}
+                  className="group flex flex-col lg:flex-row lg:items-center justify-between p-5 rounded-2xl border border-slate-100 bg-slate-50/40 hover:bg-white hover:border-slate-300 hover:shadow-xl transition-all duration-300 gap-4 cursor-pointer relative"
                 >
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          ))}
-          
-          <button 
-            onClick={() => setShowTypeModal(true)}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 transition"
-          >
-            <span className="text-4xl mb-2">+</span>
-            <span className="font-medium">Agregar Campeonato</span>
-          </button>
+                  {/* Left part: Icon & Name details */}
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-3xl shrink-0 group-hover:scale-105 transition-all">
+                      {sportIcon}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-black text-slate-800 text-base leading-snug group-hover:text-blue-600 transition-colors truncate pr-4">
+                        {tournament.name}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="text-slate-400 text-xs font-black uppercase tracking-wider">
+                          {sportName}
+                        </span>
+                        <span className="text-slate-300 text-[10px]">•</span>
+                        <span className="text-slate-400 text-xs font-bold lowercase first-letter:uppercase">
+                          📅 {new Date(tournament.startDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right part: Status badge & Actions */}
+                  <div className="flex items-center justify-between lg:justify-end gap-6 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                    {/* Status badge */}
+                    <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${getStatusColor(tournament.status)}`}>
+                      {getStatusLabel(tournament.status)}
+                    </span>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/tournaments/${tournament.id}`)
+                        }}
+                        className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-xs font-black uppercase tracking-wider border border-blue-100 transition-all"
+                      >
+                        Gestionar
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteTournament(e, tournament)}
+                        className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100 transition-all"
+                        title="Eliminar Campeonato"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
