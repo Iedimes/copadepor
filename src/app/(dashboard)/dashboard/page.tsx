@@ -378,17 +378,21 @@ export default function DashboardPage() {
                         <span className="text-slate-400 text-xs font-bold lowercase first-letter:uppercase">
                           📅 {new Date(tournament.startDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </span>
+                        <span className="text-slate-300 text-[10px]">•</span>
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${
+                          tournament.status === 'IN_PROGRESS' ? 'text-emerald-500' :
+                          tournament.status === 'REGISTRATION_OPEN' ? 'text-blue-500' :
+                          tournament.status === 'COMPLETED' ? 'text-slate-400' :
+                          'text-amber-500'
+                        }`}>
+                          {getStatusLabel(tournament.status)}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right part: Status badge & Actions */}
+                  {/* Right part: Actions */}
                   <div className="flex items-center justify-between lg:justify-end gap-6 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                    {/* Status badge */}
-                    <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${getStatusColor(tournament.status)}`}>
-                      {getStatusLabel(tournament.status)}
-                    </span>
-
                     {/* Action buttons */}
                     <div className="flex items-center gap-2">
                       <button

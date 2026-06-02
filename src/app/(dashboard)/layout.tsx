@@ -57,26 +57,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm fixed w-full z-10">
+    <div className="min-h-screen bg-slate-50">
+      <nav className="bg-[#0A1128] border-b border-white/10 fixed w-full z-20 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 rounded-md text-gray-500 hover:bg-gray-100 lg:hidden"
+                className="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-all lg:hidden"
               >
                 <span className="text-2xl">☰</span>
               </button>
-              <Link href="/dashboard" className="text-xl font-bold text-blue-600 ml-2">
-                CopaDepor
+              <Link href="/dashboard" className="flex items-center gap-2 group ml-2">
+                <span className="text-2xl group-hover:scale-110 transition-transform">🏆</span>
+                <span className="text-lg font-black text-white uppercase tracking-[0.2em] leading-none">
+                  Copa<span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Depor</span>
+                </span>
               </Link>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-700">{user.name}</span>
+              <span className="text-slate-300 text-xs font-black uppercase tracking-wider bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-xl flex items-center gap-1.5">
+                <span className="text-[10px]">👤</span> {user.name}
+              </span>
               <button
                 onClick={handleLogout}
-                className="text-gray-500 hover:text-gray-700"
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl text-xs font-black uppercase tracking-wider border border-red-500/20 transition-all"
               >
                 Cerrar sesión
               </button>
