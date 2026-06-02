@@ -20,6 +20,8 @@ interface Tournament {
   logo?: string | null
   banner?: string | null
   themeColor?: string | null
+  startDate?: string | Date | null
+  endDate?: string | Date | null
 }
 
 interface Message {
@@ -211,6 +213,17 @@ export default function TournamentPage() {
   const [activeCategory, setActiveCategory] = useState<any | null>(null)
   const sportType = activeCategory?.sportType || tournament?.sportType || ''
   const isBasketball = sportType === 'BALONCESTO' || sportType === 'BASQUET'
+
+  const formatDate = (dateStr: any) => {
+    if (!dateStr) return null
+    try {
+      const d = new Date(dateStr)
+      if (isNaN(d.getTime())) return null
+      return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    } catch {
+      return null
+    }
+  }
 
   const getSportBanner = (s: string, ignoreTournamentBanner?: boolean) => {
     const tourBanner = tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined' ? tournament.banner : null
@@ -1753,9 +1766,22 @@ export default function TournamentPage() {
               </button>
 
               <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
-                <div>
+                <div className="min-w-0">
                   <h1 className="text-4xl font-black text-white mb-2">{tournament.name}</h1>
                   <p className="text-slate-300 font-medium flex items-center gap-2 italic">{tournament.description || `Organizado por ${tournament?.organizer?.name}`}</p>
+                  {(() => {
+                    const start = formatDate(tournament?.startDate)
+                    const end = formatDate(tournament?.endDate)
+                    if (!start && !end) return null
+                    return (
+                      <div className="flex items-center gap-2 mt-3 text-[11px] font-black uppercase tracking-wider text-slate-200 bg-black/30 backdrop-blur-sm px-4 py-2 rounded-2xl w-fit border border-white/5 shadow-md">
+                        <span>📅</span>
+                        <span>
+                          {start === end ? start : `${start ? `Inicio: ${start}` : ''}${start && end ? '  |  ' : ''}${end ? `Fin: ${end}` : ''}`}
+                        </span>
+                      </div>
+                    )
+                  })()}
                 </div>
                 <div className="mt-4 md:mt-0 flex gap-3">
                   <button onClick={() => setShowQR(!showQR)} className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"><span>📤</span> Compartir Link</button>
@@ -2222,7 +2248,7 @@ export default function TournamentPage() {
               </button>
 
               <div className="absolute bottom-0 left-0 p-8 flex flex-col md:flex-row md:items-end justify-between w-full">
-                <div>
+                <div className="min-w-0">
                   <h1 className="text-4xl font-black text-white mb-1">{tournament.name}</h1>
                   {tournament.description && (
                     <p className="text-slate-300 text-sm font-medium mb-2 italic">{tournament.description}</p>
@@ -2230,6 +2256,19 @@ export default function TournamentPage() {
                   {activeCategory && (
                     <p className="text-lg font-black text-blue-400 uppercase tracking-wider">{activeCategory.name}</p>
                   )}
+                  {(() => {
+                    const start = formatDate(tournament?.startDate)
+                    const end = formatDate(tournament?.endDate)
+                    if (!start && !end) return null
+                    return (
+                      <div className="flex items-center gap-2 mt-3 text-[11px] font-black uppercase tracking-wider text-slate-200 bg-black/30 backdrop-blur-sm px-4 py-2 rounded-2xl w-fit border border-white/5 shadow-md">
+                        <span>📅</span>
+                        <span>
+                          {start === end ? start : `${start ? `Inicio: ${start}` : ''}${start && end ? '  |  ' : ''}${end ? `Fin: ${end}` : ''}`}
+                        </span>
+                      </div>
+                    )
+                  })()}
                 </div>
                 <div className="mt-4 md:mt-0 flex gap-3">
                   <button onClick={() => setShowQR(!showQR)} className="bg-white/10 text-white hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2"><span>📤</span> Compartir</button>

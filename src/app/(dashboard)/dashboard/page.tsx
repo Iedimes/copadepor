@@ -378,15 +378,19 @@ export default function DashboardPage() {
                         <span className="text-slate-400 text-xs font-bold lowercase first-letter:uppercase">
                           📅 {new Date(tournament.startDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </span>
-                        <span className="text-slate-300 text-[10px]">•</span>
-                        <span className={`text-[10px] font-black uppercase tracking-wider ${
-                          tournament.status === 'IN_PROGRESS' ? 'text-emerald-500' :
-                          tournament.status === 'REGISTRATION_OPEN' ? 'text-blue-500' :
-                          tournament.status === 'COMPLETED' ? 'text-slate-400' :
-                          'text-amber-500'
-                        }`}>
-                          {getStatusLabel(tournament.status)}
-                        </span>
+                        {tournament.status !== 'DRAFT' && (
+                          <>
+                            <span className="text-slate-300 text-[10px]">•</span>
+                            <span className={`text-[10px] font-black uppercase tracking-wider ${
+                              tournament.status === 'IN_PROGRESS' ? 'text-emerald-500' :
+                              tournament.status === 'REGISTRATION_OPEN' ? 'text-blue-500' :
+                              tournament.status === 'COMPLETED' ? 'text-slate-400' :
+                              'text-amber-500'
+                            }`}>
+                              {getStatusLabel(tournament.status)}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
