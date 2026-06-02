@@ -290,7 +290,7 @@ export default function TeamsPage() {
           onClick={openNew}
           className="bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5 text-sm"
         >
-          <span>➕</span> Nuevo Equipo (Detallado)
+          <span>➕</span> Nuevo Equipo
         </button>
       </div>
 
