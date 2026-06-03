@@ -620,7 +620,7 @@ export default function TournamentPage() {
                 {st === 'EN_VIVO' ? (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="bg-yellow-400 text-slate-900 px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase animate-pulse">En Vivo</span>
-                    {parseNotesJson(m.notes) && <LiveMatchTimer notes={m.notes} />}
+                    {parseNotesJson(matchNotes) && <LiveMatchTimer notes={matchNotes} />}
                   </div>
                 ) : (
                   <span className={`mt-2 px-2.5 py-0.5 rounded text-[8px] font-black border uppercase tracking-wider ${isCompleted ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'}`}>
