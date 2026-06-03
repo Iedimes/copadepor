@@ -14,7 +14,7 @@ export default function TournamentLayout({ children }: { children: React.ReactNo
   }, [router])
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen h-screen bg-[#F8FAFC]">
       <main className="h-full">
         {children}
       </main>

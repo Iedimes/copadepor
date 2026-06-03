@@ -508,10 +508,10 @@ export default function PublicTournamentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex relative overflow-hidden font-sans antialiased text-slate-800">
+    <div className="min-h-screen h-screen bg-[#F8FAFC] flex relative overflow-hidden font-sans antialiased text-slate-800">
       {/* SIDEBAR NAVIGATION */}
       <div 
-        className="w-64 text-white/80 flex flex-col h-full z-10 border-r border-black/5 flex-shrink-0"
+        className="w-64 min-h-screen text-white/90 flex flex-col z-10 border-r border-black/5 flex-shrink-0"
         style={{ backgroundColor: themeColor }}
       >
         <div className="p-8">

@@ -169,6 +169,23 @@ const formatMatchDate = (dateStr: string) => {
   }
 }
 
+const hexToRgb = (hex: string) => {
+  const sanitized = hex.replace('#', '')
+  const formatted = sanitized.length === 3
+    ? sanitized.split('').map((char) => char + char).join('')
+    : sanitized
+  const num = parseInt(formatted, 16)
+  const r = (num >> 16) & 255
+  const g = (num >> 8) & 255
+  const b = num & 255
+  return `${r},${g},${b}`
+}
+
+const getThemeGradient = (hex: string) => {
+  const rgb = hexToRgb(hex)
+  return `linear-gradient(to top, rgba(${rgb},0.95), rgba(${rgb},0.35), rgba(${rgb},0.12))`
+}
+
 const getDisplayNotes = (notesStr: string | null) => {
   if (!notesStr || notesStr === 'FECHA_LIBRE') return ''
   if (notesStr.startsWith('{')) {
@@ -533,118 +550,85 @@ export default function TournamentPage() {
 
     const isBye = m.notes === 'FECHA_LIBRE';
     const hasTeams = (m.homeTeam && m.awayTeam) || isBye;
+    const isCompleted = st === 'FINALIZADO';
 
     return (
       <div
         key={m.id}
         onClick={() => hasTeams && handleOpenMatchModal(m)}
-        className={`relative flex flex-col p-5 group transition-all rounded-[2rem] border border-transparent bg-slate-50/40 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-100 ${hasTeams
-          ? 'cursor-pointer'
-          : 'cursor-not-allowed opacity-75'
-          } ${isE ? 'scale-[1.02] bg-white shadow-2xl border-blue-100' : ''}`}
+        className={`relative flex flex-col p-5 group transition-all rounded-[1.5rem] border border-slate-200/50 bg-slate-50/40 hover:bg-slate-50 cursor-pointer ${hasTeams ? 'shadow-xs hover:shadow-sm' : 'cursor-not-allowed opacity-70'} ${isE ? 'bg-white shadow-lg border-blue-100' : ''}`}
       >
-        <div className="flex items-center justify-between w-full">
-          {/* Home Team */}
-          <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
-            {isBye && !m.homeTeam ? (
-              <>
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-emerald-50 border-2 border-dashed border-emerald-200">
-                  <span className="text-emerald-500 animate-bounce text-xl">🌴</span>
+        {isBye ? (
+          <div className="bg-emerald-50/50 border border-emerald-200/50 p-5 rounded-[1.5rem] flex items-center justify-between relative overflow-hidden group cursor-pointer hover:shadow-xs transition-all text-center">
+            <div className="flex items-center gap-3">
+              {m.homeTeam?.logo || m.awayTeam?.logo ? (
+                <img src={(m.homeTeam || m.awayTeam).logo} alt="Logo" className="w-10 h-10 rounded-2xl object-cover bg-white border shadow-xs" />
+              ) : (
+                <div className="w-10 h-10 rounded-2xl bg-slate-200 flex items-center justify-center font-bold text-slate-500 text-xs">🛡️</div>
+              )}
+              <div className="text-left">
+                <h3 className="font-black text-xs text-slate-800 group-hover:text-emerald-600 transition-colors">{(m.homeTeam || m.awayTeam)?.name || 'Equipo'}</h3>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="bg-emerald-200/30 text-emerald-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">Fecha Libre</span>
+                  <span className="text-slate-400 text-[8px] font-bold">🌴 Descansa esta ronda</span>
                 </div>
-                <span className="text-[10px] font-black text-emerald-600 text-center uppercase truncate w-full tracking-tighter">
-                  LIBRE
-                </span>
-              </>
-            ) : (
-              <>
-                {m.advantageTeamId === m.homeTeam?.id && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
-                )}
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.homeTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.homeTeam && !m.homeTeam.logo ? { backgroundColor: m.homeTeam.color || '#1e293b' } : undefined}>
-                  {m.homeTeam ? (
-                    m.homeTeam.logo ? <img src={m.homeTeam.logo} alt={m.homeTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.homeTeam.name.charAt(0).toUpperCase()}</span>
-                  ) : <span className="text-slate-300 text-sm">?</span>}
-                </div>
-                <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
-                  {m.homeTeam?.name || m.homePlaceholder || 'Por definir'}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Score Block */}
-          <div className="flex flex-col items-center">
-            {isBye ? (
-              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-1.5 shadow-sm flex flex-col items-center min-w-[100px] text-center">
-                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider">Fecha Libre</span>
-                <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">Descanso</span>
               </div>
-            ) : (
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl px-6 py-2 shadow-sm flex flex-col items-center min-w-[100px] group-hover:bg-white transition-colors">
-                <div className="text-2xl font-black text-slate-800 tracking-tighter flex flex-col items-center gap-1">
-                  {hS !== null && st !== 'NO_REALIZADO' ? `${hS} : ${aS}` : <span className="text-slate-300">VS</span>}
-                  {st === 'FINALIZADO' && m.homePenaltyScore !== null && m.awayPenaltyScore !== null && (
-                    <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest text-center">Pen: {m.homePenaltyScore}-{m.awayPenaltyScore}</span>
-                  )}
-                </div>
-                {st !== 'NO_REALIZADO' && (
-                  <div className="flex flex-col items-center mt-1 gap-1">
-                    <div className={`text-[8px] font-black px-3 py-0.5 rounded-md uppercase ${st === 'EN_VIVO' ? 'bg-yellow-400 text-slate-900 animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
-                      {st === 'EN_VIVO' ? 'En Vivo' : 'Finalizado'}
-                    </div>
-                    {st === 'EN_VIVO' && matchNotes && matchNotes.startsWith('{') && <LiveMatchTimer notes={matchNotes} />}
-                  </div>
+            </div>
+            <span className="text-xl select-none mr-2">🌴</span>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between w-full gap-4 relative">
+              <div className="flex-1 flex flex-col items-center min-w-0">
+                {m.homeTeam?.logo ? (
+                  <img src={m.homeTeam.logo} alt="Logo" className="w-12 h-12 rounded-2xl object-cover bg-white border shadow-xs shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-2xl bg-white border flex items-center justify-center text-slate-400 text-sm shrink-0">🛡️</div>
                 )}
+                <span className="font-black text-slate-800 text-[11px] mt-2 truncate w-full text-center block leading-tight">{m.homeTeam?.name || m.homePlaceholder || 'Equipo 1'}</span>
               </div>
-            )}
-          </div>
 
-          {/* Away Team */}
-          <div className="flex flex-col items-center gap-2 w-24 relative mt-3">
-            {isBye && !m.awayTeam ? (
-              <>
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-emerald-50 border-2 border-dashed border-emerald-200">
-                  <span className="text-emerald-500 animate-bounce text-xl">🌴</span>
+              <div className="flex flex-col items-center shrink-0">
+                <div className="flex items-center gap-3 px-4 py-1.5 bg-white border border-slate-200 rounded-xl font-black text-lg text-slate-900 shadow-xs min-w-[80px] justify-center">
+                  <span style={m.homeScore !== null && m.awayScore !== null && m.homeScore > m.awayScore ? { color: themeColor } : undefined} className={m.homeScore !== null && m.awayScore !== null && m.homeScore > m.awayScore ? 'font-bold' : 'text-slate-700'}>
+                    {m.homeScore !== null ? m.homeScore : '-'}
+                  </span>
+                  <span className="text-slate-300 font-medium text-sm">:</span>
+                  <span style={m.homeScore !== null && m.awayScore !== null && m.awayScore > m.homeScore ? { color: themeColor } : undefined} className={m.homeScore !== null && m.awayScore !== null && m.awayScore > m.homeScore ? 'font-bold' : 'text-slate-700'}>
+                    {m.awayScore !== null ? m.awayScore : '-'}
+                  </span>
                 </div>
-                <span className="text-[10px] font-black text-emerald-600 text-center uppercase truncate w-full tracking-tighter">
-                  LIBRE
+                <span className={`mt-2 px-2.5 py-0.5 rounded text-[8px] font-black border uppercase tracking-wider ${isCompleted ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'}`}>
+                  {isCompleted ? 'Finalizado' : 'Programado'}
                 </span>
-              </>
-            ) : (
-              <>
-                {m.advantageTeamId === m.awayTeam?.id && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg z-10 uppercase whitespace-nowrap">🛡️ Ventaja</div>
+              </div>
+
+              <div className="flex-1 flex flex-col items-center min-w-0">
+                {m.awayTeam?.logo ? (
+                  <img src={m.awayTeam.logo} alt="Logo" className="w-12 h-12 rounded-2xl object-cover bg-white border shadow-xs shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-2xl bg-white border flex items-center justify-center text-slate-400 text-sm shrink-0">🛡️</div>
                 )}
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg relative overflow-hidden ${m.awayTeam ? '' : 'bg-slate-100 border-2 border-dashed border-slate-200'}`} style={m.awayTeam && !m.awayTeam.logo ? { backgroundColor: m.awayTeam.color || '#1e293b' } : undefined}>
-                  {m.awayTeam ? (
-                    m.awayTeam.logo ? <img src={m.awayTeam.logo} alt={m.awayTeam.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-lg">{m.awayTeam.name.charAt(0).toUpperCase()}</span>
-                  ) : <span className="text-slate-300 text-sm">?</span>}
-                </div>
-                <span className="text-[10px] font-black text-slate-600 text-center uppercase truncate w-full tracking-tighter">
-                  {m.awayTeam?.name || m.awayPlaceholder || 'Por definir'}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
+                <span className="font-black text-slate-800 text-[11px] mt-2 truncate w-full text-center block leading-tight">{m.awayTeam?.name || m.awayPlaceholder || 'Equipo 2'}</span>
+              </div>
+            </div>
 
-        {/* Date and Location block - beautifully matched vertically to match mockup */}
-        {!isBye && (
-          <div className="text-center border-t border-slate-100 pt-3 mt-3 w-full flex flex-col items-center justify-center gap-0.5">
-            <span className="text-[10px] font-black text-slate-800 tracking-tight">{m.location ? m.location.split(' @ ')[0] : 'Por definir'}</span>
-            <span className="text-[9px] font-bold text-slate-500 lowercase first-letter:uppercase">
-              {formatMatchDate(m.matchDate)}
-            </span>
-            {m.location && m.location.includes(' @ ') && m.location.split(' @ ')[1] && (
-              <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📍 {m.location.split(' @ ')[1]}</span>
-            )}
-            {m.referee && (
-              <span className="text-[8px] text-[#00C853] font-black uppercase tracking-wider mt-0.5">👤 Árbitro: {m.referee}</span>
-            )}
-            {getDisplayNotes(m.notes) && (
-              <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📝 {getDisplayNotes(m.notes)}</span>
-            )}
-          </div>
+            <div className="border-t border-slate-200/40 pt-3 w-full flex flex-col items-center justify-center gap-0.5">
+              <span className="text-[10px] font-black text-slate-800 tracking-tight">{m.location ? m.location.split(' @ ')[0] : 'Por definir'}</span>
+              <span className="text-[9px] font-bold text-slate-500 lowercase first-letter:uppercase">
+                {formatMatchDate(m.matchDate)}
+              </span>
+              {m.location && m.location.includes(' @ ') && m.location.split(' @ ')[1] && (
+                <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📍 {m.location.split(' @ ')[1]}</span>
+              )}
+              {m.referee && (
+                <span className="text-[8px] text-[#00C853] font-black uppercase tracking-wider mt-0.5">👤 Árbitro: {m.referee}</span>
+              )}
+              {getDisplayNotes(m.notes) && (
+                <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">📝 {getDisplayNotes(m.notes)}</span>
+              )}
+            </div>
+          </>
         )}
 
         {isE && <div className="absolute inset-0 border-2 border-blue-500 rounded-[2.5rem] pointer-events-none animate-pulse"></div>}
@@ -1635,9 +1619,9 @@ export default function TournamentPage() {
   if (!tournament) return <div className="p-8 text-center text-slate-400 font-bold italic">No se encontró el torneo.</div>
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex relative overflow-hidden font-sans">
+    <div className="min-h-screen h-screen bg-[#F8FAFC] flex relative overflow-hidden font-sans">
       {/* Sidebar */}
-      <div className="w-64 bg-[#0A1128] text-slate-400 flex flex-col h-full z-10 border-r border-white/5">
+      <div className="w-72 min-h-screen text-slate-100 flex flex-col z-10 border-r border-white/10 shadow-[0_20px_80px_rgba(0,0,0,0.08)]" style={{ backgroundColor: themeColor }}>
         <div className="p-8">
           <div className="flex items-center gap-3 mb-12">
             <div
@@ -1647,7 +1631,7 @@ export default function TournamentPage() {
                 setLogoEditUrl(tournament?.logo || '')
                 setShowLogoEditModal(true)
               }}
-              className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 overflow-hidden cursor-pointer hover:scale-105 hover:bg-blue-700 transition-all relative group shrink-0"
+              className="w-10 h-10 bg-white/15 rounded-2xl flex items-center justify-center shadow-lg shadow-black/20 overflow-hidden cursor-pointer hover:scale-105 transition-all relative group shrink-0"
               title="Cambiar logotipo del torneo"
             >
               {tournament?.logo ? (
@@ -1684,35 +1668,42 @@ export default function TournamentPage() {
                 }
                 setActiveMenu('inicio')
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'inicio' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'inicio' ? 'bg-white/15 text-white shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
             >
               <span className="text-lg">🏠</span> Inicio
             </button>
 
             {(!tournament || tournament.format !== 'categorias' || activeCategory !== null) && (
               <>
-                <button onClick={() => setActiveMenu('clasificacion')} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'clasificacion' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}>
+                <button
+                  onClick={() => setActiveMenu('clasificacion')}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeMenu === 'clasificacion' ? 'bg-white/15 text-white shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}
+                >
                   <span className="text-lg">📊</span> Clasificación
                 </button>
-                <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
+                <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-white/70 bg-white/10 hover:bg-white/15 transition-all opacity-70 cursor-not-allowed">
                   <span className="text-lg">📈</span> Rankings y encuestas
                 </button>
               </>
             )}
 
-            <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all opacity-40 cursor-not-allowed">
+            <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-white/70 bg-white/10 hover:bg-white/15 transition-all opacity-70 cursor-not-allowed">
               <span className="text-lg">📸</span> Fotos, vídeos y noticias
             </button>
             <button
               onClick={() => setActiveMenu('configuracion')}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/5 hover:text-white transition-all mt-8 ${activeMenu === 'configuracion' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/10 hover:text-white transition-all mt-8 ${activeMenu === 'configuracion' ? 'bg-white/15 text-white shadow-sm' : 'text-white/80'}`}
             >
               <span className="text-lg">⚙️</span> Configuración
             </button>
           </nav>
 
           <div className="mt-12">
-            <button onClick={() => router.push('/dashboard')} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-blue-400 bg-blue-900/30 hover:bg-blue-600 hover:text-white transition-all border border-blue-900/50">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-white transition-all border border-white/20"
+              style={{ backgroundColor: themeColor }}
+            >
               <span>⬅</span> Mis Torneos
             </button>
           </div>
@@ -1735,16 +1726,16 @@ export default function TournamentPage() {
         {tournament?.format === 'categorias' && !activeCategory && activeMenu !== 'configuracion' ? (
           <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
             {/* Banner Portada con Logo Oficial */}
-            <div className="relative h-72 rounded-[2.5rem] overflow-hidden bg-slate-900 shadow-2xl">
+            <div className="relative h-72 rounded-[2.5rem] overflow-hidden shadow-2xl" style={{ backgroundColor: themeColor }}>
               <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={
                   (tournament?.banner && tournament.banner !== 'null' && tournament.banner !== 'undefined' && tournament.banner !== '[object Object]')
-                    ? { backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
-                    : { backgroundImage: `url('${getSportBanner(tournament?.sportType || '', true)}')`, opacity: 0.5 }
+                    ? { backgroundColor: themeColor, backgroundImage: `url('${tournament.banner}')`, opacity: 0.5 }
+                    : { backgroundColor: themeColor, backgroundImage: `url('${getSportBanner(tournament?.sportType || '', true)}')`, opacity: 0.5 }
                 }
               ></div>
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-slate-900/20"></div>
+              <div className="absolute inset-0" style={{ backgroundImage: getThemeGradient(themeColor) }}></div>
 
               {/* Organizador Badge */}
               <div className="absolute top-5 left-6 z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/5 shadow-xl">
@@ -2355,12 +2346,12 @@ export default function TournamentPage() {
                 {/* Centered Tab Button - Floating */}
                 <div className="absolute left-1/2 -translate-x-1/2 top-0 z-50">
                   <div className="relative group">
-                    <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
+                    <button style={{ backgroundColor: themeColor }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
                       <span className="text-lg font-light leading-none mb-1">+</span>
                     </button>
 
                     {/* Dropdown Menu */}
-                    <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
+                    <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: themeColor }}>
                       <div className="py-2">
                         <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                           <span className="text-lg">📋</span> Equipos
@@ -2392,16 +2383,17 @@ export default function TournamentPage() {
                   <p className="text-slate-500 font-bold mb-6 italic">Aún no hay equipos</p>
                   <button
                     onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)}
-                    className="bg-[#0A1128] text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:scale-105 transition-all shadow-xl shadow-slate-200"
+                    style={{ backgroundColor: themeColor }}
+                    className="text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:brightness-110 hover:scale-105 transition-all shadow-xl shadow-slate-200"
                   >
                     AGREGAR EQUIPOS
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col xl:flex-row gap-8 w-full h-full">
+              <div className="flex flex-col xl:flex-row gap-8 w-full">
                 {/* Classification OR Bracket */}
-                <div className="flex-1 max-w-[1000px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 p-8 border border-slate-200/60 overflow-y-auto relative">
+                <div className="flex-1 max-w-[1000px] bg-white rounded-[2rem] shadow-sm p-8 border border-slate-200/60 overflow-y-auto relative">
                   <div className="animate-in fade-in duration-500">
                     <div className="flex justify-between items-center mb-12 relative">
                       <div className="flex items-center gap-4">
@@ -2422,12 +2414,12 @@ export default function TournamentPage() {
                       {/* Centered Tab Button */}
                       <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50">
                         <div className="relative group">
-                          <button className="bg-[#1e1b4b] text-white w-16 h-7 rounded-b-2xl flex items-center justify-center hover:bg-[#312e81] transition-colors shadow-md border-t-0">
+                          <button style={{ backgroundColor: themeColor }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
                             <span className="text-lg font-light leading-none mb-1">+</span>
                           </button>
 
                           {/* Dropdown Menu */}
-                          <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 bg-[#0A1128] rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden">
+                          <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: themeColor }}>
                             <div className="py-2">
                               <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                 <span className="text-lg">📋</span> Equipos
@@ -2467,7 +2459,7 @@ export default function TournamentPage() {
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">{isBasketball ? '🏀 Anotadores' : '🥅 Goleadores'}</h3>
                             <div className="overflow-hidden rounded-2xl border border-slate-50">
                               <table className="w-full text-xs">
-                                <thead className="bg-slate-900 text-white">
+                                <thead className="text-white" style={{ backgroundColor: themeColor }}>
                                   <tr className="uppercase tracking-widest font-black">
                                     <th className="p-4 text-center w-12">Pos</th>
                                     <th className="p-4 text-left">Jugador</th>
@@ -2496,7 +2488,7 @@ export default function TournamentPage() {
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🟨 Sanciones</h3>
                             <div className="overflow-hidden rounded-2xl border border-slate-50">
                               <table className="w-full text-xs">
-                                <thead className="bg-slate-900 text-white">
+                                <thead className="text-white" style={{ backgroundColor: themeColor }}>
                                   <tr className="uppercase tracking-widest font-black">
                                     <th className="p-4 text-center w-12">Pos</th>
                                     <th className="p-4 text-left">Jugador</th>
@@ -2562,7 +2554,10 @@ export default function TournamentPage() {
                                   <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
                                       <thead>
-                                        <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                                        <tr
+                                          style={{ backgroundColor: themeColor }}
+                                          className="text-white font-black text-[10px] uppercase tracking-wider"
+                                        >
                                           <th className="p-4 text-center w-16">Pos</th>
                                           <th className="p-4 text-left min-w-[150px]">EQUIPOS</th>
                                           {tableColumns.filter(c => c.visible).map(col => (
@@ -2574,7 +2569,9 @@ export default function TournamentPage() {
                                         {rows.map((row: any, index: number) => (
                                           <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
                                             <td className="p-4 text-center">
-                                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${index < 4 ? 'text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
+                                                style={index < 4 ? { backgroundColor: themeColor } : undefined}
+                                              >
                                                 {index + 1}
                                               </div>
                                             </td>
@@ -2659,8 +2656,8 @@ export default function TournamentPage() {
                 </div>
 
                 {/* Calendar */}
-                <div className="w-full xl:w-[450px] bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 flex flex-col flex-shrink-0 overflow-hidden xl:mt-[112px]">
-                  <div className="bg-[#0F172A] p-6 flex justify-between items-center relative z-10">
+                <div className="w-full xl:w-[480px] bg-white rounded-[2rem] border border-slate-200 shadow-sm flex flex-col flex-shrink-0 overflow-hidden">
+                  <div className="px-6 py-4 flex items-center justify-between shadow-xs" style={{ backgroundColor: themeColor }}>
                     <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
                     <div className="flex border border-white rounded-full overflow-hidden">
                       <select
@@ -2702,13 +2699,13 @@ export default function TournamentPage() {
                   </div>
 
                   {/* CENTRAL ACTION BUTTON (+) */}
-                  <div className="relative flex justify-center -mt-px z-20" ref={roundActionsRef}>
-                    <div className="bg-[#0F172A] px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:bg-slate-800 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)}>
+                  <div className="relative flex justify-center -mt-3 z-20" ref={roundActionsRef}>
+                    <div className="px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:brightness-110 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)} style={{ backgroundColor: themeColor }}>
                       <span className="text-white font-black text-lg group-hover:scale-110 transition-transform">+</span>
                     </div>
 
                     {showRoundActions && (
-                      <div className="absolute top-10 w-64 bg-[#0A1128] rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="absolute top-10 w-64 rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: themeColor }}>
                         <div className="p-2 space-y-1">
                           <MenuOption icon="➕" label="Agregar fecha" onClick={handleAddNextRound} />
                           <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
@@ -2744,7 +2741,8 @@ export default function TournamentPage() {
                             if (currentPhaseObj?.type === 'ELIMINATORIA') setShowPlayoffDraw(true);
                             else setShowGenType(true);
                           }}
-                          className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-lg active:scale-95"
+                          className="w-full py-4 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-lg active:scale-95"
+                          style={{ backgroundColor: themeColor }}
                         >
                           Generar Partidos
                         </button>
@@ -2769,28 +2767,32 @@ export default function TournamentPage() {
                       </div>
                       <button
                         onClick={() => setShowAddMatchModal(true)}
-                        className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg active:scale-95"
+                        className="w-full py-4 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-lg active:scale-95"
+                        style={{ backgroundColor: themeColor }}
                       >
                         AGREGAR PARTIDO
                       </button>
                     </div>
                   ) : (
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
-                      {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).map(m => renderMatchCard(m))}
+                    <div className="flex-1 overflow-y-auto">
+                      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                        
+                        <div className="p-6 pt-10 space-y-4">
+                          {matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound).map(m => renderMatchCard(m))}
 
-                      <div className="pt-4">
-                        <button
-                          onClick={() => setShowAddMatchModal(true)}
-                          className="w-full py-4 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg active:scale-95"
-                        >
-                          AGREGAR PARTIDO
-                        </button>
-                      </div>
+                          <div className="pt-4">
+                            <button
+                              onClick={() => setShowAddMatchModal(true)}
+                              className="w-full py-4 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-lg active:scale-95"
+                              style={{ backgroundColor: themeColor }}
+                            >
+                              AGREGAR PARTIDO
+                            </button>
+                          </div>
 
-                      <div className="mt-10 pt-10 border-t border-slate-100">
-                        <h3 className="bg-[#0F172A] text-white p-4 rounded-t-[1.5rem] text-center font-black text-xs uppercase tracking-widest">Estadísticas de la fecha</h3>
-                        <div className="bg-slate-50 rounded-b-[1.5rem] p-6">
-                          <RoundStatistics matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)} />
+                          <div className="mt-10 pt-10 border-t border-slate-100">
+                            <RoundStatistics matches={matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase && String(m.roundName) === selectedRound)} themeColor={themeColor} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2827,8 +2829,8 @@ export default function TournamentPage() {
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
                   <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                    <thead style={{ backgroundColor: themeColor }}>
+                      <tr className="text-white font-black text-[10px] uppercase tracking-wider">
                         <th className="p-4 text-center">Pos</th>
                         <th className="p-4 text-left">Jugador</th>
                         <th className="p-4 text-left">Equipo</th>
@@ -2859,8 +2861,8 @@ export default function TournamentPage() {
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
                   <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider">
+                    <thead style={{ backgroundColor: themeColor }}>
+                      <tr className="text-white font-black text-[10px] uppercase tracking-wider">
                         <th className="p-4 text-center">Pos</th>
                         <th className="p-4 text-left">Jugador</th>
                         <th className="p-4 text-left">Equipo</th>
@@ -5584,7 +5586,7 @@ function getSportIcon(sportType: string): string {
   return icons[sportType] || '🏆'
 }
 
-function RoundStatistics({ matches }: { matches: any[] }) {
+function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: string }) {
   const stats = {
     matches: matches.length,
     goals: 0,
@@ -5626,20 +5628,32 @@ function RoundStatistics({ matches }: { matches: any[] }) {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white p-4 rounded-2xl text-center shadow-sm border border-slate-100">
-          <div className="text-[10px] font-black text-slate-300 uppercase mb-1">Juegos</div>
-          <div className="text-2xl font-black text-slate-800">{stats.matches}</div>
+      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div className="px-6 py-4 shadow-xs" style={{ backgroundColor: themeColor }}>
+          <span className="text-white font-black text-sm uppercase tracking-wider">Estadísticas de la fecha</span>
         </div>
-        <div className="bg-white p-4 rounded-2xl text-center shadow-sm border border-slate-100">
-          <div className="text-[10px] font-black text-slate-300 uppercase mb-1">Goles</div>
-          <div className="text-2xl font-black text-slate-800">{stats.goals}</div>
+
+        <div className="p-6">
+          <div className="flex items-center justify-around border-b border-slate-100 pb-5 mb-5">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-[#FF6B00] text-sm bg-slate-50 shadow-xs">
+                {stats.matches}
+              </div>
+              <span className="mt-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">Juegos</span>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-[#FF6B00] text-sm bg-slate-50 shadow-xs">
+                {stats.goals}
+              </div>
+              <span className="mt-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">Goles</span>
+            </div>
+          </div>
         </div>
-      </div>
 
       <section>
         <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-          <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest">Goleadores</div>
+          <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor }}>Goleadores</div>
           <div className="divide-y divide-slate-50">
             {topScorers.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topScorers.map((s, i) => (
               <div key={i} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -5660,7 +5674,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
       <div className="flex flex-col gap-6">
         <section>
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest">Tarjeta Amarilla</div>
+            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor }}>Tarjeta Amarilla</div>
             <div className="divide-y divide-slate-50">
               {topYellows.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topYellows.map(s => (
                 <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -5680,7 +5694,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
 
         <section>
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="bg-slate-900 text-white p-3 text-center text-[10px] font-black uppercase tracking-widest text-red-500">Tarjeta Roja</div>
+            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest text-red-500" style={{ backgroundColor: themeColor }}>Tarjeta Roja</div>
             <div className="divide-y divide-slate-50">
               {topReds.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topReds.map(s => (
                 <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -5699,6 +5713,7 @@ function RoundStatistics({ matches }: { matches: any[] }) {
         </section>
       </div>
     </div>
+  </div>
   )
 }
 
@@ -5926,11 +5941,11 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
 
     const visibleCols = tableColumns.filter((c: any) => c.visible)
 
-    const TableHeader = ({ className }: { className?: string }) => (
-      <thead className={className || "bg-slate-900 text-white"}>
+    const TableHeader = ({ className, bgColor }: { className?: string; bgColor?: string }) => (
+      <thead className={className} style={{ backgroundColor: bgColor || themeColor }}>
         <tr className="uppercase tracking-widest font-black text-[10px]">
-          <th className="p-3 text-center w-10">Pos</th>
-          <th className="p-3 text-left min-w-[150px]">Equipo</th>
+          <th className="p-3 text-center w-10 text-white">Pos</th>
+          <th className="p-3 text-left min-w-[150px] text-white">Equipo</th>
           {visibleCols.map((col: any) => {
             let sigla = col.id.toUpperCase()
             if (isBasketball) {
@@ -5940,7 +5955,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
               if (col.id === 'avg') sigla = 'PA'
             }
             return (
-              <th key={col.id} className="p-3 text-center w-12">{sigla}</th>
+              <th key={col.id} className="p-3 text-center w-12 text-white">{sigla}</th>
             )
           })}
         </tr>
@@ -5951,12 +5966,12 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
       return (
         <div ref={tableRef} className="bg-white p-10 rounded-xl w-full">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-black text-[#0A1128] uppercase">{tournament.name}</h2>
+            <h2 className="text-3xl font-black uppercase" style={{ color: themeColor }}>{tournament.name}</h2>
             <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-xs mt-2">Tabla de Posiciones</p>
           </div>
           {Object.entries(groupedStandings).map(([group, teams]: [any, any]) => (
             <div key={group} className="mb-8 last:mb-0">
-              {group !== 'General' && <h3 className="bg-[#0A1128] text-white py-2 px-4 inline-block rounded-t-lg font-black text-xs uppercase mb-0">Grupo {group}</h3>}
+              {group !== 'General' && <h3 className="text-white py-2 px-4 inline-block rounded-t-lg font-black text-xs uppercase mb-0" style={{ backgroundColor: themeColor }}>Grupo {group}</h3>}
               <div className="border border-slate-100 overflow-hidden rounded-xl rounded-tl-none shadow-sm">
                 <table className="w-full text-xs">
                   <TableHeader />
