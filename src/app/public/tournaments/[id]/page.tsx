@@ -6,6 +6,7 @@ import Link from 'next/link'
 
 interface Match {
   id: string
+  createdAt: string
   homeTeam: { id: string; name: string; logo: string | null; color: string | null } | null
   awayTeam: { id: string; name: string; logo: string | null; color: string | null } | null
   homeScore: number | null
@@ -214,7 +215,15 @@ export default function PublicTournamentPage() {
         }
 
         if (mRes.ok) {
-          setMatches(await mRes.json())
+          const m = await mRes.json()
+          const sorted = m.sort((a: any, b: any) => {
+            if (a.createdAt && b.createdAt) {
+              const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              if (diff !== 0) return diff
+            }
+            return String(a.id).localeCompare(String(b.id))
+          })
+          setMatches(sorted)
         } else {
           setMatches([])
         }
