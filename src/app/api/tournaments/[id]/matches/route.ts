@@ -151,9 +151,37 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       'IN_PROGRESS': 'EN_VIVO',
       'COMPLETED': 'FINALIZADO'
     }
-    const mappedMatches = matches.map(m => ({
-      ...m,
-      status: statusMap[m.status] || m.status
+    const mappedMatches = await Promise.all(matches.map(async (m) => {
+      // Resolve player names for events where player relation is null (global players via TeamPlayer)
+      const resolvedEvents = await Promise.all(m.events.map(async (e) => {
+        if (!(e as any).player && e.playerId) {
+          try {
+            const tp = await prisma.teamPlayer.findUnique({
+              where: { id: e.playerId },
+              include: { player: { include: { user: { select: { name: true } } } } }
+            })
+            if (tp) {
+              (e as any).player = { id: tp.id, name: tp.player.user.name }
+            }
+            // Also try assist
+            if (!(e as any).assist && e.assistId) {
+              const tpAssist = await prisma.teamPlayer.findUnique({
+                where: { id: e.assistId },
+                include: { player: { include: { user: { select: { name: true } } } } }
+              })
+              if (tpAssist) {
+                (e as any).assist = { id: tpAssist.id, name: tpAssist.player.user.name }
+              }
+            }
+          } catch { /* ignore */ }
+        }
+        return e
+      }))
+      return {
+        ...m,
+        events: resolvedEvents,
+        status: statusMap[m.status] || m.status
+      }
     }))
 
     return NextResponse.json(mappedMatches)

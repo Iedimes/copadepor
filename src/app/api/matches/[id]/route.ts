@@ -13,13 +13,44 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         awayTeam: { select: { id: true, name: true } },
         tournament: { select: { id: true, name: true, sportType: true } },
         category: { select: { id: true, name: true, sportType: true } },
-        events: true,
+        events: {
+          include: {
+            player: { select: { id: true, name: true } },
+            assist: { select: { id: true, name: true } },
+            team: { select: { id: true, name: true } },
+          }
+        },
       },
     })
 
     if (!match) {
       return NextResponse.json({ error: 'Partido no encontrado' }, { status: 404 })
     }
+
+    // Resolve global player names
+    const resolvedEvents = await Promise.all(match.events.map(async (e) => {
+      if (!(e as any).player && e.playerId) {
+        try {
+          const tp = await prisma.teamPlayer.findUnique({
+            where: { id: e.playerId },
+            include: { player: { include: { user: { select: { name: true } } } } }
+          })
+          if (tp) {
+            (e as any).player = { id: tp.id, name: tp.player.user.name }
+          }
+          if (!(e as any).assist && e.assistId) {
+            const tpAssist = await prisma.teamPlayer.findUnique({
+              where: { id: e.assistId },
+              include: { player: { include: { user: { select: { name: true } } } } }
+            })
+            if (tpAssist) {
+              (e as any).assist = { id: tpAssist.id, name: tpAssist.player.user.name }
+            }
+          }
+        } catch { /* ignore */ }
+      }
+      return e
+    }))
 
     // Map database status to frontend strings
     const statusMap: Record<string, string> = {
@@ -29,6 +60,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
     const responseData = {
       ...match,
+      events: resolvedEvents,
       status: statusMap[match.status] || match.status
     }
 
