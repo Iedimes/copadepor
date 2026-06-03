@@ -76,16 +76,25 @@ export default function DashboardPage() {
           fetch('/api/teams', { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/matches', { headers: { Authorization: `Bearer ${token}` } }),
         ])
-        
-        const tournamentsData = await tournamentsRes.json()
-        const teamsData = await teamsRes.json()
-        const matchesData = await matchesRes.json()
-        
-        setTournaments(tournamentsData)
+
+        if (!tournamentsRes.ok) {
+          if (tournamentsRes.status === 401) {
+            router.push('/login')
+            return
+          }
+          const errorData = await tournamentsRes.text()
+          console.error('Tournaments API error:', tournamentsRes.status, errorData)
+        }
+
+        const tournamentsData = await tournamentsRes.json().catch(() => [])
+        const teamsData = await teamsRes.json().catch(() => [])
+        const matchesData = await matchesRes.json().catch(() => [])
+
+        setTournaments(Array.isArray(tournamentsData) ? tournamentsData : [])
         setStats({
-          tournaments: tournamentsData.length,
-          teams: teamsData.length,
-          matches: matchesData.length,
+          tournaments: Array.isArray(tournamentsData) ? tournamentsData.length : 0,
+          teams: Array.isArray(teamsData) ? teamsData.length : 0,
+          matches: Array.isArray(matchesData) ? matchesData.length : 0,
           players: 0,
         })
       } catch (error) {
@@ -93,7 +102,7 @@ export default function DashboardPage() {
       }
     }
     fetchData()
-  }, [])
+  }, [router])
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function TournamentsLayout({ children }: { children: React.ReactNode }) {
+export default function TournamentsPage() {
   const router = useRouter()
 
   useEffect(() => {
@@ -14,8 +14,8 @@ export default function TournamentsLayout({ children }: { children: React.ReactN
   }, [router])
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {children}
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="text-slate-500 text-sm uppercase tracking-widest">Cargando torneos...</div>
     </div>
   )
 }

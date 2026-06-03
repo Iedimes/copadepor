@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status')
   const sportType = searchParams.get('sportType')
 
-  const where: Record<string, unknown> = { organizerId: payload.userId }
+  const where: Record<string, unknown> = payload.role === 'ADMIN' ? {} : { organizerId: payload.userId }
   if (status) where.status = status
   if (sportType) where.sportType = sportType
 

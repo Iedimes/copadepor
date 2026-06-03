@@ -334,7 +334,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
 
       const teamIds = allTournamentTeams.map(t => t.teamId)
-      const matches: { homeTeamId: string; awayTeamId: string; roundName: string }[] = []
+      const matches: { homeTeamId: string; awayTeamId: string; roundName: string; notes?: string | null }[] = []
 
       if (genFormat === 'INTERGROUP') {
         // Group x Group Logic

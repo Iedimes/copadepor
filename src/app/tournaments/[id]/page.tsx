@@ -22,6 +22,10 @@ interface Tournament {
   themeColor?: string | null
   startDate?: string | Date | null
   endDate?: string | Date | null
+  contact?: string | null
+  location?: string | null
+  rules?: string | null
+  prizes?: string | null
 }
 
 interface Message {
@@ -41,6 +45,9 @@ interface Match {
   awayScore: number | null
   status: string
   phaseName: string
+  category?: { sportType?: string | null } | null
+  tournament?: { sportType?: string | null } | null
+  roundOrder?: number | null
   advantageTeamId?: string | null
   events?: any[]
   homePlaceholder?: string | null
@@ -54,30 +61,46 @@ interface Match {
 interface TournamentTeam {
   id: string
   team: { id: string; name: string; logo?: string | null; color?: string | null }
+  groupName?: string | null
+  order?: number | null
 }
 
 type MenuType = 'inicio' | 'clasificacion' | 'estadisticas' | 'configuracion'
+
+const parseNotesJson = (notes: string | null) => {
+  if (!notes) return null
+  const trimmed = notes.trim()
+  if (!trimmed.startsWith('{')) return null
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return null
+  }
+}
 
 const LiveMatchTimer = ({ notes }: { notes: string }) => {
   const [str, setStr] = useState('')
   useEffect(() => {
     let interval: NodeJS.Timeout
     const update = () => {
-      try {
-        const p = JSON.parse(notes)
-        if (p?.timer) {
-          let m = p.timer.m; let s = p.timer.s;
-          if (p.timer.run) {
-            const diff = Math.floor((Date.now() - p.timer.ts) / 1000)
-            const t = m * 60 + s + diff
-            m = Math.floor(t / 60); s = t % 60;
-          }
-          setStr(`${p.timer.p}° ${m}:${s.toString().padStart(2, '0')}`)
-        } else setStr('')
-      } catch { setStr('') }
+      const parsed = parseNotesJson(notes)
+      if (parsed?.timer) {
+        let m = parsed.timer.m
+        let s = parsed.timer.s
+        if (parsed.timer.run) {
+          const diff = Math.floor((Date.now() - parsed.timer.ts) / 1000)
+          const t = m * 60 + s + diff
+          m = Math.floor(t / 60)
+          s = t % 60
+        }
+        setStr(`${parsed.timer.p}° ${m}:${s.toString().padStart(2, '0')}`)
+      } else {
+        setStr('')
+      }
     }
     update()
-    if (notes && notes.includes('"run":true')) {
+    const parsed = parseNotesJson(notes)
+    if (parsed?.timer?.run) {
       interval = setInterval(update, 1000)
     }
     return () => { if (interval) clearInterval(interval) }
@@ -188,13 +211,9 @@ const getThemeGradient = (hex: string) => {
 
 const getDisplayNotes = (notesStr: string | null) => {
   if (!notesStr || notesStr === 'FECHA_LIBRE') return ''
-  if (notesStr.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(notesStr)
-      return parsed.customNotes || ''
-    } catch (e) {
-      return ''
-    }
+  const parsed = parseNotesJson(notesStr)
+  if (parsed) {
+    return parsed.customNotes || ''
   }
   return notesStr
 }
@@ -297,7 +316,7 @@ export default function TournamentPage() {
   const [showPhasesList, setShowPhasesList] = useState(false)
   const [showPhaseType, setShowPhaseType] = useState(false)
   const [showEditPhase, setShowEditPhase] = useState(false)
-  const [editPhaseData, setEditPhaseData] = useState<{ id?: string, name: string, type: string, order: number, isClassification: boolean, continueFromId: string | null, teams?: any[] }>({ name: '', type: 'LIGA', order: 0, isClassification: true, continueFromId: null })
+  const [editPhaseData, setEditPhaseData] = useState<{ id?: string, name: string, type: string, order: number, isClassification: boolean, continueFromId: string | null, categoryId?: string | null, teams?: any[] }>({ name: '', type: 'LIGA', order: 0, isClassification: true, continueFromId: null, categoryId: null })
   const [showPhaseTeams, setShowPhaseTeams] = useState(false)
   const [showPhaseContinue, setShowPhaseContinue] = useState(false)
 
@@ -543,10 +562,10 @@ export default function TournamentPage() {
 
   const renderMatchCard = (m: any) => {
     const isE = editingMatchData?.id === m.id;
-    const hS = isE ? editingMatchData.homeScore : m.homeScore;
-    const aS = isE ? editingMatchData.awayScore : m.awayScore;
-    const st = isE ? editingMatchData.status : m.status;
-    const matchNotes = isE ? ((editingMatchData as any).notes !== undefined ? (editingMatchData as any).notes : m.notes) : m.notes;
+    const hS = isE ? editingMatchData?.homeScore : m.homeScore;
+    const aS = isE ? editingMatchData?.awayScore : m.awayScore;
+    const st = isE ? editingMatchData?.status : m.status;
+    const matchNotes = isE ? ((editingMatchData as any)?.notes !== undefined ? (editingMatchData as any).notes : m.notes) : m.notes;
 
     const isBye = m.notes === 'FECHA_LIBRE';
     const hasTeams = (m.homeTeam && m.awayTeam) || isBye;
@@ -736,7 +755,7 @@ export default function TournamentPage() {
           return String(a.id).localeCompare(String(b.id))
         })
         setMatches(sortedMatches)
-        const phaseRoundsWithOrder = Array.from(new Set(sortedMatches.filter((x: any) => (x.phaseName || firstPhaseName) === selectedPhase).map((x: any) => String(x.roundName)))).map(r => {
+        const phaseRoundsWithOrder: { name: string; order: number }[] = Array.from(new Set<string>(sortedMatches.filter((x: any) => (x.phaseName || firstPhaseName) === selectedPhase).map((x: any) => String(x.roundName)))).map((r: string) => {
           const firstMatch = sortedMatches.find((x: any) => (x.phaseName || firstPhaseName) === selectedPhase && String(x.roundName) === r)
           return { name: r, order: firstMatch?.roundOrder || 0 }
         }).sort((a, b) => {
@@ -1458,7 +1477,7 @@ export default function TournamentPage() {
         const grouped: Record<string, any[]> = {}
         groupPhases.forEach(gp => {
           const letter = gp.name.replace('Grupo ', '')
-          grouped[letter] = getStandings(true, gp.name)
+          grouped[letter] = getStandings(true, gp.name) as any[]
         })
         return grouped
       }
@@ -1483,7 +1502,7 @@ export default function TournamentPage() {
     const sortedGroups = [...groupPhases].sort((a, b) => a.name.localeCompare(b.name))
 
     sortedGroups.forEach(gp => {
-      const stats = getStandings(true, gp.name)
+      const stats = getStandings(true, gp.name) as any[]
       const topTeams = stats.slice(0, 2)
       topTeams.forEach((t: any) => {
         qualifiedTeamIds.push(t.id)
@@ -1601,9 +1620,9 @@ export default function TournamentPage() {
           <div className="font-black text-slate-900 text-lg">{match.status === 'NO_REALIZADO' ? '-' : match.awayScore}</div>
         </div>
         {match.status === 'EN_VIVO' && (
-          <div className="mt-4 flex items-center justify-center">
+          <div className="mt-4 flex items-center justify-center gap-3">
             <span className="bg-yellow-400 text-slate-900 px-3 py-1 rounded-full text-[8px] font-black uppercase animate-pulse">En Vivo</span>
-            {match.notes && match.notes.startsWith('{') && <LiveMatchTimer notes={match.notes} />}
+            {parseNotesJson(match.notes) && <LiveMatchTimer notes={match.notes} />}
           </div>
         )}
       </div>
@@ -1726,7 +1745,7 @@ export default function TournamentPage() {
         {tournament?.format === 'categorias' && !activeCategory && activeMenu !== 'configuracion' ? (
           <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
             {/* Banner Portada con Logo Oficial */}
-            <div className="relative h-72 rounded-[2.5rem] overflow-hidden shadow-2xl" style={{ backgroundColor: themeColor }}>
+            <div className="relative h-72 rounded-[2.5rem] overflow-hidden shadow-2xl" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
               <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={
@@ -2346,12 +2365,12 @@ export default function TournamentPage() {
                 {/* Centered Tab Button - Floating */}
                 <div className="absolute left-1/2 -translate-x-1/2 top-0 z-50">
                   <div className="relative group">
-                    <button style={{ backgroundColor: themeColor }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
+                    <button style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
                       <span className="text-lg font-light leading-none mb-1">+</span>
                     </button>
 
                     {/* Dropdown Menu */}
-                    <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: themeColor }}>
+                    <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                       <div className="py-2">
                         <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                           <span className="text-lg">📋</span> Equipos
@@ -2383,7 +2402,7 @@ export default function TournamentPage() {
                   <p className="text-slate-500 font-bold mb-6 italic">Aún no hay equipos</p>
                   <button
                     onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)}
-                    style={{ backgroundColor: themeColor }}
+                    style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
                     className="text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:brightness-110 hover:scale-105 transition-all shadow-xl shadow-slate-200"
                   >
                     AGREGAR EQUIPOS
@@ -2414,12 +2433,12 @@ export default function TournamentPage() {
                       {/* Centered Tab Button */}
                       <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50">
                         <div className="relative group">
-                          <button style={{ backgroundColor: themeColor }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
+                          <button style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
                             <span className="text-lg font-light leading-none mb-1">+</span>
                           </button>
 
                           {/* Dropdown Menu */}
-                          <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: themeColor }}>
+                          <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                             <div className="py-2">
                               <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                 <span className="text-lg">📋</span> Equipos
@@ -2459,7 +2478,7 @@ export default function TournamentPage() {
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">{isBasketball ? '🏀 Anotadores' : '🥅 Goleadores'}</h3>
                             <div className="overflow-hidden rounded-2xl border border-slate-50">
                               <table className="w-full text-xs">
-                                <thead className="text-white" style={{ backgroundColor: themeColor }}>
+                                <thead className="text-white" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                                   <tr className="uppercase tracking-widest font-black">
                                     <th className="p-4 text-center w-12">Pos</th>
                                     <th className="p-4 text-left">Jugador</th>
@@ -2488,7 +2507,7 @@ export default function TournamentPage() {
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🟨 Sanciones</h3>
                             <div className="overflow-hidden rounded-2xl border border-slate-50">
                               <table className="w-full text-xs">
-                                <thead className="text-white" style={{ backgroundColor: themeColor }}>
+                                <thead className="text-white" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                                   <tr className="uppercase tracking-widest font-black">
                                     <th className="p-4 text-center w-12">Pos</th>
                                     <th className="p-4 text-left">Jugador</th>
@@ -2555,7 +2574,7 @@ export default function TournamentPage() {
                                     <table className="w-full text-sm">
                                       <thead>
                                         <tr
-                                          style={{ backgroundColor: themeColor }}
+                                          style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
                                           className="text-white font-black text-[10px] uppercase tracking-wider"
                                         >
                                           <th className="p-4 text-center w-16">Pos</th>
@@ -2652,7 +2671,7 @@ export default function TournamentPage() {
 
                 {/* Calendar */}
                 <div className="w-full xl:w-[480px] bg-white rounded-[2rem] border border-slate-200 shadow-sm flex flex-col flex-shrink-0 overflow-hidden">
-                  <div className="px-6 py-4 flex items-center justify-between shadow-xs" style={{ backgroundColor: themeColor }}>
+                  <div className="px-6 py-4 flex items-center justify-between shadow-xs" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                     <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
                     <div className="flex border border-white rounded-full overflow-hidden">
                       <select
@@ -2695,12 +2714,12 @@ export default function TournamentPage() {
 
                   {/* CENTRAL ACTION BUTTON (+) */}
                   <div className="relative flex justify-center -mt-3 z-20" ref={roundActionsRef}>
-                    <div className="px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:brightness-110 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)} style={{ backgroundColor: themeColor }}>
+                    <div className="px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:brightness-110 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)} style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                       <span className="text-white font-black text-lg group-hover:scale-110 transition-transform">+</span>
                     </div>
 
                     {showRoundActions && (
-                      <div className="absolute top-10 w-64 rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: themeColor }}>
+                      <div className="absolute top-10 w-64 rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                         <div className="p-2 space-y-1">
                           <MenuOption icon="➕" label="Agregar fecha" onClick={handleAddNextRound} />
                           <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
@@ -2737,7 +2756,7 @@ export default function TournamentPage() {
                             else setShowGenType(true);
                           }}
                           className="w-full py-4 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-lg active:scale-95"
-                          style={{ backgroundColor: themeColor }}
+                          style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
                         >
                           Generar Partidos
                         </button>
@@ -2763,7 +2782,7 @@ export default function TournamentPage() {
                       <button
                         onClick={() => setShowAddMatchModal(true)}
                         className="w-full py-4 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-lg active:scale-95"
-                        style={{ backgroundColor: themeColor }}
+                        style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
                       >
                         AGREGAR PARTIDO
                       </button>
@@ -2779,7 +2798,7 @@ export default function TournamentPage() {
                             <button
                               onClick={() => setShowAddMatchModal(true)}
                               className="w-full py-4 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-lg active:scale-95"
-                              style={{ backgroundColor: themeColor }}
+                              style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
                             >
                               AGREGAR PARTIDO
                             </button>
@@ -2824,7 +2843,7 @@ export default function TournamentPage() {
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
                   <table className="w-full text-sm">
-                    <thead style={{ backgroundColor: themeColor }}>
+                    <thead style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                       <tr className="text-white font-black text-[10px] uppercase tracking-wider">
                         <th className="p-4 text-center">Pos</th>
                         <th className="p-4 text-left">Jugador</th>
@@ -2856,7 +2875,7 @@ export default function TournamentPage() {
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
                   <table className="w-full text-sm">
-                    <thead style={{ backgroundColor: themeColor }}>
+                    <thead style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
                       <tr className="text-white font-black text-[10px] uppercase tracking-wider">
                         <th className="p-4 text-center">Pos</th>
                         <th className="p-4 text-left">Jugador</th>
@@ -4588,23 +4607,21 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
         setWoWinnerId(data.advantageTeamId || data.homeTeam?.id || '')
         setManualHomeScore(data.homeScore || 0)
         setManualAwayScore(data.awayScore || 0)
-      } else if (data.notes && data.notes.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(data.notes)
-          if (parsed.timer) {
-            setTimerPeriod(parsed.timer.p)
-            setTimerRunning(parsed.timer.run)
-            if (parsed.timer.run) {
-              const diffSecs = Math.floor((Date.now() - parsed.timer.ts) / 1000)
-              const totalSecs = (parsed.timer.m * 60) + parsed.timer.s + diffSecs
-              setTimerMinutes(Math.floor(totalSecs / 60))
-              setTimerSeconds(totalSecs % 60)
-            } else {
-              setTimerMinutes(parsed.timer.m)
-              setTimerSeconds(parsed.timer.s)
-            }
+      } else {
+        const parsed = parseNotesJson(data.notes)
+        if (parsed?.timer) {
+          setTimerPeriod(parsed.timer.p)
+          setTimerRunning(parsed.timer.run)
+          if (parsed.timer.run) {
+            const diffSecs = Math.floor((Date.now() - parsed.timer.ts) / 1000)
+            const totalSecs = (parsed.timer.m * 60) + parsed.timer.s + diffSecs
+            setTimerMinutes(Math.floor(totalSecs / 60))
+            setTimerSeconds(totalSecs % 60)
+          } else {
+            setTimerMinutes(parsed.timer.m)
+            setTimerSeconds(parsed.timer.s)
           }
-        } catch (e) { }
+        }
       }
       setHomePenalties(data.homePenaltyScore ?? '')
       setAwayPenalties(data.awayPenaltyScore ?? '')
@@ -5624,7 +5641,7 @@ function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: 
   return (
     <div className="space-y-8">
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        <div className="px-6 py-4 shadow-xs" style={{ backgroundColor: themeColor }}>
+        <div className="px-6 py-4 shadow-xs" style={{ backgroundColor: themeColor || '#FF6B00' }}>
           <span className="text-white font-black text-sm uppercase tracking-wider">Estadísticas de la fecha</span>
         </div>
 
@@ -5648,7 +5665,7 @@ function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: 
 
       <section>
         <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-          <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor }}>Goleadores</div>
+          <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor || '#FF6B00' }}>Goleadores</div>
           <div className="divide-y divide-slate-50">
             {topScorers.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topScorers.map((s, i) => (
               <div key={i} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -5669,7 +5686,7 @@ function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: 
       <div className="flex flex-col gap-6">
         <section>
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor }}>Tarjeta Amarilla</div>
+            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor || '#FF6B00' }}>Tarjeta Amarilla</div>
             <div className="divide-y divide-slate-50">
               {topYellows.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topYellows.map(s => (
                 <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -5689,7 +5706,7 @@ function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: 
 
         <section>
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest text-red-500" style={{ backgroundColor: themeColor }}>Tarjeta Roja</div>
+            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest text-red-500" style={{ backgroundColor: themeColor || '#FF6B00' }}>Tarjeta Roja</div>
             <div className="divide-y divide-slate-50">
               {topReds.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topReds.map(s => (
                 <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -5721,8 +5738,8 @@ function ReorderRoundsModal({ phaseName, matches, tournamentId, onClose, onSucce
   useEffect(() => {
     const firstPhaseName = '1° Fase'
     const phaseMatches = matches.filter((m: any) => (m.phaseName || firstPhaseName) === phaseName)
-    const sortedRounds = Array.from(new Set(phaseMatches.map((m: any) => String(m.roundName))))
-      .map(r => {
+    const sortedRounds = Array.from(new Set<string>(phaseMatches.map((m: any) => String(m.roundName))))
+      .map((r: string) => {
         const rMatches = phaseMatches.filter((m: any) => String(m.roundName) === r)
         return { name: r, order: rMatches[0]?.roundOrder || 0 }
       })
@@ -5937,7 +5954,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
     const visibleCols = tableColumns.filter((c: any) => c.visible)
 
     const TableHeader = ({ className, bgColor }: { className?: string; bgColor?: string }) => (
-      <thead className={className} style={{ backgroundColor: bgColor || themeColor }}>
+      <thead className={className} style={{ backgroundColor: bgColor || (tournament?.themeColor || '#FF6B00') }}>
         <tr className="uppercase tracking-widest font-black text-[10px]">
           <th className="p-3 text-center w-10 text-white">Pos</th>
           <th className="p-3 text-left min-w-[150px] text-white">Equipo</th>
@@ -5961,12 +5978,12 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
       return (
         <div ref={tableRef} className="bg-white p-10 rounded-xl w-full">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-black uppercase" style={{ color: themeColor }}>{tournament.name}</h2>
+            <h2 className="text-3xl font-black uppercase" style={{ color: tournament?.themeColor || "#FF6B00" }}>{tournament.name}</h2>
             <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-xs mt-2">Tabla de Posiciones</p>
           </div>
           {Object.entries(groupedStandings).map(([group, teams]: [any, any]) => (
             <div key={group} className="mb-8 last:mb-0">
-              {group !== 'General' && <h3 className="text-white py-2 px-4 inline-block rounded-t-lg font-black text-xs uppercase mb-0" style={{ backgroundColor: themeColor }}>Grupo {group}</h3>}
+              {group !== 'General' && <h3 className="text-white py-2 px-4 inline-block rounded-t-lg font-black text-xs uppercase mb-0" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>Grupo {group}</h3>}
               <div className="border border-slate-100 overflow-hidden rounded-xl rounded-tl-none shadow-sm">
                 <table className="w-full text-xs">
                   <TableHeader />
@@ -6088,7 +6105,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
                       </div>
 
                       <div className="flex items-center gap-8 pr-4">
-                        {visibleCols.filter(c => ['points', 'played', 'diff'].includes(c.id)).map(col => (
+                        {visibleCols.filter((c: any) => ['points', 'played', 'diff'].includes(c.id)).map((col: any) => (
                           <div key={col.id} className="text-center">
                             <div className="text-[10px] font-black text-pink-400 uppercase tracking-widest">{col.label.split(' ')[0]}</div>
                             <div className="text-2xl font-black text-white">{s[col.id] || 0}</div>

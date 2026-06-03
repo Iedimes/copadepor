@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+export const dynamic = 'force-dynamic'
+
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function NewTournamentPage() {
+function NewTournamentForm() {
   const searchParams = useSearchParams()
   const tournamentType = searchParams.get('type') || 'single'
   const selectedSport = searchParams.get('sport') || 'FUTBOL_11'
@@ -309,5 +311,13 @@ export default function NewTournamentPage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function NewTournamentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando...</div>}>
+      <NewTournamentForm />
+    </Suspense>
   )
 }
