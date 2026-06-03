@@ -68,6 +68,49 @@ const getDisplayNotes = (notesStr: string | null) => {
   return notesStr
 }
 
+const parseNotesJson = (notes: string | null) => {
+  if (!notes) return null
+  const trimmed = notes.trim()
+  if (!trimmed.startsWith('{')) return null
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return null
+  }
+}
+
+const LiveMatchTimer = ({ notes }: { notes: string | null }) => {
+  const [str, setStr] = useState('')
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    const update = () => {
+      const parsed = parseNotesJson(notes)
+      if (parsed?.timer) {
+        let m = parsed.timer.m
+        let s = parsed.timer.s
+        if (parsed.timer.run) {
+          const diff = Math.floor((Date.now() - parsed.timer.ts) / 1000)
+          const t = m * 60 + s + diff
+          m = Math.floor(t / 60)
+          s = t % 60
+        }
+        setStr(`${parsed.timer.p}° ${m}:${s.toString().padStart(2, '0')}`)
+      } else {
+        setStr('')
+      }
+    }
+    update()
+    const parsed = parseNotesJson(notes)
+    if (parsed?.timer?.run) {
+      interval = setInterval(update, 1000)
+    }
+    return () => { if (interval) clearInterval(interval) }
+  }, [notes])
+
+  if (!str) return null
+  return <span className="text-[10px] font-black text-slate-700 font-mono tracking-widest">{str}</span>
+}
+
 export default function PublicTournamentPage() {
   const params = useParams()
   const router = useRouter()
@@ -1377,11 +1420,18 @@ export default function PublicTournamentPage() {
                                               {m.awayScore !== null ? m.awayScore : '-'}
                                             </span>
                                           </div>
-                                          <span className={`mt-2 px-2.5 py-0.5 rounded text-[8px] font-black border uppercase tracking-wider ${
-                                            isCompleted ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'
-                                          }`}>
-                                            {isCompleted ? 'Finalizado' : 'Programado'}
-                                          </span>
+                                          {m.status === 'EN_VIVO' ? (
+                                            <div className="flex items-center gap-2 mt-2">
+                                              <span className="bg-yellow-400 text-slate-900 px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase animate-pulse">En Vivo</span>
+                                              {parseNotesJson(m.notes) && <LiveMatchTimer notes={m.notes} />}
+                                            </div>
+                                          ) : (
+                                            <span className={`mt-2 px-2.5 py-0.5 rounded text-[8px] font-black border uppercase tracking-wider ${
+                                              isCompleted ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'
+                                            }`}>
+                                              {isCompleted ? 'Finalizado' : 'Programado'}
+                                            </span>
+                                          )}
                                         </div>
 
                                         {/* Away Team Column */}
