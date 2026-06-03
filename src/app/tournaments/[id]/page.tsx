@@ -2276,11 +2276,11 @@ export default function TournamentPage() {
                 <div className="flex flex-wrap gap-6">
                   {tournamentTeams.map((tt: any) => (
                     <div key={tt.id} className="flex flex-col items-center gap-2 group">
-                      <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
+                      <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
                         {tt.team.logo ? (
                           <img src={tt.team.logo} alt={tt.team.name} className="w-full h-full object-contain p-1" />
                         ) : (
-                          <span className="text-white font-black text-lg">{tt.team.name.charAt(0)}</span>
+                          <span className="text-white font-black text-2xl">{tt.team.name.charAt(0)}</span>
                         )}
                       </div>
                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-center max-w-[80px] truncate">{tt.team.name}</span>
@@ -2576,12 +2576,7 @@ export default function TournamentPage() {
                                               </div>
                                             </td>
                                             <td className="p-4">
-                                              <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-lg shadow-sm border border-slate-100" style={!row.logo ? { backgroundColor: row.color || '#eff6ff' } : undefined}>
-                                                  {row.logo ? <img src={row.logo} alt={row.name} className="w-full h-full object-contain" /> : <span className="text-white font-black text-sm">{row.name?.charAt(0).toUpperCase()}</span>}
-                                                </div>
-                                                <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
-                                              </div>
+                                              <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
                                             </td>
                                             {tableColumns.filter(c => c.visible).map(col => {
                                               let val = row[col.id] || 0

@@ -347,6 +347,46 @@ export default function PublicTournamentPage() {
     return sortedStandings
   }
 
+  const getColLabel = (colId: string, isBasketball: boolean) => {
+    if (isBasketball) {
+      if (colId === 'gf') return 'Anotaciones Favor'
+      if (colId === 'ga') return 'Anotaciones Contra'
+      if (colId === 'diff') return 'Diferencia Anotaciones'
+      if (colId === 'avg') return 'Promedio Anotaciones'
+    }
+    if (colId === 'gf') return 'Goles a Favor'
+    if (colId === 'ga') return 'Goles Contra'
+    if (colId === 'diff') return 'Diferencia de Goles'
+    if (colId === 'avg') return 'Promedio de goles'
+
+    const defaults: Record<string, string> = {
+      points: 'Puntos', played: 'Juegos', won: 'Ganados', drawn: 'Empates', lost: 'Perdido',
+      perc: 'Aprovechamiento', pe: 'Puntos Extras', red: 'Tarjeta roja', yellow: 'Tarjeta amarilla',
+      blue: 'Tarjeta azul', allCards: 'Todas las tarjetas', fairPlay: 'Juego Limpio', technique: 'Index technique'
+    }
+    return defaults[colId] || colId
+  }
+
+  const tableColumns = [
+    { id: 'points', label: 'Puntos', visible: true },
+    { id: 'played', label: 'Juegos', visible: true },
+    { id: 'won', label: 'Ganados', visible: true },
+    { id: 'drawn', label: 'Empates', visible: true },
+    { id: 'lost', label: 'Perdido', visible: true },
+    { id: 'gf', label: 'Goles a Favor', visible: true },
+    { id: 'ga', label: 'Goles Contra', visible: true },
+    { id: 'diff', label: 'Diferencia de Goles', visible: true },
+    { id: 'avg', label: 'Promedio de goles', visible: false },
+    { id: 'perc', label: 'Aprovechamiento', visible: true },
+    { id: 'pe', label: 'Puntos Extras', visible: false },
+    { id: 'red', label: 'Tarjeta roja', visible: false },
+    { id: 'yellow', label: 'Tarjeta amarilla', visible: false },
+    { id: 'blue', label: 'Tarjeta azul', visible: false },
+    { id: 'allCards', label: 'Todas las tarjetas', visible: false },
+    { id: 'fairPlay', label: 'Juego Limpio', visible: false },
+    { id: 'technique', label: 'Index technique', visible: false },
+  ]
+
   // Real-time statistical rankings
   const getTeamRankings = () => {
     const stats: Record<string, any> = {}
@@ -830,11 +870,11 @@ export default function PublicTournamentPage() {
                     <div className="flex flex-wrap gap-6">
                       {tournamentTeams.map((tt: any) => (
                         <div key={tt.id} className="flex flex-col items-center gap-2 group">
-                          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
+                          <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm transition-all" style={!tt.team.logo ? { backgroundColor: tt.team.color || '#1e293b' } : undefined}>
                             {tt.team.logo ? (
                               <img src={tt.team.logo} alt={tt.team.name} className="w-full h-full object-contain p-1" />
                             ) : (
-                              <span className="text-white font-black text-lg">{tt.team.name.charAt(0)}</span>
+                              <span className="text-white font-black text-2xl">{tt.team.name.charAt(0)}</span>
                             )}
                           </div>
                           <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-center max-w-[80px] truncate">{tt.team.name}</span>
@@ -1049,64 +1089,55 @@ export default function PublicTournamentPage() {
                                     {groupName && (
                                       <h3 style={{ color: themeColor }} className="text-center text-[10px] font-black uppercase tracking-[0.3em] mb-4">GRUPO {groupName}</h3>
                                     )}
-                                    <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
-                                      <table className="w-full text-xs text-left border-collapse">
+                                    <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm bg-white">
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-sm">
                                         <thead>
-                                          <tr 
-                                            style={{ backgroundColor: themeColor, borderBottom: '1px solid rgba(0,0,0,0.1)' }}
+                                          <tr
+                                            style={{ backgroundColor: themeColor }}
                                             className="text-white text-[10px] font-black uppercase tracking-wider"
                                           >
-                                            <th className="p-3 text-center w-12">Pos</th>
-                                            <th className="p-3 pl-2">EQUIPOS</th>
-                                            <th className="p-3 text-center w-14">Pts</th>
-                                            <th className="p-3 text-center w-10">J</th>
-                                            <th className="p-3 text-center w-10">G</th>
-                                            <th className="p-3 text-center w-10">E</th>
-                                            <th className="p-3 text-center w-10">P</th>
-                                            <th className="p-3 text-center w-12">GF</th>
-                                            <th className="p-3 text-center w-12">GC</th>
-                                            <th className="p-3 text-center w-12">DIF</th>
+                                            <th className="p-4 text-center w-16">Pos</th>
+                                            <th className="p-4 text-left min-w-[150px]">EQUIPOS</th>
+                                            {tableColumns.filter(c => c.visible).map(col => (
+                                              <th key={col.id} className="p-4 text-center">
+                                                {col.id === 'perc' ? '%' : getColLabel(col.id, isBasketball).split(' ').map(w => w[0]).join('').toUpperCase()}
+                                              </th>
+                                            ))}
                                           </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                                        <tbody>
                                           {list.map((row: any, idx: number) => (
-                                            <tr 
-                                              key={row.id} 
+                                            <tr
+                                              key={row.id}
                                               onClick={() => handleViewTeamRoster(row)}
-                                              className="hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                                              className="border-b border-slate-50 hover:bg-slate-50/50 transition-all cursor-pointer"
                                             >
-                                              {/* Position square styled matching the screenshot */}
-                                              <td className="p-3 text-center">
-                                                <span style={{ backgroundColor: themeColor }} className="w-6 h-6 flex items-center justify-center rounded text-white font-black text-[10px] mx-auto shadow-sm">
+                                              <td className="p-4 text-center">
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto font-black text-xs ${idx < 4 ? 'text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}
+                                                  style={idx < 4 ? { backgroundColor: themeColor } : undefined}
+                                                >
                                                   {idx + 1}
-                                                </span>
-                                              </td>
-                                              <td className="p-3 pl-2">
-                                                <div className="flex items-center gap-3">
-                                                  {row.logo ? (
-                                                    <img src={row.logo} className="w-7 h-7 rounded-lg object-cover bg-white border shadow-xs shrink-0" />
-                                                  ) : (
-                                                    <div className="w-7 h-7 rounded-lg bg-slate-100 border flex items-center justify-center text-xs shrink-0">🛡️</div>
-                                                  )}
-                                                  <span className="font-black text-slate-800 text-xs truncate max-w-[180px]">{row.name}</span>
                                                 </div>
                                               </td>
-                                              {/* PTS column styled with light blue background */}
-                                              <td className="p-3 text-center font-black text-slate-900 text-xs bg-[#EBF3FC] border-x border-slate-100/50">{row.points}</td>
-                                              <td className="p-3 text-center text-slate-500">{row.played}</td>
-                                              <td className="p-3 text-center text-slate-500">{row.won}</td>
-                                              <td className="p-3 text-center text-slate-500">{row.drawn}</td>
-                                              <td className="p-3 text-center text-slate-500">{row.lost}</td>
-                                              <td className="p-3 text-center text-slate-500">{row.gf}</td>
-                                              <td className="p-3 text-center text-slate-500">{row.ga}</td>
-                                              <td className={`p-3 text-center font-black ${row.diff > 0 ? 'text-emerald-500' : row.diff < 0 ? 'text-red-400' : 'text-slate-400'}`}>
-                                                {row.diff > 0 ? `+${row.diff}` : row.diff}
+                                              <td className="p-4">
+                                                <span className="font-black text-slate-800 tracking-tight">{row.name}</span>
                                               </td>
+                                              {tableColumns.filter(c => c.visible).map(col => {
+                                                let val = row[col.id] || 0
+                                                if (col.id === 'avg') val = (row.gf / (row.played || 1)).toFixed(2)
+                                                return (
+                                                  <td key={col.id} className={`p-4 text-center font-bold ${col.id === 'points' ? 'text-blue-600 bg-blue-50/30' : 'text-slate-400'}`}>
+                                                    {val}
+                                                  </td>
+                                                )
+                                              })}
                                             </tr>
                                           ))}
                                         </tbody>
                                       </table>
                                     </div>
+                                  </div>
                                   </div>
                                 )
 
