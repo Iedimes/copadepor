@@ -4776,7 +4776,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
             </div>
 
             <div className="flex w-full gap-3">
-              <button onClick={() => setTimerRunning(false)} className="flex-1 py-3 text-red-500 font-black text-sm hover:bg-red-50 rounded-xl transition-all">Parar</button>
+              <button onClick={() => { setTimerRunning(false); setShowTimerModal(false); }} className="flex-1 py-3 text-red-500 font-black text-sm hover:bg-red-50 rounded-xl transition-all">Parar</button>
               <button onClick={() => { setTimerRunning(true); setShowTimerModal(false); setSt('EN_VIVO'); }} className="flex-1 py-3 text-blue-500 font-black text-sm hover:bg-blue-50 rounded-xl transition-all">Iniciar</button>
             </div>
           </div>
