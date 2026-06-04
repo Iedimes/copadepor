@@ -340,6 +340,61 @@ export default function TournamentPage() {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [showPlayoffDraw, setShowPlayoffDraw] = useState(false)
   const [showTableConfig, setShowTableConfig] = useState(false)
+
+  // Team roster state
+  const [rosterTeam, setRosterTeam] = useState<any | null>(null)
+  const [rosterMembers, setRosterMembers] = useState<any[]>([])
+  const [rosterLoading, setRosterLoading] = useState(false)
+
+  const handleTeamClick = async (teamId: string, teamName: string) => {
+    setRosterLoading(true)
+    setRosterTeam({ id: teamId, name: teamName })
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/teams/${teamId}/members`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.ok) {
+        const members = await res.json()
+        setRosterMembers(members)
+
+        const phaseMatches = matches.filter(m =>
+          (m.phaseName || firstPhaseName) === selectedPhase &&
+          (m.homeTeam?.id === teamId || m.awayTeam?.id === teamId)
+        )
+        const statsMap: Record<string, { name: string; number: number | null; G: number; J: number; TA: number; TR: number; Fal: number; ASS: number; matchIds: Set<string> }> = {}
+
+        members.forEach((m: any) => {
+          statsMap[m.id] = { name: m.name, number: m.number || null, G: 0, J: 0, TA: 0, TR: 0, Fal: 0, ASS: 0, matchIds: new Set() }
+        })
+
+        phaseMatches.forEach(m => {
+          (m.events || []).forEach((e: any) => {
+            if (e.teamId !== teamId) return
+            if (e.playerId && statsMap[e.playerId]) {
+              const s = statsMap[e.playerId]
+              if (e.type === 'GOAL') s.G++
+              if (e.type === 'YELLOW_CARD') s.TA++
+              if (e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD') s.TR++
+              if (e.type === 'FOUL') s.Fal++
+              s.matchIds.add(m.id)
+            }
+            if (e.assistId && statsMap[e.assistId] && e.type === 'GOAL') {
+              statsMap[e.assistId].ASS++
+            }
+          })
+        })
+
+        Object.values(statsMap).forEach((s: any) => { s.J = s.matchIds.size; delete s.matchIds })
+
+        const withStats = members.map((m: any) => ({ ...m, ...(statsMap[m.id] || { G: 0, J: 0, TA: 0, TR: 0, Fal: 0, ASS: 0 }) }))
+        setRosterMembers(withStats)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setRosterLoading(false)
+    }
+  }
+
   const [tableColumns, setTableColumns] = useState([
     { id: 'points', label: 'Puntos', visible: true },
     { id: 'played', label: 'Juegos', visible: true },
@@ -2602,7 +2657,7 @@ export default function TournamentPage() {
                                               </div>
                                             </td>
                                             <td className="p-4">
-                                              <span className="font-black text-slate-700 tracking-tight">{row.name}</span>
+                                              <button onClick={() => handleTeamClick(row.id, row.name)} className="font-black text-slate-700 tracking-tight hover:text-blue-600 transition-colors text-left">{row.name}</button>
                                             </td>
                                             {tableColumns.filter(c => c.visible).map(col => {
                                               let val = row[col.id] || 0
@@ -2938,6 +2993,76 @@ export default function TournamentPage() {
             matchId={selectedMatchId}
             onClose={() => { setShowEditInfo(false); setSelectedMatchId(null); fetchData(); }}
           />
+        </div>
+      )}
+
+      {/* Team Roster Modal */}
+      {rosterTeam && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[120] p-4 animate-in fade-in duration-300" onClick={() => setRosterTeam(null)}>
+          <div className="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-8 pb-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">{rosterTeam.name}</h2>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">PLANTEL · {rosterMembers.length} JUGADORES</p>
+              </div>
+              <button onClick={() => setRosterTeam(null)} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-all text-slate-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            {/* Table */}
+            <div className="overflow-y-auto max-h-[calc(80vh-120px)]">
+              {rosterLoading ? (
+                <div className="p-12 text-center text-slate-400 font-black text-xs tracking-widest">CARGANDO...</div>
+              ) : (
+                <table className="w-full">
+                  <thead className="sticky top-0 bg-white z-10">
+                    <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                      <th className="p-4 text-left">#</th>
+                      <th className="p-4 text-left">Jugador</th>
+                      <th className="p-4 text-center">J</th>
+                      <th className="p-4 text-center">G</th>
+                      <th className="p-4 text-center">TA</th>
+                      <th className="p-4 text-center">TR</th>
+                      <th className="p-4 text-center">Fal</th>
+                      <th className="p-4 text-center">ASS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rosterMembers
+                      .sort((a: any, b: any) => {
+                        if ((b.G || 0) !== (a.G || 0)) return (b.G || 0) - (a.G || 0)
+                        if ((b.ASS || 0) !== (a.ASS || 0)) return (b.ASS || 0) - (a.ASS || 0)
+                        return (a.name || '').localeCompare(b.name || '')
+                      })
+                      .map((m: any) => (
+                      <tr key={m.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all">
+                        <td className="p-4 text-center">
+                          {m.number ? (
+                            <span className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center mx-auto font-black text-[10px] text-slate-500">{m.number}</span>
+                          ) : (
+                            <span className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center mx-auto text-[10px] text-slate-200">—</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <span className="font-bold text-sm text-slate-700">{m.name}</span>
+                        </td>
+                        <td className="p-4 text-center font-bold text-slate-600">{m.J || 0}</td>
+                        <td className="p-4 text-center font-black text-emerald-600">{m.G || 0}</td>
+                        <td className="p-4 text-center font-bold text-amber-500">{m.TA || 0}</td>
+                        <td className="p-4 text-center font-bold text-red-500">{m.TR || 0}</td>
+                        <td className="p-4 text-center font-bold text-slate-500">{m.Fal || 0}</td>
+                        <td className="p-4 text-center font-bold text-blue-500">{m.ASS || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {!rosterLoading && rosterMembers.length === 0 && (
+                <div className="p-12 text-center text-slate-400 font-black text-xs tracking-widest">SIN JUGADORES REGISTRADOS</div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
