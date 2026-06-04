@@ -8,6 +8,7 @@ interface Team {
   name: string
   logo: string | null
   color: string | null
+  parentTeamId?: string | null
   teamMembers?: any[]
   players?: any[]
 }
@@ -43,6 +44,7 @@ export default function AddTeamsPage() {
   const [uploading, setUploading] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [syncingTeamId, setSyncingTeamId] = useState<string | null>(null)
 
   const tournamentId = params.id as string
 
@@ -206,6 +208,36 @@ export default function AddTeamsPage() {
       console.error('Error removing team:', error)
       alert('Error al eliminar equipo')
     }
+  }
+
+  const handleSyncRoster = async (teamId: string) => {
+    if (!confirm('¿Sincronizar plantel con el equipo original? Se actualizarán los jugadores existentes y se agregarán los nuevos.')) return
+
+    setSyncingTeamId(teamId)
+    const token = localStorage.getItem('token')
+
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/teams`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'syncroster', teamId }),
+      })
+
+      if (res.ok) {
+        alert('Plantel sincronizado correctamente')
+        fetchAddedTeams()
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Error al sincronizar plantel')
+      }
+    } catch (error) {
+      console.error('Error syncing roster:', error)
+      alert('Error al sincronizar plantel')
+    }
+    setSyncingTeamId(null)
   }
 
   const handleGoBack = () => {
@@ -463,6 +495,16 @@ export default function AddTeamsPage() {
                     >
                       <span className="text-lg">👥</span>
                     </button>
+                    {tt.team.parentTeamId && (
+                      <button
+                        onClick={() => handleSyncRoster(tt.team.id)}
+                        disabled={syncingTeamId === tt.team.id}
+                        className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:bg-green-500 hover:text-white transition-all shadow-sm disabled:opacity-50"
+                        title="Sincronizar Plantel"
+                      >
+                        <span className="text-lg">{syncingTeamId === tt.team.id ? '⏳' : '🔄'}</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => handleRemoveTeam(tt.team.id, tt.team.name)}
                       className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"

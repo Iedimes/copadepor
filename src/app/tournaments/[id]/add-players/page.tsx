@@ -11,6 +11,8 @@ interface TeamMember {
   number: number | null
   phone: string | null
   isActive: boolean
+  isGlobal?: boolean
+  dni?: string | null
 }
 
 interface ModalData {
@@ -26,6 +28,8 @@ export default function AddPlayersPage() {
   const [name, setName] = useState('')
   const [number, setNumber] = useState('')
   const [role, setRole] = useState<'PLAYER' | 'COACH' | 'ASSISTANT' | 'TECHNICAL'>('PLAYER')
+  const [dni, setDni] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -88,7 +92,9 @@ export default function AddPlayersPage() {
           name,
           number: number ? parseInt(number) : null,
           role,
-          teamId: teamId,
+          teamId,
+          dni: dni.trim() || undefined,
+          dateOfBirth: dateOfBirth || undefined,
         }),
       })
 
@@ -96,6 +102,8 @@ export default function AddPlayersPage() {
         setName('')
         setNumber('')
         setRole('PLAYER')
+        setDni('')
+        setDateOfBirth('')
         fetchMembers()
       }
     } catch (error) {
@@ -238,13 +246,41 @@ export default function AddPlayersPage() {
                       <option value="TECHNICAL">Técnico</option>
                     </select>
                   </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-2 px-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documento</label>
+                      {dni.trim() ? (
+                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-green-100 text-green-700 uppercase tracking-wider">Oficial</span>
+                      ) : (
+                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase tracking-wider">Local</span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={dni}
+                      onChange={(e) => setDni(e.target.value)}
+                      placeholder="Ej: 1234567"
+                      className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all shadow-sm"
+                    />
+                    {dni.trim() && (
+                      <div className="mt-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Fecha de Nacimiento</label>
+                        <input
+                          type="date"
+                          value={dateOfBirth}
+                          onChange={(e) => setDateOfBirth(e.target.value)}
+                          className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all shadow-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <button
                   type="submit"
                   disabled={adding || !name.trim()}
                   className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all uppercase tracking-widest active:scale-[0.98] disabled:opacity-50"
                 >
-                  {adding ? 'Registrando...' : 'Añadir a Plantilla'}
+                  {adding ? 'Registrando...' : dni.trim() ? 'Registrar Oficial' : 'Añadir a Plantilla'}
                 </button>
               </form>
             </div>
@@ -277,7 +313,17 @@ export default function AddPlayersPage() {
                         </div>
                         <div>
                           <span className="block font-black text-slate-800 uppercase tracking-tight">{member.name}</span>
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{member.role}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {member.isGlobal ? (
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-green-100 text-green-700 uppercase tracking-wider">Oficial</span>
+                            ) : (
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase tracking-wider">Local</span>
+                            )}
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{member.role}</span>
+                            {member.dni && (
+                              <span className="text-[8px] text-slate-400 font-bold">Doc: {member.dni}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <button
@@ -305,6 +351,14 @@ export default function AddPlayersPage() {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Nombre</label>
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold text-slate-700 outline-none border border-slate-100" />
               </div>
+              {modal.member.isGlobal && modal.member.dni && (
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Documento</label>
+                  <div className="w-full px-6 py-4 bg-slate-100 rounded-2xl font-bold text-slate-500 outline-none border border-slate-100">
+                    {modal.member.dni}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Número</label>

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const categoryId = searchParams.get('categoryId')
 
     let query = `
-      SELECT tt.*, t.name as teamName, t.id as teamIdReal, t.logo as teamLogo, t.color as teamColor
+      SELECT tt.*, t.name as teamName, t.id as teamIdReal, t.logo as teamLogo, t.color as teamColor, t.parentTeamId as teamParentTeamId
       FROM TournamentTeam tt
       JOIN Team t ON tt.teamId = t.id
       WHERE tt.tournamentId = ?
@@ -47,6 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         name: tt.teamName,
         logo: tt.teamLogo || null,
         color: tt.teamColor || null,
+        parentTeamId: tt.teamParentTeamId || null,
       }
     }))
 
@@ -183,7 +184,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   try {
-    const { action, teamOrders } = await request.json()
+    const body = await request.json()
+    const { action, teamOrders } = body
 
     if (action === 'reorder') {
       // Validar que el usuario sea el organizador
@@ -203,6 +205,88 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           )
         )
       )
+
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === 'syncroster') {
+      const { teamId } = body
+
+      const cloneTeam = await prisma.team.findUnique({
+        where: { id: teamId },
+        include: { teamMembers: true, players: true },
+      })
+
+      if (!cloneTeam || !cloneTeam.parentTeamId) {
+        return NextResponse.json({ error: 'El equipo no es un clon o no existe' }, { status: 400 })
+      }
+
+      const originalTeam = await prisma.team.findUnique({
+        where: { id: cloneTeam.parentTeamId },
+        include: { teamMembers: true, players: true },
+      })
+
+      if (!originalTeam) {
+        return NextResponse.json({ error: 'El equipo original no existe' }, { status: 404 })
+      }
+
+      // Sincronizar TeamMember (local): actualizar existentes, agregar nuevos
+      for (const originalMember of originalTeam.teamMembers) {
+        const existing = cloneTeam.teamMembers.find(
+          (m) => m.name.toLowerCase() === originalMember.name.toLowerCase()
+        )
+
+        if (existing) {
+          await prisma.teamMember.update({
+            where: { id: existing.id },
+            data: {
+              name: originalMember.name,
+              role: originalMember.role,
+              number: originalMember.number,
+              isActive: originalMember.isActive,
+            },
+          })
+        } else {
+          await prisma.teamMember.create({
+            data: {
+              teamId: cloneTeam.id,
+              name: originalMember.name,
+              role: originalMember.role,
+              number: originalMember.number,
+              phone: originalMember.phone,
+              isActive: originalMember.isActive,
+            },
+          })
+        }
+      }
+
+      // Sincronizar TeamPlayer (global): actualizar existentes por playerId, agregar nuevos
+      for (const originalPlayer of originalTeam.players) {
+        const existing = cloneTeam.players.find(
+          (p) => p.playerId === originalPlayer.playerId
+        )
+
+        if (existing) {
+          await prisma.teamPlayer.update({
+            where: { id: existing.id },
+            data: {
+              number: originalPlayer.number,
+              isCaptain: originalPlayer.isCaptain,
+              isActive: originalPlayer.isActive,
+            },
+          })
+        } else {
+          await prisma.teamPlayer.create({
+            data: {
+              teamId: cloneTeam.id,
+              playerId: originalPlayer.playerId,
+              number: originalPlayer.number,
+              isCaptain: originalPlayer.isCaptain,
+              isActive: originalPlayer.isActive,
+            },
+          })
+        }
+      }
 
       return NextResponse.json({ success: true })
     }
