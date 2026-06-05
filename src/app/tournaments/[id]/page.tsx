@@ -5674,11 +5674,18 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
     ...(!isBasketball ? [{ id: 'alineacion', label: 'Cancha', i: '⚽' }] : []),
   ]
 
-  const POSITION_SLOTS: Record<string, {x:number,y:number}[]> = {
-    GK: [{ x: 50, y: 85 }],
-    DEF: [{ x: 12, y: 65 }, { x: 36, y: 58 }, { x: 64, y: 58 }, { x: 88, y: 65 }],
-    MID: [{ x: 18, y: 38 }, { x: 40, y: 34 }, { x: 60, y: 34 }, { x: 82, y: 38 }],
-    FW: [{ x: 30, y: 16 }, { x: 70, y: 16 }],
+  const POSITION_SLOTS: Record<string, {label:string, x:number,y:number}[]> = {
+    ARQ: [{ label: 'ARQ', x: 50, y: 88 }],
+    LD: [{ label: 'LD', x: 12, y: 66 }],
+    DFC: [{ label: 'DFC', x: 30, y: 60 }, { label: 'DFC', x: 50, y: 58 }, { label: 'DFC', x: 70, y: 60 }],
+    LI: [{ label: 'LI', x: 88, y: 66 }],
+    MD: [{ label: 'MD', x: 18, y: 38 }],
+    MC: [{ label: 'MC', x: 38, y: 34 }, { label: 'MC', x: 62, y: 34 }],
+    MI: [{ label: 'MI', x: 82, y: 38 }],
+    ED: [{ label: 'ED', x: 15, y: 22 }],
+    EI: [{ label: 'EI', x: 85, y: 22 }],
+    SD: [{ label: 'SD', x: 50, y: 24 }],
+    DC: [{ label: 'DC', x: 35, y: 14 }, { label: 'DC', x: 65, y: 14 }],
   }
 
   const prevSubsLen = useRef(subs.length)
@@ -5814,10 +5821,17 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
                       {checked && (
                         <select value={curPos} onChange={e => setPlayerPosition(pl.id, e.target.value)} className="text-[9px] font-bold bg-white border border-slate-300 rounded-lg px-1.5 py-1 outline-none shrink-0 cursor-pointer">
                           <option value="">Puesto</option>
-                          <option value="GK">ARQ</option>
-                          <option value="DEF">DEF</option>
-                          <option value="MID">MED</option>
-                          <option value="FW">DEL</option>
+                          <option value="ARQ">ARQ</option>
+                          <option value="LD">LD</option>
+                          <option value="DFC">DFC</option>
+                          <option value="LI">LI</option>
+                          <option value="MD">MD</option>
+                          <option value="MC">MC</option>
+                          <option value="MI">MI</option>
+                          <option value="ED">ED</option>
+                          <option value="EI">EI</option>
+                          <option value="SD">SD</option>
+                          <option value="DC">DC</option>
                         </select>
                       )}
                     </div>
@@ -5835,7 +5849,7 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
         <div className="w-72 shrink-0">
           <div className="bg-slate-900 p-3 rounded-[2rem] shadow-xl overflow-hidden">
             <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center mb-1.5">⚽ Cancha Táctica</div>
-            <PitchV6 lin={lin} setLin={setLin} players={team.players || []} color={color} />
+            <PitchV6 lin={lin} setLin={setLin} players={team.players || []} color={color} posSlots={POSITION_SLOTS} />
           </div>
         </div>
       )}
@@ -5950,20 +5964,34 @@ function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = '
   )
 }
 
-function PitchV6({ lin, setLin, players, color }: any) {
+function PitchV6({ lin, setLin, players, color, posSlots }: any) {
   const add = (e: any) => { if (e.target.closest('.pn')) return; const rect = e.currentTarget.getBoundingClientRect(); setLin([...lin, { id: Date.now().toString(), playerId: '', type: 'LINEUP', x: (e.clientX - rect.left) / rect.width * 100, y: (e.clientY - rect.top) / rect.height * 100 }]) }
   const up = (id: string, pid: string) => setLin(lin.map((p: any) => p.id === id ? { ...p, playerId: pid } : p))
   const rm = (id: string) => setLin(lin.filter((p: any) => p.id !== id))
+  const getPosLabel = (x: number, y: number) => {
+    if (!posSlots) return ''
+    for (const [key, slots] of Object.entries(posSlots)) {
+      const slotsArr = slots as {label:string,x:number,y:number}[]
+      if (slotsArr.some(s => Math.abs(s.x - x) < 8 && Math.abs(s.y - y) < 8)) return key
+    }
+    return ''
+  }
   return (
     <div className="relative aspect-[4/3] bg-green-700 rounded-[1.5rem] overflow-hidden cursor-crosshair border-2 border-white/10 shadow-inner" onClick={add} style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '10% 10%' }}>
       <div className="absolute inset-0 pointer-events-none opacity-20"><div className="absolute top-0 bottom-0 left-1/2 w-px bg-white"></div><div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border border-white rounded-full"></div></div>
-      {lin.map((p: any) => (
+      {lin.map((p: any) => {
+        const pl = players.find((pl: any) => pl.id === p.playerId)
+        const posLabel = getPosLabel(p.x, p.y)
+        return (
         <div key={p.id} className="pn absolute -translate-x-1/2 -translate-y-1/2 group/pn z-10" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
-          <div className={`w-8 h-8 rounded-full bg-white shadow-2xl flex items-center justify-center border-2 ${color === 'blue' ? 'border-blue-600' : 'border-red-600'} transition-all group-hover/pn:scale-125`}><span className={`text-[9px] font-black ${color === 'blue' ? 'text-blue-600' : 'text-red-600'}`}>{players.find((pl: any) => pl.id === p.playerId)?.number || '?'}</span></div>
+          <div className={`w-8 h-8 rounded-full bg-white shadow-2xl flex items-center justify-center border-2 ${color === 'blue' ? 'border-blue-600' : 'border-red-600'} transition-all group-hover/pn:scale-125 relative`}>
+            <span className={`text-[9px] font-black ${color === 'blue' ? 'text-blue-600' : 'text-red-600'}`}>{pl?.number || '?'}</span>
+            {posLabel && <span className={`absolute -bottom-3 text-[7px] font-black ${color === 'blue' ? 'text-blue-300' : 'text-red-300'} uppercase`}>{posLabel}</span>}
+          </div>
           <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 scale-0 group-hover/pn:scale-100 transition origin-top z-20"><select value={p.playerId} onChange={v => up(p.id, v.target.value)} className="bg-slate-800 text-white rounded-lg p-1 text-[7px] font-black uppercase outline-none shadow-2xl"><option value="">...</option>{players.map((pl: any) => <option key={pl.id} value={pl.id}>{pl.name}</option>)}</select></div>
           <button onClick={() => rm(p.id)} className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white rounded-lg text-[8px] scale-0 group-hover/pn:scale-100 flex items-center justify-center shadow-lg transition-all">✕</button>
         </div>
-      ))}
+      )})}
     </div>
   )
 }
