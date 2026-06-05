@@ -78,6 +78,12 @@ const parseNotesJson = (notes: string | null) => {
   }
 }
 
+const getTimerPeriodLabel = (stage: string, period: number) => {
+  if (stage === 'penalties') return 'Penales'
+  if (stage === 'extra') return `${period}°E`
+  return `${period}°T`
+}
+
 const LiveMatchTimer = ({ notes }: { notes: string }) => {
   const [str, setStr] = useState('')
   const [remaining, setRemaining] = useState<string>('')
@@ -94,7 +100,7 @@ const LiveMatchTimer = ({ notes }: { notes: string }) => {
           m = Math.floor(t / 60)
           s = t % 60
         }
-        setStr(`${parsed.timer.p}° ${m}:${s.toString().padStart(2, '0')}`)
+        setStr(`${getTimerPeriodLabel(parsed.timer.stage || 'regular', parsed.timer.p)} ${m}:${s.toString().padStart(2, '0')}`)
         const dur = parsed.timer.duration || 0
         const add = parsed.timer.addition || 0
         const total = dur + add
@@ -647,22 +653,10 @@ export default function TournamentPage() {
     const hasTeams = (m.homeTeam && m.awayTeam) || isBye;
     const isCompleted = st === 'FINALIZADO';
 
-    const handleOpenSummary = async (match: any) => {
-      if (!hasTeams) return;
-      const token = localStorage.getItem('token');
-      try {
-        const res = await fetch(`/api/matches/${match.id}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
-          setMatchSummary(data);
-        }
-      } catch { /* ignore */ }
-    };
-
     return (
       <div
         key={m.id}
-        onClick={() => handleOpenSummary(m)}
+        onClick={() => hasTeams && isCompleted && setMatchSummary(m)}
         className={`relative flex flex-col p-5 group transition-all rounded-[1.5rem] border border-slate-200/50 bg-slate-50/40 hover:bg-slate-50 cursor-pointer ${hasTeams ? 'shadow-xs hover:shadow-sm' : 'cursor-not-allowed opacity-70'} ${isE ? 'bg-white shadow-lg border-blue-100' : ''}`}
       >
         {isBye ? (
@@ -719,7 +713,7 @@ export default function TournamentPage() {
                     {isCompleted ? 'Finalizado' : 'Programado'}
                   </span>
                 )}
-                {(isCompleted || st === 'EN_VIVO') && (
+                {isCompleted && (
                   <span className="mt-1 text-[7px] font-black text-slate-300 uppercase tracking-widest group-hover:text-slate-400 transition-colors">📋 Resumen</span>
                 )}
               </div>
@@ -2994,15 +2988,17 @@ export default function TournamentPage() {
         )}
       </div>
 
-      {/* REFINED CENTERED MODAL - ALIGNED TO LEAVE CALENDAR VISIBLE */}
+      {/* REFINED CENTERED MODAL - LEFT SIDE */}
       {showEditResult && editingMatchId && (
-        <div className="fixed inset-0 bg-slate-900/10 flex items-center justify-center z-[100] p-4 lg:pr-[480px]">
+        <div className="fixed inset-0 bg-slate-900/10 z-[100] p-4">
+          <div className="h-full flex items-start justify-start">
           <EditResultModal
             matchId={editingMatchId}
             isBasketball={isBasketball}
             onUpdate={d => setEditingMatchData({ id: editingMatchId, ...d })}
             onClose={() => { setShowEditResult(false); setEditingMatchId(null); setEditingMatchData(null); fetchData(); }}
           />
+          </div>
         </div>
       )}
 
@@ -3105,32 +3101,11 @@ export default function TournamentPage() {
                 </div>
               </div>
               <div className="flex items-center justify-center gap-2 mt-2">
-                <span className="bg-white/20 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">{matchSummary.status === 'EN_VIVO' ? 'En Vivo' : matchSummary.status === 'NO_REALIZADO' ? 'No Realizado' : 'Finalizado'}</span>
+                <span className="bg-white/20 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Finalizado</span>
                 {matchSummary.location && (
                   <span className="text-white/60 text-[8px] font-black uppercase tracking-wider">{matchSummary.location.split(' @ ')[0]}</span>
                 )}
               </div>
-              {(() => {
-                const parsed = matchSummary.notes ? parseNotesJson(matchSummary.notes) : null
-                const et = parsed?.extraTime
-                const hasET = et && et.home !== undefined && et.away !== undefined
-                const hasPens = matchSummary.homePenaltyScore !== null && matchSummary.homePenaltyScore !== undefined && matchSummary.awayPenaltyScore !== null && matchSummary.awayPenaltyScore !== undefined
-                if (!hasET && !hasPens) return null
-                return (
-                  <div className="flex items-center justify-center gap-3 mt-2">
-                    {hasET && (
-                      <span className="bg-white/15 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
-                        Alargue: {et.home} - {et.away}
-                      </span>
-                    )}
-                    {hasPens && (
-                      <span className="bg-white/15 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
-                        Penales: {matchSummary.homePenaltyScore} - {matchSummary.awayPenaltyScore}
-                      </span>
-                    )}
-                  </div>
-                )
-              })()}
               <button onClick={() => setMatchSummary(null)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-all text-white">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -4853,6 +4828,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
 
   // Timer States
   const [showTimerModal, setShowTimerModal] = useState(false)
+  const [timerStage, setTimerStage] = useState<'regular' | 'extra' | 'penalties'>('regular')
   const [timerPeriod, setTimerPeriod] = useState<number>(1)
   const [timerMinutes, setTimerMinutes] = useState<number>(0)
   const [timerSeconds, setTimerSeconds] = useState<number>(0)
@@ -4886,12 +4862,12 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
         status: st,
         advantageTeamId: isWO ? woWinnerId : advancingTeamId,
         notes: isWO ? 'W.O' : JSON.stringify({
-          timer: (st === 'EN_VIVO' ? { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now(), duration: timerDuration || undefined, addition: timerAddition || undefined } : undefined),
+          timer: (st === 'EN_VIVO' ? { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now(), duration: timerDuration || undefined, addition: timerAddition || undefined, stage: timerStage } : undefined),
           extraTime: (extraTimeHomeScore !== null && extraTimeAwayScore !== null ? { home: extraTimeHomeScore, away: extraTimeAwayScore } : undefined),
         })
       })
     }
-  }, [hG, aG, hO, aO, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId, timerPeriod, timerMinutes, timerSeconds, timerRunning, isBasketball])
+  }, [hG, aG, hO, aO, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId, timerPeriod, timerMinutes, timerSeconds, timerRunning, timerStage, isBasketball])
 
   // Calculate advancing team
   useEffect(() => {
@@ -4942,6 +4918,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
           setTimerRunning(parsed.timer.run)
           setTimerDuration(parsed.timer.duration || 0)
           setTimerAddition(parsed.timer.addition || 0)
+          setTimerStage(parsed.timer.stage || 'regular')
           if (parsed.timer.run) {
             const diffSecs = Math.floor((Date.now() - parsed.timer.ts) / 1000)
             const totalSecs = (parsed.timer.m * 60) + parsed.timer.s + diffSecs
@@ -5080,7 +5057,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   if (loading) return null
 
   return (
-    <div className="bg-white rounded-[3rem] w-full max-w-5xl h-[85vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-500 relative">
+    <div className="bg-white rounded-[3rem] w-full max-w-5xl h-[92vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-500 relative">
 
       {/* Timer Modal */}
       {showTimerModal && (
@@ -5089,14 +5066,30 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Tiempo</h3>
 
             <div className="flex flex-col items-center gap-5 w-full mb-6">
-              <div className="flex gap-2">
-                {[1, 2, 3, 4].map(p => (
-                  <button key={p} onClick={() => { setTimerPeriod(p); setTimerMinutes(0); setTimerSeconds(0); setTimerRunning(false); }} className={`w-10 h-10 rounded-full font-black text-sm flex items-center justify-center transition-all ${timerPeriod === p ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200 hover:border-blue-400'}`}>
-                    {p}
+              {/* Stage Selector */}
+              <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-full">
+                {(['regular', 'extra', 'penalties'] as const).map(s => (
+                  <button key={s} onClick={() => { setTimerStage(s); setTimerPeriod(1); setTimerMinutes(0); setTimerSeconds(0); setTimerRunning(false); }} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${timerStage === s ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                    {s === 'regular' ? 'Regular' : s === 'extra' ? 'Alargue' : 'Penales'}
                   </button>
                 ))}
               </div>
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest -mt-2">Al cambiar período se reinicia</span>
+
+              {/* Period Buttons */}
+              {timerStage !== 'penalties' && (
+                <div className="flex gap-2">
+                  {[1, 2].map(p => (
+                    <button key={p} onClick={() => { setTimerPeriod(p); setTimerMinutes(0); setTimerSeconds(0); setTimerRunning(false); }} className={`w-14 h-10 rounded-xl font-black text-sm flex items-center justify-center transition-all ${timerPeriod === p ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200 hover:border-blue-400'}`}>
+                      {getTimerPeriodLabel(timerStage, p)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {timerStage === 'penalties' && (
+                <div className="w-full py-3 bg-amber-50 rounded-xl text-center">
+                  <span className="text-xs font-black text-amber-700 uppercase tracking-widest">⚽ Penales</span>
+                </div>
+              )}
 
               <div className="flex items-center gap-4 w-full justify-center">
                 <div className="flex flex-col items-center">
@@ -5126,7 +5119,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
                 <div className="text-center">
                   <span className={`text-[10px] font-black ${timerMinutes >= timerDuration ? 'text-red-500' : 'text-slate-500'}`}>
                     {timerMinutes >= timerDuration
-                      ? `⏰ Fin del ${timerPeriod}° Tiempo`
+                      ? `⏰ Fin del ${getTimerPeriodLabel(timerStage, timerPeriod)}`
                       : `Restan: ${timerDuration - timerMinutes} min`}
                   </span>
                 </div>
@@ -5151,7 +5144,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
             <button onClick={() => setShowTimerModal(true)} className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl border border-slate-700 transition-all shadow-inner group">
               <span className="text-lg">⏱</span>
               <div className="flex flex-col items-start leading-none">
-                <span className="text-[9px] text-blue-400 font-black tracking-widest uppercase">{timerPeriod}° Tiempo</span>
+                <span className="text-[9px] text-blue-400 font-black tracking-widest uppercase">{getTimerPeriodLabel(timerStage, timerPeriod)}</span>
                 <span className="text-sm font-black text-white font-mono tracking-wider">
                   {timerMinutes}:{timerSeconds.toString().padStart(2, '0')}
                   {timerDuration > 0 && timerMinutes < timerDuration && <span className="text-[8px] text-slate-400 ml-1">-{timerDuration - timerMinutes}'</span>}
@@ -5197,11 +5190,9 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       </div>
 
       {/* Main Body - Row for Each Team */}
-      <div className={`flex-1 overflow-y-auto px-8 pt-5 pb-4 bg-[#FDFDFD] space-y-4 custom-scrollbar ${isWO ? 'opacity-40 pointer-events-none' : ''}`}>
-        <TeamRowSection timerPeriod={timerPeriod} timerMinutes={timerMinutes} isBasketball={isBasketball} team={match.homeTeam} goals={hG} setGoals={setHG} cards={hC} setCards={setHC} fouls={hF} setFouls={setHF} subs={hS} setSubs={setHS} own={hO} setOwn={setHO} gk={hK} setGk={setHK} hi={hHi} setHi={setHHi} lin={hL} setLin={setHL} color="blue" />
-          </div>
-          <div className="p-4">
-        <TeamRowSection timerPeriod={timerPeriod} timerMinutes={timerMinutes} isBasketball={isBasketball} team={match.awayTeam} goals={aG} setGoals={setAG} cards={aC} setCards={setAC} fouls={aF} setFouls={setAF} subs={aS} setSubs={setAS} own={aO} setOwn={setAO} gk={aK} setGk={setAK} hi={aHi} setHi={setAHi} lin={aL} setLin={setAL} color="red" />
+      <div className={`flex-1 overflow-y-auto px-8 pt-5 pb-4 bg-[#FDFDFD] space-y-6 custom-scrollbar ${isWO ? 'opacity-40 pointer-events-none' : ''}`}>
+        <TeamRowSection timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} isBasketball={isBasketball} team={match.homeTeam} goals={hG} setGoals={setHG} cards={hC} setCards={setHC} fouls={hF} setFouls={setHF} subs={hS} setSubs={setHS} own={hO} setOwn={setHO} gk={hK} setGk={setHK} hi={hHi} setHi={setHHi} lin={hL} setLin={setHL} color="blue" />
+        <TeamRowSection timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} isBasketball={isBasketball} team={match.awayTeam} goals={aG} setGoals={setAG} cards={aC} setCards={setAC} fouls={aF} setFouls={setAF} subs={aS} setSubs={setAS} own={aO} setOwn={setAO} gk={aK} setGk={setAK} hi={aHi} setHi={setAHi} lin={aL} setLin={setAL} color="red" />
       </div>
 
       {/* DESEMPATE / PASE DE RONDA */}
@@ -5632,7 +5623,7 @@ function EditInfoModal({ matchId, onClose }: { matchId: string, onClose: () => v
   )
 }
 
-function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, fouls, setFouls, subs, setSubs, own, setOwn, gk, setGk, hi, setHi, lin, setLin, color, timerPeriod, timerMinutes }: any) {
+function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, fouls, setFouls, subs, setSubs, own, setOwn, gk, setGk, hi, setHi, lin, setLin, color, timerPeriod, timerMinutes, timerStage }: any) {
   const [tab, setTab] = useState('goles')
 
   const getBasketballScore = (gList: any[]) => {
@@ -5694,19 +5685,20 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
               isBasketball={isBasketball}
               timerPeriod={timerPeriod}
               timerMinutes={timerMinutes}
+              timerStage={timerStage}
             />
           )}
           {tab === 'tarjetas' && <RowFormSection title="🟨 Tarjetas disciplinarias" evs={cards} setEvs={setCards} players={team.players || []} color={color} isType={true} type="YELLOW_CARD" opts={[
             { v: 'YELLOW_CARD', label: '🟨 Amarilla', hint: '1ª falta' },
             { v: 'DOUBLE_YELLOW_CARD', label: '🟨🟥 2ª Amarilla → Expulsado', hint: 'Acumulación' },
             { v: 'RED_CARD', label: '🟥 Roja Directa', hint: 'Expulsión inmediata' },
-          ]} timerPeriod={timerPeriod} timerMinutes={timerMinutes} />}
-          {tab === 'faltas' && <RowFormSection title="⚠️ Faltas cometidas" evs={fouls} setEvs={setFouls} players={team.players || []} color={color} detail={true} type="FOUL" pLabel="Infractor" timerPeriod={timerPeriod} timerMinutes={timerMinutes} />}
-          {tab === 'subs' && <RowFormSection title="🔄 Sustituciones" evs={subs} setEvs={setSubs} players={team.players || []} color={color} assist={true} pLabel="Entra al campo" aLabel="Sale del campo" type="SUBSTITUTION" timerPeriod={timerPeriod} timerMinutes={timerMinutes} />}
+          ]} timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} />}
+          {tab === 'faltas' && <RowFormSection title="⚠️ Faltas cometidas" evs={fouls} setEvs={setFouls} players={team.players || []} color={color} detail={true} type="FOUL" pLabel="Infractor" timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} />}
+          {tab === 'subs' && <RowFormSection title="🔄 Sustituciones" evs={subs} setEvs={setSubs} players={team.players || []} color={color} assist={true} pLabel="Entra al campo" aLabel="Sale del campo" type="SUBSTITUTION" timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} />}
           {tab === 'otros' && (
             <div className="space-y-4">
-              <RowFormSection title="⚽ Autogoles" evs={own} setEvs={setOwn} players={team.players || []} color={color} detail={true} type="OWN_GOAL" pLabel="Jugador" timerPeriod={timerPeriod} timerMinutes={timerMinutes} />
-              <RowFormSection title="🧤 Acciones del Portero" evs={gk} setEvs={setGk} players={team.players || []} color={color} detail={true} type="GOALKEEPER" pLabel="Portero" timerPeriod={timerPeriod} timerMinutes={timerMinutes} />
+              <RowFormSection title="⚽ Autogoles" evs={own} setEvs={setOwn} players={team.players || []} color={color} detail={true} type="OWN_GOAL" pLabel="Jugador" timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} />
+              <RowFormSection title="🧤 Acciones del Portero" evs={gk} setEvs={setGk} players={team.players || []} color={color} detail={true} type="GOALKEEPER" pLabel="Portero" timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} />
             </div>
           )}
           {tab === 'alineacion' && !isBasketball && (
@@ -5731,9 +5723,13 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
   )
 }
 
-function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = 'Asistente', pLabel = 'Jugador', isType, opts, detail, type, isGoalType, isBasketball, timerPeriod, timerMinutes }: any) {
-  const periodLabel = timerPeriod === 1 ? '1°' : timerPeriod === 2 ? '2°' : timerPeriod === 3 ? '3°' : timerPeriod === 4 ? '4°' : `${timerPeriod}°`
-  const add = () => setEvs([...evs, { id: Date.now().toString(), playerId: '', assistId: '', type, minutes: timerMinutes || 0, timeType: periodLabel, detail: isBasketball ? '2' : '' }])
+function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = 'Asistente', pLabel = 'Jugador', isType, opts, detail, type, isGoalType, isBasketball, timerPeriod, timerMinutes, timerStage }: any) {
+  const getTimeType = (stage: string, period: number) => {
+    if (stage === 'penalties') return 'PEN'
+    if (stage === 'extra') return `${period}°E`
+    return `${period}°`
+  }
+  const add = () => setEvs([...evs, { id: Date.now().toString(), playerId: '', assistId: '', type, minutes: timerMinutes || 0, timeType: getTimeType(timerStage || 'regular', timerPeriod || 1), detail: isBasketball ? '2' : '' }])
   const up = (id: string, f: string, v: any) => setEvs(evs.map((e: any) => e.id === id ? { ...e, [f]: v } : e))
   const rm = (id: string) => setEvs(evs.filter((e: any) => e.id !== id))
   return (
@@ -5757,8 +5753,12 @@ function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = '
                   <span className="text-xs font-black text-slate-400">'</span>
                 </div>
                 <select value={e.timeType} onChange={v => up(e.id, 'timeType', v.target.value)} className="bg-transparent border-none text-[9px] font-bold p-0 outline-none text-slate-400 uppercase tracking-widest cursor-pointer hover:text-slate-600 transition-colors">
-                  <option value="1°">1°T</option>
-                  <option value="2°">2°T</option>
+                  {timerStage === 'penalties'
+                    ? <option value="PEN">Penales</option>
+                    : timerStage === 'extra'
+                    ? <><option value="1°E">1°E</option><option value="2°E">2°E</option></>
+                    : <><option value="1°">1°T</option><option value="2°">2°T</option></>
+                  }
                 </select>
               </div>
 
