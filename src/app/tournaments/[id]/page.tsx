@@ -4846,12 +4846,11 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
 
   const [homePenalties, setHomePenalties] = useState<number | ''>('')
   const [awayPenalties, setAwayPenalties] = useState<number | ''>('')
-  const [extraTimeHomeScore, setExtraTimeHomeScore] = useState<number | null>(null)
-  const [extraTimeAwayScore, setExtraTimeAwayScore] = useState<number | null>(null)
   const [homePenTakers, setHomePenTakers] = useState<{ playerId: string; playerName: string; scored: boolean }[]>([])
   const [awayPenTakers, setAwayPenTakers] = useState<{ playerId: string; playerName: string; scored: boolean }[]>([])
   const [showPenTakers, setShowPenTakers] = useState(false)
   const [useAdvantage, setUseAdvantage] = useState<boolean>(true)
+  const [useGoldenGoal, setUseGoldenGoal] = useState(false)
   const [advancingTeamId, setAdvancingTeamId] = useState<string>('')
 
   const [isWO, setIsWO] = useState(false)
@@ -4894,13 +4893,12 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
         awayScore: isWO ? manualAwayScore : (isBasketball ? getBasketballScore(aG) : (aG.length + hO.length)),
         status: st,
         advantageTeamId: isWO ? woWinnerId : advancingTeamId,
-        notes: isWO ? 'W.O' : JSON.stringify({
-          timer: (st === 'EN_VIVO' ? { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now(), duration: timerDuration || undefined, addition: timerAddition || undefined, stage: timerStage } : undefined),
-          extraTime: (extraTimeHomeScore !== null && extraTimeAwayScore !== null ? { home: extraTimeHomeScore, away: extraTimeAwayScore } : undefined),
+          notes: isWO ? 'W.O' : JSON.stringify({
+          timer: (st === 'EN_VIVO' ? { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now(), duration: timerDuration || undefined, addition: timerAddition || undefined, stage: timerStage, goldenGoal: useGoldenGoal } : undefined),
         })
       })
     }
-  }, [hG, aG, hO, aO, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId, timerPeriod, timerMinutes, timerSeconds, timerRunning, timerStage, isBasketball])
+  }, [hG, aG, hO, aO, st, isWO, manualHomeScore, manualAwayScore, woWinnerId, advancingTeamId, timerPeriod, timerMinutes, timerSeconds, timerRunning, timerStage, useGoldenGoal, isBasketball])
 
   // Calculate advancing team
   useEffect(() => {
@@ -4967,13 +4965,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       setAwayPenalties(data.awayPenaltyScore ?? '')
       setHomePenTakers((data.events || []).filter((e: any) => e.teamId === data.homeTeam?.id && (e.type === 'PENALTY_SCORED' || e.type === 'PENALTY_MISSED')).map((e: any) => ({ playerId: e.playerId || '', playerName: e.detail || e.player?.name || '', scored: e.type === 'PENALTY_SCORED' })))
       setAwayPenTakers((data.events || []).filter((e: any) => e.teamId === data.awayTeam?.id && (e.type === 'PENALTY_SCORED' || e.type === 'PENALTY_MISSED')).map((e: any) => ({ playerId: e.playerId || '', playerName: e.detail || e.player?.name || '', scored: e.type === 'PENALTY_SCORED' })))
-      if (parsed?.extraTime) {
-        setExtraTimeHomeScore(parsed.extraTime.home)
-        setExtraTimeAwayScore(parsed.extraTime.away)
-      } else {
-        setExtraTimeHomeScore(null)
-        setExtraTimeAwayScore(null)
-      }
+      if (parsed?.timer?.goldenGoal) setUseGoldenGoal(true)
 
       const parse = (tId: string, type: any) => (data.events || [])
         .filter((e: any) => e.teamId === tId && (Array.isArray(type) ? type.includes(e.type) : e.type === type))
@@ -5074,7 +5066,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
           homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
           awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
           advancingTeamId: isWO ? woWinnerId : (advancingTeamId || null),
-          notes: isWO ? 'W.O' : JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now() } }),
+          notes: isWO ? 'W.O' : JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now(), duration: timerDuration || undefined, addition: timerAddition || undefined, stage: timerStage, goldenGoal: useGoldenGoal } }),
           events: all
         })
       })
@@ -5103,7 +5095,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
               <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-full">
                 {(['regular', 'extra', 'penalties'] as const).map(s => (
                   <button key={s} onClick={() => { setTimerStage(s); setTimerPeriod(1); setTimerMinutes(0); setTimerSeconds(0); setTimerRunning(false); }} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${timerStage === s ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-                    {s === 'regular' ? 'Regular' : s === 'extra' ? 'Alargue' : 'Penales'}
+                    {s === 'regular' ? 'Regular' : s === 'extra' ? 'Prórroga' : 'Penales'}
                   </button>
                 ))}
               </div>
@@ -5117,6 +5109,12 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
                     </button>
                   ))}
                 </div>
+              )}
+              {timerStage === 'extra' && (
+                <label className="flex items-center gap-2 bg-yellow-50 px-4 py-2 rounded-xl border border-yellow-200 cursor-pointer select-none">
+                  <input type="checkbox" checked={useGoldenGoal} onChange={e => setUseGoldenGoal(e.target.checked)} className="w-4 h-4 rounded accent-yellow-600 cursor-pointer" />
+                  <span className="text-[9px] font-black text-yellow-800 uppercase tracking-widest">Gol de Oro (muerte súbita)</span>
+                </label>
               )}
               {timerStage === 'penalties' && (
                 <div className="w-full py-3 bg-amber-50 rounded-xl text-center">
@@ -5253,14 +5251,6 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
                     <input type="number" placeholder="0" value={awayPenalties} onChange={e => setAwayPenalties(e.target.value ? Number(e.target.value) : '')} className="w-14 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
                   </div>
                 </div>
-                <div className="flex items-center gap-4 bg-amber-50 px-4 py-2 rounded-xl border border-amber-200">
-                  <span className="text-xs font-black text-amber-700 uppercase tracking-widest">Alargue:</span>
-                  <div className="flex items-center gap-2">
-                    <input type="number" placeholder="-" value={extraTimeHomeScore ?? ''} onChange={e => setExtraTimeHomeScore(e.target.value ? Number(e.target.value) : null)} className="w-14 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
-                    <span className="text-slate-400 font-bold">-</span>
-                    <input type="number" placeholder="-" value={extraTimeAwayScore ?? ''} onChange={e => setExtraTimeAwayScore(e.target.value ? Number(e.target.value) : null)} className="w-14 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
-                  </div>
-                </div>
               </>
             )}
             <div className="w-full bg-white rounded-xl border border-slate-100 overflow-hidden">
@@ -5272,34 +5262,48 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
                 <div className="p-4 border-t border-slate-100 space-y-4">
                   <div>
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">{match.homeTeam?.name}</span>
-                    <div className="space-y-1.5">
-                      {homePenTakers.map((pt, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <span className="text-[8px] font-bold text-slate-400 w-4">{i + 1}.</span>
-                          <span className="flex-1 text-xs font-bold text-slate-700 truncate">{pt.playerName || '—'}</span>
-                          <button onClick={() => { const n = [...homePenTakers]; n[i] = { ...n[i], scored: !n[i].scored }; setHomePenTakers(n); }} className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${pt.scored ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{pt.scored ? '✓' : '✗'}</button>
-                          <button onClick={() => setHomePenTakers(homePenTakers.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600 text-xs font-bold px-1">✕</button>
-                        </div>
-                      ))}
-                      <div className="flex gap-2 pt-1">
-                        <input type="text" placeholder="Nombre del lanzador" onKeyDown={e => { if (e.key === 'Enter') { const v = (e.target as HTMLInputElement).value.trim(); if (v) { setHomePenTakers([...homePenTakers, { playerId: '', playerName: v, scored: true }]); (e.target as HTMLInputElement).value = ''; } }}} className="flex-1 text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-500" />
-                      </div>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {(match.homeTeam?.players || []).map((p: any) => {
+                        const isTaker = homePenTakers.find(pt => pt.playerId === p.id)
+                        return (
+                          <label key={p.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all ${isTaker ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50 border border-transparent'}`}>
+                            <input type="checkbox" checked={!!isTaker} onChange={e => {
+                              if (e.target.checked) setHomePenTakers([...homePenTakers, { playerId: p.id, playerName: p.name, scored: true }])
+                              else setHomePenTakers(homePenTakers.filter(pt => pt.playerId !== p.id))
+                            }} className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
+                            <span className="flex-1 text-xs font-bold text-slate-700 truncate">{p.number ? `#${p.number} ` : ''}{p.name}</span>
+                            {isTaker && (
+                              <button onClick={() => {
+                                const n = [...homePenTakers]; const idx = n.findIndex(pt => pt.playerId === p.id);
+                                if (idx >= 0) { n[idx] = { ...n[idx], scored: !n[idx].scored }; setHomePenTakers(n); }
+                              }} className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${isTaker.scored ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{isTaker.scored ? '✓' : '✗'}</button>
+                            )}
+                          </label>
+                        )
+                      })}
                     </div>
                   </div>
                   <div>
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">{match.awayTeam?.name}</span>
-                    <div className="space-y-1.5">
-                      {awayPenTakers.map((pt, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <span className="text-[8px] font-bold text-slate-400 w-4">{i + 1}.</span>
-                          <span className="flex-1 text-xs font-bold text-slate-700 truncate">{pt.playerName || '—'}</span>
-                          <button onClick={() => { const n = [...awayPenTakers]; n[i] = { ...n[i], scored: !n[i].scored }; setAwayPenTakers(n); }} className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${pt.scored ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{pt.scored ? '✓' : '✗'}</button>
-                          <button onClick={() => setAwayPenTakers(awayPenTakers.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600 text-xs font-bold px-1">✕</button>
-                        </div>
-                      ))}
-                      <div className="flex gap-2 pt-1">
-                        <input type="text" placeholder="Nombre del lanzador" onKeyDown={e => { if (e.key === 'Enter') { const v = (e.target as HTMLInputElement).value.trim(); if (v) { setAwayPenTakers([...awayPenTakers, { playerId: '', playerName: v, scored: true }]); (e.target as HTMLInputElement).value = ''; } }}} className="flex-1 text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-500" />
-                      </div>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                      {(match.awayTeam?.players || []).map((p: any) => {
+                        const isTaker = awayPenTakers.find(pt => pt.playerId === p.id)
+                        return (
+                          <label key={p.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all ${isTaker ? 'bg-red-50 border border-red-200' : 'hover:bg-slate-50 border border-transparent'}`}>
+                            <input type="checkbox" checked={!!isTaker} onChange={e => {
+                              if (e.target.checked) setAwayPenTakers([...awayPenTakers, { playerId: p.id, playerName: p.name, scored: true }])
+                              else setAwayPenTakers(awayPenTakers.filter(pt => pt.playerId !== p.id))
+                            }} className="w-4 h-4 rounded accent-red-600 cursor-pointer" />
+                            <span className="flex-1 text-xs font-bold text-slate-700 truncate">{p.number ? `#${p.number} ` : ''}{p.name}</span>
+                            {isTaker && (
+                              <button onClick={() => {
+                                const n = [...awayPenTakers]; const idx = n.findIndex(pt => pt.playerId === p.id);
+                                if (idx >= 0) { n[idx] = { ...n[idx], scored: !n[idx].scored }; setAwayPenTakers(n); }
+                              }} className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${isTaker.scored ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{isTaker.scored ? '✓' : '✗'}</button>
+                            )}
+                          </label>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
