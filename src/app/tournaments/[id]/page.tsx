@@ -5681,7 +5681,6 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
     FW: [{ x: 30, y: 16 }, { x: 70, y: 16 }],
   }
 
-  const [pPos, setPPos] = useState<Record<string, string>>({})
   const prevSubsLen = useRef(subs.length)
 
   useEffect(() => {
@@ -5693,7 +5692,6 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
     let nl = [...lin]
     if (lastSub.playerId && !nl.find((l: any) => l.playerId === lastSub.playerId)) {
       nl.push({ id: Date.now().toString(), playerId: lastSub.playerId, type: 'LINEUP', x: 85, y: 85, timeType: '1°', minutes: 0, detail: '' })
-      setPPos(prev => ({ ...prev, [lastSub.playerId]: '' }))
       changed = true
     }
     if (lastSub.assistId) {
@@ -5705,15 +5703,25 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
 
   const isInLin = (pid: string) => lin.some((l: any) => l.playerId === pid)
 
+  const getPlayerPos = (pid: string) => {
+    const entry = lin.find((l: any) => l.playerId === pid)
+    if (!entry) return ''
+    for (const [pos, slots] of Object.entries(POSITION_SLOTS)) {
+      if (slots.some(s => Math.abs(s.x - entry.x) < 12 && Math.abs(s.y - entry.y) < 12)) return pos
+    }
+    return ''
+  }
+
   const getSlotIndex = (pos: string, excludePid: string) => {
-    const count = Object.entries(pPos).filter(([pid, p]) => p === pos && pid !== excludePid && isInLin(pid)).length
+    const count = lin.filter((l: any) => l.playerId !== excludePid && getPlayerPos(l.playerId) === pos).length
     return Math.min(count, POSITION_SLOTS[pos].length - 1)
   }
 
   const togglePlayer = (pid: string, checked: boolean) => {
-    if (!checked) {
+    if (checked) {
+      if (!isInLin(pid)) setLin([...lin, { id: Date.now().toString(), playerId: pid, type: 'LINEUP', x: 50, y: 50, timeType: '1°', minutes: 0, detail: '' }])
+    } else {
       setLin(lin.filter((l: any) => l.playerId !== pid))
-      return
     }
   }
 
@@ -5721,13 +5729,11 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
     const filtered = lin.filter((l: any) => l.playerId !== pid)
     if (!pos) {
       setLin(filtered)
-      setPPos(prev => ({ ...prev, [pid]: '' }))
       return
     }
     const idx = getSlotIndex(pos, pid)
     const slot = POSITION_SLOTS[pos][idx]
     setLin([...filtered, { id: Date.now().toString(), playerId: pid, type: 'LINEUP', x: slot.x, y: slot.y, timeType: '1°', minutes: 0, detail: '' }])
-    setPPos(prev => ({ ...prev, [pid]: pos }))
   }
 
   return (
@@ -5799,7 +5805,7 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
               <div className="max-h-[250px] overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                 {(team.players || []).slice().sort((a: any, b: any) => (a.number || 999) - (b.number || 999)).map((pl: any) => {
                   const checked = isInLin(pl.id)
-                  const curPos = pPos[pl.id] || ''
+                  const curPos = getPlayerPos(pl.id)
                   return (
                     <div key={pl.id} className={`flex items-center gap-2 py-1.5 px-2 rounded-xl transition-all ${checked ? 'bg-slate-100 border border-slate-200' : 'border border-transparent'}`}>
                       <span className="w-6 h-6 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-black text-[9px] shrink-0">{pl.number ?? '#'}</span>
