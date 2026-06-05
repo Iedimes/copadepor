@@ -5688,25 +5688,26 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
     DC: [{ label: 'DC', x: 74, y: 35 }, { label: 'DC', x: 74, y: 65 }],
   }
 
-  const prevSubsLen = useRef(subs.length)
+  const prevSubsSig = useRef('')
 
   useEffect(() => {
-    if (subs.length === prevSubsLen.current) return
-    prevSubsLen.current = subs.length
-    if (subs.length === 0) return
-    const lastSub = subs[subs.length - 1]
+    const sig = JSON.stringify(subs.map((s: any) => s.playerId + '|' + s.assistId))
+    if (sig === prevSubsSig.current) return
+    prevSubsSig.current = sig
     let changed = false
     let nl = [...lin]
-    if (lastSub.playerId && !nl.find((l: any) => l.playerId === lastSub.playerId)) {
-      nl.push({ id: Date.now().toString(), playerId: lastSub.playerId, type: 'LINEUP', x: 85, y: 85, timeType: '1°', minutes: 0, detail: '' })
-      changed = true
-    }
-    if (lastSub.assistId) {
-      nl = nl.filter((l: any) => l.playerId !== lastSub.assistId)
-      changed = true
-    }
+    subs.forEach((sub: any) => {
+      if (sub.assistId && nl.find((l: any) => l.playerId === sub.assistId)) {
+        nl = nl.filter((l: any) => l.playerId !== sub.assistId)
+        changed = true
+      }
+      if (sub.playerId && !nl.find((l: any) => l.playerId === sub.playerId)) {
+        nl.push({ id: Date.now().toString(), playerId: sub.playerId, type: 'LINEUP', x: 85, y: 85, timeType: '1°', minutes: 0, detail: '' })
+        changed = true
+      }
+    })
     if (changed) setLin(nl)
-  }, [subs.length])
+  }, [subs, lin])
 
   const isInLin = (pid: string) => lin.some((l: any) => l.playerId === pid)
 
