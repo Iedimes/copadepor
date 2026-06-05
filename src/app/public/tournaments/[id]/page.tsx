@@ -131,6 +131,22 @@ export default function PublicTournamentPage() {
   
   const [loading, setLoading] = useState(true)
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
+  const [matchDetail, setMatchDetail] = useState<any | null>(null)
+
+  const handleOpenMatchDetail = async (m: any) => {
+    setSelectedMatch(m)
+    try {
+      const res = await fetch(`/api/matches/${m.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setMatchDetail(data)
+      } else {
+        setMatchDetail(null)
+      }
+    } catch {
+      setMatchDetail(null)
+    }
+  }
   const [selectedTeam, setSelectedTeam] = useState<any | null>(null)
   const [teamRoster, setTeamRoster] = useState<any | null>(null)
   const [loadingRoster, setLoadingRoster] = useState(false)
@@ -1264,7 +1280,7 @@ export default function PublicTournamentPage() {
                               return (
                                 <div
                                   key={m.id}
-                                  onClick={() => setSelectedMatch(m)}
+                                      onClick={() => handleOpenMatchDetail(m)}
                                   className="bg-slate-50 border border-slate-200/60 p-4 rounded-[1.5rem] shadow-sm hover:shadow-md hover:border-slate-350 transition-all cursor-pointer flex flex-col gap-2.5"
                                 >
                                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
@@ -1396,7 +1412,7 @@ export default function PublicTournamentPage() {
                                   return (
                                     <div
                                       key={m.id}
-                                      onClick={() => setSelectedMatch(m)}
+                                  onClick={() => handleOpenMatchDetail(m)}
                                       className="bg-slate-50/40 hover:bg-slate-50 border border-slate-200/50 p-5 rounded-[1.5rem] shadow-xs cursor-pointer transition-all duration-300 flex flex-col gap-4 text-center items-center relative group"
                                     >
                                       {/* Vertical styled match layout matching screenshot */}
@@ -1581,84 +1597,146 @@ export default function PublicTournamentPage() {
 
       {/* M1: MATCH DETAILS MODAL (READ-ONLY) */}
       {selectedMatch && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] animate-in fade-in" onClick={() => setSelectedMatch(null)}>
-          <div className="bg-white border max-w-lg w-full rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h2 className="font-black text-xs uppercase tracking-widest text-[#0A1128]">Detalle de Partido</h2>
-              <button onClick={() => setSelectedMatch(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all font-black">✕</button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Score banner */}
-              <div className="flex items-center justify-between gap-4 bg-slate-950 p-6 rounded-[2rem] border shadow-inner">
-                {/* Home */}
-                <div className="flex-1 flex flex-col items-center text-center gap-2 min-w-0">
-                  {selectedMatch.homeTeam?.logo ? (
-                    <img src={selectedMatch.homeTeam.logo} className="w-12 h-12 rounded-xl object-cover bg-slate-800 border shadow-md" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-lg shadow-md">🛡️</div>
-                  )}
-                  <span className="font-black text-xs text-white truncate w-full">{selectedMatch.homeTeam?.name || selectedMatch.homePlaceholder}</span>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-300" onClick={() => { setSelectedMatch(null); setMatchDetail(null); }}>
+          <div className="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[85vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ backgroundColor: themeColor }} className="px-6 py-5 text-white relative">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 text-right pr-4">
+                  <span className="font-black text-sm block truncate">{selectedMatch.homeTeam?.name}</span>
                 </div>
-
-                {/* Score numbers */}
-                <div className="flex items-center gap-3 font-black text-3xl text-slate-100">
-                  <span>{selectedMatch.homeScore !== null ? selectedMatch.homeScore : '-'}</span>
-                  <span className="text-slate-600 text-xl">:</span>
-                  <span>{selectedMatch.awayScore !== null ? selectedMatch.awayScore : '-'}</span>
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl font-black text-xl shrink-0">
+                  <span>{selectedMatch.homeScore}</span>
+                  <span className="text-white/60 text-sm">:</span>
+                  <span>{selectedMatch.awayScore}</span>
                 </div>
-
-                {/* Away */}
-                <div className="flex-1 flex flex-col items-center text-center gap-2 min-w-0">
-                  {selectedMatch.awayTeam?.logo ? (
-                    <img src={selectedMatch.awayTeam.logo} className="w-12 h-12 rounded-xl object-cover bg-slate-800 border shadow-md" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-lg shadow-md">🛡️</div>
-                  )}
-                  <span className="font-black text-xs text-white truncate w-full">{selectedMatch.awayTeam?.name || selectedMatch.awayPlaceholder}</span>
+                <div className="flex-1 text-left pl-4">
+                  <span className="font-black text-sm block truncate">{selectedMatch.awayTeam?.name}</span>
                 </div>
               </div>
-
-              {/* TIMELINE EVENTS */}
-              <div className="space-y-4">
-                <h3 className="font-black text-xs text-slate-400 uppercase tracking-widest border-b pb-2 flex items-center gap-1.5">
-                  <span>⏱️</span> Sucesos del Partido
-                </h3>
-                
-                {(!selectedMatch.events || selectedMatch.events.length === 0) ? (
-                  <div className="text-center py-8 text-slate-400 italic text-xs">
-                    Sin goles ni amonestaciones registradas.
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                    {selectedMatch.events.map((e: any) => {
-                      const icon = e.type === 'GOAL' ? '⚽' : e.type === 'YELLOW_CARD' ? '🟨' : e.type === 'RED_CARD' ? '🟥' : '📋'
-                      const isHomeEvent = e.teamId === selectedMatch.homeTeam?.id
-                      
-                      return (
-                        <div key={e.id} className={`flex items-center gap-3 text-xs ${isHomeEvent ? 'flex-row' : 'flex-row-reverse'}`}>
-                          <span className="text-slate-400 font-bold w-12 text-center bg-slate-50 px-2 py-0.5 rounded-lg border">
-                            {e.minute ? `${e.minute}'` : 'S/T'}
-                          </span>
-                          <div className={`flex items-center gap-2 bg-slate-50/50 px-3.5 py-2 rounded-xl border flex-1 max-w-[80%] ${isHomeEvent ? 'justify-start' : 'justify-end'}`}>
-                            <span className="text-base leading-none">{icon}</span>
-                            <span className="font-black text-slate-800">{e.player?.name || 'Jugador'}</span>
-                            {e.assist?.name && <span className="text-[10px] text-slate-450 font-medium">(Asist. {e.assist.name})</span>}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="bg-white/20 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Finalizado</span>
+                {selectedMatch.location && (
+                  <span className="text-white/60 text-[8px] font-black uppercase tracking-wider">{selectedMatch.location.split(' @ ')[0]}</span>
                 )}
               </div>
+              <button onClick={() => { setSelectedMatch(null); setMatchDetail(null); }} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-all text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            {/* Events */}
+            <div className="overflow-y-auto max-h-[calc(85vh-140px)] p-6">
+              {(() => {
+                const md = matchDetail || selectedMatch
+                const events = md.events || []
+                const homeEvents = events.filter((e: any) => e.teamId === md.homeTeam?.id)
+                const awayEvents = events.filter((e: any) => e.teamId === md.awayTeam?.id)
+                const playerMap: Record<string, string> = {}
+                events.forEach((e: any) => {
+                  if (e.playerId && e.player?.name) playerMap[e.playerId] = e.player.name
+                  if (e.assistId && e.assist?.name) playerMap[e.assistId] = e.assist.name
+                })
 
-              {/* Additional Details info card */}
-              <div className="bg-slate-50 p-4 rounded-2xl border space-y-2 text-xs text-slate-500">
-                <div className="flex justify-between"><span className="font-bold text-slate-400">Fecha y Hora:</span> <span>{new Date(selectedMatch.matchDate).toLocaleString('es-ES')}</span></div>
-                {selectedMatch.referee && <div className="flex justify-between"><span className="font-bold text-slate-400">Árbitro:</span> <span>{selectedMatch.referee}</span></div>}
-                {selectedMatch.location && <div className="flex justify-between"><span className="font-bold text-slate-400">Cancha:</span> <span>{selectedMatch.location}</span></div>}
-                {selectedMatch.notes && <div className="flex justify-between"><span className="font-bold text-slate-400">Notas:</span> <span className="italic text-blue-500 font-black">{selectedMatch.notes}</span></div>}
-              </div>
+                const renderBlock = (teamEvents: any[]) => {
+                  const goals = teamEvents.filter((e: any) => e.type === 'GOAL')
+                  const yellows = teamEvents.filter((e: any) => e.type === 'YELLOW_CARD')
+                  const reds = teamEvents.filter((e: any) => e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD')
+
+                  return (
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>⚽</span> GOLES</h4>
+                        {goals.length === 0 ? (
+                          <p className="text-[10px] text-slate-300 font-bold italic">—</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {goals.map((g: any) => (
+                              <div key={g.id} className="flex items-center gap-2.5 bg-emerald-50/50 rounded-xl px-3 py-2 border border-emerald-100/50">
+                                <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                  <span className="text-[10px]">⚽</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-bold text-xs text-slate-800 block truncate">{g.player?.name || '—'}</span>
+                                  {g.assistId && (
+                                    <span className="text-[9px] text-blue-400 font-bold block">Asist: {playerMap[g.assistId] || '—'}</span>
+                                  )}
+                                </div>
+                                {(g.minute !== undefined && g.minute !== null) || g.timeType ? (
+                                  <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shrink-0 whitespace-nowrap">
+                                    {g.timeType ? `${g.timeType.replace('°', '° ')}Tiempo` : ''}{(g.minute !== null && g.minute !== undefined) && g.timeType ? ' • ' : ''}{g.minute !== null && g.minute !== undefined ? `${g.minute}'` : ''}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>🟨</span> AMARILLAS</h4>
+                        {yellows.length === 0 ? (
+                          <p className="text-[10px] text-slate-300 font-bold italic">—</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {yellows.map((y: any) => (
+                              <div key={y.id} className="flex items-center gap-2.5 bg-amber-50/50 rounded-xl px-3 py-2 border border-amber-100/50">
+                                <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                                  <span className="text-[10px]">🟨</span>
+                                </div>
+                                <span className="font-bold text-xs text-slate-700 flex-1">{y.player?.name || '—'}</span>
+                                {(y.minute !== undefined && y.minute !== null) || y.timeType ? (
+                                  <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shrink-0 whitespace-nowrap">
+                                    {y.timeType ? `${y.timeType.replace('°', '° ')}Tiempo` : ''}{(y.minute !== null && y.minute !== undefined) && y.timeType ? ' • ' : ''}{y.minute !== null && y.minute !== undefined ? `${y.minute}'` : ''}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-[9px] font-black text-red-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>🟥</span> ROJAS</h4>
+                        {reds.length === 0 ? (
+                          <p className="text-[10px] text-slate-300 font-bold italic">—</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {reds.map((r: any) => (
+                              <div key={r.id} className="flex items-center gap-2.5 bg-red-50/50 rounded-xl px-3 py-2 border border-red-100/50">
+                                <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                  <span className="text-[10px]">🟥</span>
+                                </div>
+                                <span className="font-bold text-xs text-slate-700 flex-1">{r.player?.name || '—'}</span>
+                                {(r.minute !== undefined && r.minute !== null) || r.timeType ? (
+                                  <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shrink-0 whitespace-nowrap">
+                                    {r.timeType ? `${r.timeType.replace('°', '° ')}Tiempo` : ''}{(r.minute !== null && r.minute !== undefined) && r.timeType ? ' • ' : ''}{r.minute !== null && r.minute !== undefined ? `${r.minute}'` : ''}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="border-r border-slate-100 pr-6">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-5">{md.homeTeam?.name}</h3>
+                      {renderBlock(homeEvents)}
+                    </div>
+                    <div>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-5">{md.awayTeam?.name}</h3>
+                      {renderBlock(awayEvents)}
+                    </div>
+                  </div>
+                )
+              })()}
+              {(!(matchDetail || selectedMatch).events || (matchDetail || selectedMatch).events.length === 0) && (
+                <div className="py-12 text-center">
+                  <p className="text-slate-300 font-black text-[10px] uppercase tracking-widest">Sin eventos registrados</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
