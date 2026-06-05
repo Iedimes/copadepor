@@ -5057,7 +5057,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   if (loading) return null
 
   return (
-    <div className="bg-white rounded-[3rem] w-full max-w-5xl h-[92vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-500 relative">
+    <div className="bg-white rounded-[3rem] w-[calc(100vw-2rem)] max-w-7xl h-[92vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] overflow-hidden animate-in zoom-in-95 duration-500 relative">
 
       {/* Timer Modal */}
       {showTimerModal && (
