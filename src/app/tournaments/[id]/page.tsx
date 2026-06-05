@@ -5697,12 +5697,16 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
     let changed = false
     let nl = [...lin]
     subs.forEach((sub: any) => {
-      if (sub.assistId && nl.find((l: any) => l.playerId === sub.assistId)) {
+      let subX: number | null = null
+      let subY: number | null = null
+      if (sub.assistId) {
+        const leaving = nl.find((l: any) => l.playerId === sub.assistId)
+        if (leaving) { subX = leaving.x; subY = leaving.y }
         nl = nl.filter((l: any) => l.playerId !== sub.assistId)
         changed = true
       }
       if (sub.playerId && !nl.find((l: any) => l.playerId === sub.playerId)) {
-        nl.push({ id: Date.now().toString(), playerId: sub.playerId, type: 'LINEUP', x: 85, y: 85, timeType: '1°', minutes: 0, detail: '' })
+        nl.push({ id: Date.now().toString(), playerId: sub.playerId, type: 'LINEUP', x: subX ?? 85, y: subY ?? 85, timeType: '1°', minutes: 0, detail: '' })
         changed = true
       }
     })
@@ -5966,9 +5970,20 @@ function RowFormSection({ title, evs, setEvs, players, color, assist, aLabel = '
 }
 
 function PitchV6({ lin, setLin, players, color, posSlots }: any) {
-  const add = (e: any) => { if (e.target.closest('.pn')) return; const rect = e.currentTarget.getBoundingClientRect(); setLin([...lin, { id: Date.now().toString(), playerId: '', type: 'LINEUP', x: (e.clientX - rect.left) / rect.width * 100, y: (e.clientY - rect.top) / rect.height * 100 }]) }
+  const [dragId, setDragId] = useState<string | null>(null)
+  const pitchRef = useRef<HTMLDivElement>(null)
+  const dragged = useRef(false)
+
+  const add = (e: any) => {
+    if (e.target.closest('.pn')) return
+    if (dragged.current) { dragged.current = false; return }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setLin([...lin, { id: Date.now().toString(), playerId: '', type: 'LINEUP', x: (e.clientX - rect.left) / rect.width * 100, y: (e.clientY - rect.top) / rect.height * 100 }])
+  }
+
   const up = (id: string, pid: string) => setLin(lin.map((p: any) => p.id === id ? { ...p, playerId: pid } : p))
   const rm = (id: string) => setLin(lin.filter((p: any) => p.id !== id))
+
   const getPosLabel = (x: number, y: number) => {
     if (!posSlots) return ''
     for (const [key, slots] of Object.entries(posSlots)) {
@@ -5977,20 +5992,38 @@ function PitchV6({ lin, setLin, players, color, posSlots }: any) {
     }
     return ''
   }
+
+  const handleMouseDown = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    dragged.current = false
+    setDragId(id)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!dragId || !pitchRef.current) return
+    dragged.current = true
+    const rect = pitchRef.current.getBoundingClientRect()
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
+    setLin(lin.map((p: any) => p.id === dragId ? { ...p, x, y } : p))
+  }
+
+  const handleMouseUp = () => { if (dragId) setDragId(null) }
+
   return (
-    <div className="relative aspect-[4/3] bg-green-700 rounded-[1.5rem] overflow-hidden cursor-crosshair border-2 border-white/10 shadow-inner" onClick={add} style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '10% 10%' }}>
+    <div ref={pitchRef} className="relative aspect-[4/3] bg-green-700 rounded-[1.5rem] overflow-hidden cursor-crosshair border-2 border-white/10 shadow-inner select-none" onClick={add} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '10% 10%' }}>
       <div className="absolute inset-0 pointer-events-none opacity-20"><div className="absolute top-0 bottom-0 left-1/2 w-px bg-white"></div><div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border border-white rounded-full"></div></div>
       {lin.map((p: any) => {
         const pl = players.find((pl: any) => pl.id === p.playerId)
         const posLabel = getPosLabel(p.x, p.y)
         return (
-        <div key={p.id} className="pn absolute -translate-x-1/2 -translate-y-1/2 group/pn z-10" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
-          <div className={`w-8 h-8 rounded-full bg-white shadow-2xl flex items-center justify-center border-2 ${color === 'blue' ? 'border-blue-600' : 'border-red-600'} transition-all group-hover/pn:scale-125 relative`}>
+        <div key={p.id} onMouseDown={e => handleMouseDown(e, p.id)} className={`pn absolute -translate-x-1/2 -translate-y-1/2 group/pn z-10 ${dragId === p.id ? 'scale-110 cursor-grabbing' : 'cursor-grab'}`} style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+          <div className={`w-8 h-8 rounded-full bg-white shadow-2xl flex items-center justify-center border-2 transition-all ${dragId === p.id ? 'border-yellow-400 scale-110 shadow-yellow-400/50' : color === 'blue' ? 'border-blue-600' : 'border-red-600'}`}>
             <span className={`text-[9px] font-black ${color === 'blue' ? 'text-blue-600' : 'text-red-600'}`}>{pl?.number || '?'}</span>
             {posLabel && <span className={`absolute -bottom-3 text-[7px] font-black ${color === 'blue' ? 'text-blue-300' : 'text-red-300'} uppercase`}>{posLabel}</span>}
           </div>
           <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 scale-0 group-hover/pn:scale-100 transition origin-top z-20"><select value={p.playerId} onChange={v => up(p.id, v.target.value)} className="bg-slate-800 text-white rounded-lg p-1 text-[7px] font-black uppercase outline-none shadow-2xl"><option value="">...</option>{players.map((pl: any) => <option key={pl.id} value={pl.id}>{pl.name}</option>)}</select></div>
-          <button onClick={() => rm(p.id)} className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white rounded-lg text-[8px] scale-0 group-hover/pn:scale-100 flex items-center justify-center shadow-lg transition-all">✕</button>
+          <button onClick={e => { e.stopPropagation(); rm(p.id) }} className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white rounded-lg text-[8px] scale-0 group-hover/pn:scale-100 flex items-center justify-center shadow-lg transition-all">✕</button>
         </div>
       )})}
     </div>
