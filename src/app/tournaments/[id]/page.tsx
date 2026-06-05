@@ -3122,13 +3122,46 @@ export default function TournamentPage() {
                   if (e.assistId && e.assist?.name) playerMap[e.assistId] = e.assist.name
                 })
 
-                const renderBlock = (teamEvents: any[]) => {
+                const getPlayerBadges = (teamEvents: any[]) => {
+                  const seen = new Map<string, { name: string; badges: Set<string> }>()
+                  teamEvents.forEach((e: any) => {
+                    if (!e.playerId || !e.player?.name) return
+                    if (!seen.has(e.playerId)) seen.set(e.playerId, { name: e.player.name, badges: new Set() })
+                    if (e.type === 'LINEUP') seen.get(e.playerId)!.badges.add('T')
+                    else if (e.type === 'SUB_IN') seen.get(e.playerId)!.badges.add('S')
+                  })
+                  // Detect subbed out via assistId (player leaving) or SUB_OUT
+                  teamEvents.forEach((e: any) => {
+                    if (e.type === 'SUB_OUT' && e.playerId && e.player?.name && seen.has(e.playerId)) {
+                      seen.get(e.playerId)!.badges.add('S')
+                    }
+                  })
+                  return Array.from(seen.values())
+                }
+
+                const renderBlock = (teamEvents: any[], teamLabel: string) => {
                   const goals = teamEvents.filter((e: any) => e.type === 'GOAL')
                   const yellows = teamEvents.filter((e: any) => e.type === 'YELLOW_CARD')
                   const reds = teamEvents.filter((e: any) => e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD')
+                  const participants = getPlayerBadges(teamEvents)
+                  const hasParticipants = participants.length > 0
 
                   return (
                     <div className="space-y-6">
+                      {hasParticipants && (
+                        <div>
+                          <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg> PARTICIPANTES</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {participants.map((p) => (
+                              <span key={p.name} className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border ${p.badges.has('T') ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}>
+                                {p.badges.has('T') ? <span className="text-[9px]">⭐</span> : <span className="text-[9px]">🔵</span>}
+                                {p.name}
+                                {p.badges.has('T') ? <span className="text-[8px] font-black opacity-60">T</span> : <span className="text-[8px] font-black opacity-60">S</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <h4 className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>⚽</span> GOLES</h4>
                         {goals.length === 0 ? (
@@ -3208,11 +3241,11 @@ export default function TournamentPage() {
                   <div className="grid grid-cols-2 gap-8">
                     <div className="border-r border-slate-100 pr-6">
                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-5">{matchSummary.homeTeam?.name}</h3>
-                      {renderBlock(homeEvents)}
+                      {renderBlock(homeEvents, 'home')}
                     </div>
                     <div>
                       <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-5">{matchSummary.awayTeam?.name}</h3>
-                      {renderBlock(awayEvents)}
+                      {renderBlock(awayEvents, 'away')}
                     </div>
                   </div>
                 )
@@ -5641,6 +5674,62 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
     ...(!isBasketball ? [{ id: 'alineacion', label: 'Cancha', i: '⚽' }] : []),
   ]
 
+  const POSITION_SLOTS: Record<string, {x:number,y:number}[]> = {
+    GK: [{ x: 50, y: 85 }],
+    DEF: [{ x: 12, y: 65 }, { x: 36, y: 58 }, { x: 64, y: 58 }, { x: 88, y: 65 }],
+    MID: [{ x: 18, y: 38 }, { x: 40, y: 34 }, { x: 60, y: 34 }, { x: 82, y: 38 }],
+    FW: [{ x: 30, y: 16 }, { x: 70, y: 16 }],
+  }
+
+  const [pPos, setPPos] = useState<Record<string, string>>({})
+  const prevSubsLen = useRef(subs.length)
+
+  useEffect(() => {
+    if (subs.length === prevSubsLen.current) return
+    prevSubsLen.current = subs.length
+    if (subs.length === 0) return
+    const lastSub = subs[subs.length - 1]
+    let changed = false
+    let nl = [...lin]
+    if (lastSub.playerId && !nl.find((l: any) => l.playerId === lastSub.playerId)) {
+      nl.push({ id: Date.now().toString(), playerId: lastSub.playerId, type: 'LINEUP', x: 85, y: 85, timeType: '1°', minutes: 0, detail: '' })
+      setPPos(prev => ({ ...prev, [lastSub.playerId]: '' }))
+      changed = true
+    }
+    if (lastSub.assistId) {
+      nl = nl.filter((l: any) => l.playerId !== lastSub.assistId)
+      changed = true
+    }
+    if (changed) setLin(nl)
+  }, [subs.length])
+
+  const isInLin = (pid: string) => lin.some((l: any) => l.playerId === pid)
+
+  const getSlotIndex = (pos: string, excludePid: string) => {
+    const count = Object.entries(pPos).filter(([pid, p]) => p === pos && pid !== excludePid && isInLin(pid)).length
+    return Math.min(count, POSITION_SLOTS[pos].length - 1)
+  }
+
+  const togglePlayer = (pid: string, checked: boolean) => {
+    if (!checked) {
+      setLin(lin.filter((l: any) => l.playerId !== pid))
+      return
+    }
+  }
+
+  const setPlayerPosition = (pid: string, pos: string) => {
+    const filtered = lin.filter((l: any) => l.playerId !== pid)
+    if (!pos) {
+      setLin(filtered)
+      setPPos(prev => ({ ...prev, [pid]: '' }))
+      return
+    }
+    const idx = getSlotIndex(pos, pid)
+    const slot = POSITION_SLOTS[pos][idx]
+    setLin([...filtered, { id: Date.now().toString(), playerId: pid, type: 'LINEUP', x: slot.x, y: slot.y, timeType: '1°', minutes: 0, detail: '' }])
+    setPPos(prev => ({ ...prev, [pid]: pos }))
+  }
+
   return (
     <div className="flex gap-5">
       {/* Left: Info & Tabs */}
@@ -5702,9 +5791,34 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
             </div>
           )}
           {tab === 'alineacion' && !isBasketball && (
-            <div className="bg-slate-50 rounded-2xl p-3 text-center">
-              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">La cancha táctica aparece a la derecha →</div>
-              <div className="text-slate-300 text-xs">Haz clic sobre la cancha para colocar jugadores</div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                👥 <span>JUGADORES EN CANCHA</span>
+                <span className="text-slate-300 font-bold ml-auto">{lin.length} / 11</span>
+              </div>
+              <div className="max-h-[250px] overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                {(team.players || []).slice().sort((a: any, b: any) => (a.number || 999) - (b.number || 999)).map((pl: any) => {
+                  const checked = isInLin(pl.id)
+                  const curPos = pPos[pl.id] || ''
+                  return (
+                    <div key={pl.id} className={`flex items-center gap-2 py-1.5 px-2 rounded-xl transition-all ${checked ? 'bg-slate-100 border border-slate-200' : 'border border-transparent'}`}>
+                      <span className="w-6 h-6 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-black text-[9px] shrink-0">{pl.number ?? '#'}</span>
+                      <span className={`text-[10px] font-bold truncate flex-1 min-w-0 leading-tight ${checked ? 'text-slate-800' : 'text-slate-400'}`}>{pl.name}</span>
+                      <input type="checkbox" checked={checked} onChange={e => togglePlayer(pl.id, e.target.checked)} className="w-4 h-4 rounded accent-blue-600 cursor-pointer shrink-0" />
+                      {checked && (
+                        <select value={curPos} onChange={e => setPlayerPosition(pl.id, e.target.value)} className="text-[9px] font-bold bg-white border border-slate-300 rounded-lg px-1.5 py-1 outline-none shrink-0 cursor-pointer">
+                          <option value="">Puesto</option>
+                          <option value="GK">ARQ</option>
+                          <option value="DEF">DEF</option>
+                          <option value="MID">MED</option>
+                          <option value="FW">DEL</option>
+                        </select>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="text-[8px] font-bold text-slate-400 italic text-center pt-1">También puedes hacer clic directo en la cancha →</div>
             </div>
           )}
         </div>
@@ -5714,7 +5828,7 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
       {!isBasketball && (
         <div className="w-72 shrink-0">
           <div className="bg-slate-900 p-3 rounded-[2rem] shadow-xl overflow-hidden">
-            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center mb-1.5">⚽ Cancha Táctica — clic para añadir</div>
+            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center mb-1.5">⚽ Cancha Táctica</div>
             <PitchV6 lin={lin} setLin={setLin} players={team.players || []} color={color} />
           </div>
         </div>

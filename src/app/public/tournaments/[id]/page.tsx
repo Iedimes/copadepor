@@ -1637,13 +1637,45 @@ export default function PublicTournamentPage() {
                   if (e.assistId && e.assist?.name) playerMap[e.assistId] = e.assist.name
                 })
 
+                const getPlayerBadges = (teamEvents: any[]) => {
+                  const seen = new Map<string, { name: string; badges: Set<string> }>()
+                  teamEvents.forEach((e: any) => {
+                    if (!e.playerId || !e.player?.name) return
+                    if (!seen.has(e.playerId)) seen.set(e.playerId, { name: e.player.name, badges: new Set() })
+                    if (e.type === 'LINEUP') seen.get(e.playerId)!.badges.add('T')
+                    else if (e.type === 'SUB_IN') seen.get(e.playerId)!.badges.add('S')
+                  })
+                  teamEvents.forEach((e: any) => {
+                    if (e.type === 'SUB_OUT' && e.playerId && e.player?.name && seen.has(e.playerId)) {
+                      seen.get(e.playerId)!.badges.add('S')
+                    }
+                  })
+                  return Array.from(seen.values())
+                }
+
                 const renderBlock = (teamEvents: any[]) => {
                   const goals = teamEvents.filter((e: any) => e.type === 'GOAL')
                   const yellows = teamEvents.filter((e: any) => e.type === 'YELLOW_CARD')
                   const reds = teamEvents.filter((e: any) => e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD')
+                  const participants = getPlayerBadges(teamEvents)
+                  const hasParticipants = participants.length > 0
 
                   return (
                     <div className="space-y-6">
+                      {hasParticipants && (
+                        <div>
+                          <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg> PARTICIPANTES</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {participants.map((p) => (
+                              <span key={p.name} className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border ${p.badges.has('T') ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-cyan-50 text-cyan-700 border-cyan-200'}`}>
+                                {p.badges.has('T') ? <span className="text-[9px]">⭐</span> : <span className="text-[9px]">🔵</span>}
+                                {p.name}
+                                {p.badges.has('T') ? <span className="text-[8px] font-black opacity-60">T</span> : <span className="text-[8px] font-black opacity-60">S</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <h4 className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>⚽</span> GOLES</h4>
                         {goals.length === 0 ? (
