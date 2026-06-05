@@ -5675,17 +5675,17 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
   ]
 
   const POSITION_SLOTS: Record<string, {label:string, x:number,y:number}[]> = {
-    ARQ: [{ label: 'ARQ', x: 50, y: 88 }],
-    LD: [{ label: 'LD', x: 12, y: 66 }],
-    DFC: [{ label: 'DFC', x: 30, y: 60 }, { label: 'DFC', x: 50, y: 58 }, { label: 'DFC', x: 70, y: 60 }],
-    LI: [{ label: 'LI', x: 88, y: 66 }],
-    MD: [{ label: 'MD', x: 18, y: 38 }],
-    MC: [{ label: 'MC', x: 38, y: 34 }, { label: 'MC', x: 62, y: 34 }],
-    MI: [{ label: 'MI', x: 82, y: 38 }],
-    ED: [{ label: 'ED', x: 15, y: 22 }],
-    EI: [{ label: 'EI', x: 85, y: 22 }],
-    SD: [{ label: 'SD', x: 50, y: 24 }],
-    DC: [{ label: 'DC', x: 35, y: 14 }, { label: 'DC', x: 65, y: 14 }],
+    ARQ: [{ label: 'ARQ', x: 7, y: 50 }],
+    LD: [{ label: 'LD', x: 22, y: 85 }],
+    DFC: [{ label: 'DFC', x: 24, y: 35 }, { label: 'DFC', x: 24, y: 65 }],
+    LI: [{ label: 'LI', x: 22, y: 15 }],
+    MD: [{ label: 'MD', x: 40, y: 78 }],
+    MC: [{ label: 'MC', x: 44, y: 38 }, { label: 'MC', x: 44, y: 62 }],
+    MI: [{ label: 'MI', x: 40, y: 22 }],
+    ED: [{ label: 'ED', x: 65, y: 80 }],
+    EI: [{ label: 'EI', x: 65, y: 20 }],
+    SD: [{ label: 'SD', x: 60, y: 50 }],
+    DC: [{ label: 'DC', x: 74, y: 35 }, { label: 'DC', x: 74, y: 65 }],
   }
 
   const prevSubsLen = useRef(subs.length)
