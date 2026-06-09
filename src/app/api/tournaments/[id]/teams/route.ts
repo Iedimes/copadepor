@@ -151,6 +151,22 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'El equipo ya está registrado en esta categoría' }, { status: 400 })
     }
 
+    // Prevent duplicate team names in the same category
+    const newTeam = await prisma.team.findUnique({ where: { id: finalTeamId } })
+    if (newTeam) {
+      const sameName = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT tt.id FROM TournamentTeam tt
+        JOIN Team t ON t.id = tt.teamId
+        WHERE tt.tournamentId = ${params.id}
+          AND (tt.categoryId = ${validated.categoryId || null} OR (tt.categoryId IS NULL AND ${validated.categoryId || null} IS NULL))
+          AND t.name = ${newTeam.name}
+        LIMIT 1
+      `
+      if (sameName.length > 0) {
+        return NextResponse.json({ error: `Ya existe un equipo llamado "${newTeam.name}" en esta categoría` }, { status: 400 })
+      }
+    }
+
     const tournamentTeam = await prisma.tournamentTeam.create({
       data: {
         tournamentId: params.id,
