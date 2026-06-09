@@ -345,7 +345,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    // Check if the team has played matches (has scores or events)
+    // Check if the team has played matches (has scores OR is IN_PROGRESS/COMPLETED)
     const matchWhere: any = {
       tournamentId: params.id,
       OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }],
@@ -354,14 +354,19 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       matchWhere.categoryId = categoryId
     }
 
-    const playedMatches = await prisma.match.findFirst({
+    const playedMatch = await prisma.match.findFirst({
       where: {
         ...matchWhere,
-        status: { not: 'SCHEDULED' },
+        OR: [
+          { homeScore: { not: null } },
+          { awayScore: { not: null } },
+          { status: 'IN_PROGRESS' },
+          { status: 'COMPLETED' },
+        ],
       },
     })
 
-    if (playedMatches) {
+    if (playedMatch) {
       return NextResponse.json({
         error: 'El equipo tiene partidos jugados en este torneo. No puede eliminarse. Aplique W.O. desde el menú del partido.'
       }, { status: 409 })
