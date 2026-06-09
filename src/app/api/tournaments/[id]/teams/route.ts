@@ -345,7 +345,42 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    // Delete only the relevant TournamentTeam entry (scoped to category if present)
+    // Check if the team has played matches (has scores or events)
+    const matchWhere: any = {
+      tournamentId: params.id,
+      OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }],
+    }
+    if (categoryId) {
+      matchWhere.categoryId = categoryId
+    }
+
+    const playedMatches = await prisma.match.findFirst({
+      where: {
+        ...matchWhere,
+        status: { not: 'SCHEDULED' },
+      },
+    })
+
+    if (playedMatches) {
+      return NextResponse.json({
+        error: 'El equipo tiene partidos jugados en este torneo. No puede eliminarse. Aplique W.O. desde el menú del partido.'
+      }, { status: 409 })
+    }
+
+    // Remove schedule-only matches involving this team
+    const matchesToRemove = await prisma.match.findMany({
+      where: matchWhere,
+      select: { id: true },
+    })
+    const matchIds = matchesToRemove.map(m => m.id)
+
+    if (matchIds.length > 0) {
+      await prisma.matchEvent.deleteMany({ where: { matchId: { in: matchIds } } })
+      await prisma.goal.deleteMany({ where: { matchId: { in: matchIds } } })
+      await prisma.match.deleteMany({ where: { id: { in: matchIds } } })
+    }
+
+    // Remove TournamentTeam association(s)
     const deleteWhere: any = {
       tournamentId: params.id,
       teamId: teamId,
@@ -359,7 +394,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'El equipo no está registrado en este torneo/categoría' }, { status: 404 })
     }
 
-    // Orphan cleanup: if the team appears in no other TournamentTeam, purge it
+    // Orphan cleanup: purge the Team if it has no other tournament associations
+    let teamPurged = false
     try {
       const otherAssociations = await prisma.tournamentTeam.findFirst({
         where: { teamId },
@@ -369,12 +405,17 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         await prisma.teamPlayer.deleteMany({ where: { teamId } })
         await prisma.teamMember.deleteMany({ where: { teamId } })
         await prisma.team.delete({ where: { id: teamId } })
+        teamPurged = true
       }
     } catch (cleanError) {
-      console.warn('No se pudo borrar el registro del equipo por dependencias activas (ej: fixture generado), se mantiene la integridad referencial.', cleanError)
+      console.warn('No se pudo borrar el registro del equipo por dependencias activas, se mantiene la integridad referencial.', cleanError)
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+      deletedMatches: matchIds.length,
+      teamPurged,
+    })
   } catch (error) {
     console.error('Delete tournament team error:', error)
     return NextResponse.json({ error: 'Error al eliminar el equipo del torneo' }, { status: 500 })

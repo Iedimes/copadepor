@@ -195,7 +195,7 @@ export default function AddTeamsPage() {
   }
 
   const handleRemoveTeam = async (teamId: string, teamName: string) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar al equipo "${teamName}" del torneo?`)) return
+    if (!confirm(`¿Estás seguro de eliminar a "${teamName}" del torneo? Se borrarán también los partidos pendientes que lo tengan como local o visitante.`)) return
 
     const token = localStorage.getItem('token')
     if (!token) {
@@ -211,6 +211,15 @@ export default function AddTeamsPage() {
       })
 
       if (res.ok) {
+        const data = await res.json()
+        let msg = `Equipo "${teamName}" eliminado del torneo.`
+        if (data.deletedMatches > 0) {
+          msg += ` Se eliminaron ${data.deletedMatches} partido(s) programados que involucraban al equipo.`
+        }
+        if (data.teamPurged) {
+          msg += ' El equipo fue eliminado de la base de datos por no tener otras participaciones.'
+        }
+        alert(msg)
         fetchAddedTeams()
         fetchManagedTeams()
       } else {
