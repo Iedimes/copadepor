@@ -331,12 +331,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     const { searchParams } = new URL(request.url)
     const teamId = searchParams.get('teamId')
+    const categoryId = searchParams.get('categoryId')
 
     if (!teamId) {
       return NextResponse.json({ error: 'teamId requerido' }, { status: 400 })
     }
 
-    // Validar que el usuario sea el organizador del torneo
     const tournament = await prisma.tournament.findUnique({
       where: { id: params.id },
     })
@@ -345,24 +345,27 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    // Eliminar la asociación del equipo con el torneo en la tabla TournamentTeam
-    await prisma.tournamentTeam.deleteMany({
-      where: {
-        tournamentId: params.id,
-        teamId: teamId,
-      },
-    })
+    // Delete only the relevant TournamentTeam entry (scoped to category if present)
+    const deleteWhere: any = {
+      tournamentId: params.id,
+      teamId: teamId,
+    }
+    if (categoryId) {
+      deleteWhere.categoryId = categoryId
+    }
+    const deleted = await prisma.tournamentTeam.deleteMany({ where: deleteWhere })
 
-    // Limpieza de clones huérfanos: Si el equipo ya no participa en ningún otro torneo o categoría, lo eliminamos de forma definitiva de la base de datos para no saturar el panel principal
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: 'El equipo no está registrado en este torneo/categoría' }, { status: 404 })
+    }
+
+    // Orphan cleanup: if the team appears in no other TournamentTeam, purge it
     try {
       const otherAssociations = await prisma.tournamentTeam.findFirst({
-        where: {
-          teamId: teamId,
-        },
+        where: { teamId },
       })
 
       if (!otherAssociations) {
-        // Eliminar cascada de roster local y global, luego el equipo en sí
         await prisma.teamPlayer.deleteMany({ where: { teamId } })
         await prisma.teamMember.deleteMany({ where: { teamId } })
         await prisma.team.delete({ where: { id: teamId } })

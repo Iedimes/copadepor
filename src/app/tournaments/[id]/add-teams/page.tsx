@@ -111,26 +111,38 @@ export default function AddTeamsPage() {
         body: JSON.stringify({ name: newTeamName }),
       })
 
-      if (teamRes.ok) {
-        const team = await teamRes.json()
-
-        // Agregar el equipo al torneo
-        await fetch(`/api/tournaments/${tournamentId}/teams`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            teamId: team.id,
-            categoryId: categoryId || null
-          }),
-        })
-
-        setNewTeamName('')
-        fetchAddedTeams()
-        fetchManagedTeams()
+      if (!teamRes.ok) {
+        const err = await teamRes.json()
+        alert(err.error || 'Error al crear equipo')
+        setSaving(false)
+        return
       }
+
+      const team = await teamRes.json()
+
+      // Agregar el equipo al torneo
+      const addRes = await fetch(`/api/tournaments/${tournamentId}/teams`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          teamId: team.id,
+          categoryId: categoryId || null
+        }),
+      })
+
+      if (!addRes.ok) {
+        const err = await addRes.json()
+        alert(err.error || 'Error al agregar equipo al torneo')
+        setSaving(false)
+        return
+      }
+
+      setNewTeamName('')
+      fetchAddedTeams()
+      fetchManagedTeams()
     } catch (error) {
       console.error('Error adding team:', error)
       alert('Error al agregar equipo')
@@ -192,7 +204,8 @@ export default function AddTeamsPage() {
     }
 
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}/teams?teamId=${teamId}`, {
+      const catParam = categoryId ? `&categoryId=${categoryId}` : ''
+      const res = await fetch(`/api/tournaments/${tournamentId}/teams?teamId=${teamId}${catParam}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
