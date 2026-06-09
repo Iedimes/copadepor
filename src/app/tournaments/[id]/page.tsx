@@ -4547,6 +4547,11 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
 
   const handleNextStep = () => {
     if (step === 4) {
+      if (generationMode === 'vacios') {
+        // Skip team selection, go directly to save
+        handleComplete()
+        return
+      }
       // Initialize selected teams based on count and mode
       if (generationMode === 'seleccion') {
         const suggested = getSuggestedQualifiedTeams ? getSuggestedQualifiedTeams() : [];
