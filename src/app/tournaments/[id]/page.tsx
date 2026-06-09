@@ -3702,6 +3702,7 @@ export default function TournamentPage() {
         <AddMatchModal
           teams={tournamentTeams}
           tournamentId={tournamentId}
+          categoryId={activeCategory?.id || null}
           phaseName={selectedPhase}
           onClose={() => setShowAddMatchModal(false)}
           onSuccess={() => { setShowAddMatchModal(false); fetchData(); }}
@@ -4753,7 +4754,7 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
   return null
 }
 
-function AddMatchModal({ teams, tournamentId, onClose, onSuccess, ...props }: any) {
+function AddMatchModal({ teams, tournamentId, categoryId, onClose, onSuccess, ...props }: any) {
   const [homeId, setHomeId] = useState('')
   const [awayId, setAwayId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -4764,7 +4765,7 @@ function AddMatchModal({ teams, tournamentId, onClose, onSuccess, ...props }: an
     if (!homeId || !awayId || homeId === awayId) return alert('Selecciona equipos distintos')
     setLoading(true)
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${tournamentId}/matches`, {
+    const res = await fetch(`/api/tournaments/${tournamentId}/matches?categoryId=${categoryId || ''}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ homeTeamId: homeId, awayTeamId: awayId, matchDate: date, roundName: round, phaseName: props.phaseName }),
