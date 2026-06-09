@@ -4593,14 +4593,15 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
       const res = await fetch(`/api/tournaments/${tournamentId}/matches?action=generateKnockoutTree`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          teamIds: finalTeams.map(t => t.id),
-          phaseName,
-          matchType,
-          selectionMode,
-          generationMode,
-          categoryId: categoryId || null,
-        }),
+      body: JSON.stringify({
+        teamIds: finalTeams.map(t => t.id),
+        teamCount: teamCount === 'indefinido' ? 0 : teamCount,
+        phaseName,
+        matchType,
+        selectionMode,
+        generationMode,
+        categoryId: categoryId || null,
+      }),
       })
       if (res.ok) {
         onSuccess()

@@ -707,8 +707,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     } else if (action === 'generateKnockoutTree') {
       try {
-        const { teamIds, phaseName, matchType, selectionMode } = body
-        const count = teamIds ? teamIds.length : 0
+        const { teamIds, teamCount: rawTeamCount, phaseName, matchType, selectionMode, generationMode } = body
+        const count = generationMode === 'vacios'
+          ? Number(rawTeamCount || 0)
+          : (teamIds ? teamIds.length : 0)
         
         const phase = await prisma.phase.findFirst({
           where: {
