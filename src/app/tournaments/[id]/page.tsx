@@ -656,7 +656,7 @@ export default function TournamentPage() {
     return (
       <div
         key={m.id}
-        onClick={() => { if (hasTeams && isCompleted) setMatchSummary(m); else if (!hasTeams) handleOpenMatchModal(m); }}
+        onClick={() => { if (hasTeams && isCompleted) setMatchSummary(m); else if (isBye || !hasTeams) handleOpenMatchModal(m); }}
         className={`relative flex flex-col p-5 group transition-all rounded-[1.5rem] border border-slate-200/50 bg-slate-50/40 hover:bg-slate-50 cursor-pointer ${hasTeams ? 'shadow-xs hover:shadow-sm' : 'opacity-70'} ${isE ? 'bg-white shadow-lg border-blue-100' : ''}`}
       >
         {isBye ? (
