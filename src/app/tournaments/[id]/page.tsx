@@ -3909,7 +3909,6 @@ export default function TournamentPage() {
 
                     <div className="h-px bg-slate-800 my-2 mx-4"></div>
 
-                    <MenuOption icon="⚽" label="Sustituir Equipos" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
