@@ -6094,7 +6094,8 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
         else setLocalAwayTeam(newTeam)
         setEditingSide(null)
       } else {
-        alert('Error al actualizar el equipo')
+        const data = await res.json()
+        alert(data.error || 'Error al actualizar el equipo')
       }
     } catch (e) {
       alert('Error de conexión')
