@@ -50,7 +50,7 @@ const formatDate = (dateStr: any) => {
   try {
     const d = new Date(dateStr)
     if (isNaN(d.getTime())) return null
-    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
   } catch {
     return null
   }

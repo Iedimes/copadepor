@@ -385,7 +385,7 @@ export default function DashboardPage() {
                         </span>
                         <span className="text-slate-300 text-[10px]">•</span>
                         <span className="text-slate-400 text-xs font-bold lowercase first-letter:uppercase">
-                          📅 {new Date(tournament.startDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                          📅 {new Date(tournament.startDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}
                         </span>
                         {tournament.status !== 'DRAFT' && (
                           <>
