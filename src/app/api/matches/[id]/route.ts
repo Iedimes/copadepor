@@ -139,6 +139,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       }
     }
     
+    // Prevent a team from playing against itself
+    if (resolvedHomeTeamId && resolvedAwayTeamId && resolvedHomeTeamId === resolvedAwayTeamId) {
+      return NextResponse.json({ error: 'Un equipo no puede jugar contra sí mismo' }, { status: 409 })
+    }
+
     if (resolvedHomeTeamId === null || resolvedAwayTeamId === null) {
       finalNotes = 'FECHA_LIBRE'
     } else if (resolvedHomeTeamId && resolvedAwayTeamId) {
