@@ -4589,6 +4589,12 @@ function KnockoutWizard({ tournamentId, phaseName, matches, tournamentTeams, get
   }
 
   const handleComplete = async () => {
+    const hasResults = matches.some((m: any) =>
+      m.phaseName === phaseName && (m.homeScore != null || (m.events && m.events.length > 0))
+    )
+    if (hasResults && !confirm('¿Estás seguro? Se perderán los resultados existentes de esta fase.')) {
+      return
+    }
     setLoading(true)
     const token = localStorage.getItem('token')
     const finalTeams = selectedTeams.filter(t => t.checked)
