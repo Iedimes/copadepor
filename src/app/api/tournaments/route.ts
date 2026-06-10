@@ -7,7 +7,7 @@ const tournamentSchema = z.object({
   name: z.string().min(2),
   description: z.string().optional(),
   sportType: z.enum([
-    'FUTBOL_11', 'FUTSAL', 'FUTBOL_7', 'FUTBOL_SALA',
+    'FUTBOL_11', 'FUTSAL', 'FUTBOL_7',
     'BALONMANO', 'BALONCESTO', 'VOLEY', 'VOLEY_PLAYA',
     'TENIS_MESA', 'TENIS', 'BEACH_TENNIS', 'AJEDREZ',
     'ATLETISMO', 'DEPORTE_GENERICO', 'DISPAROS',

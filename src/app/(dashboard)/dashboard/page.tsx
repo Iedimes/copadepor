@@ -23,7 +23,7 @@ const sports = [
   { id: 'FUTBOL_11', name: 'Fútbol', icon: '⚽' },
   { id: 'FUTSAL', name: 'Futsal', icon: '⚽' },
   { id: 'FUTBOL_7', name: 'Fútbol 7', icon: '⚽' },
-  { id: 'FUTBOL_SALA', name: 'Fútbol Sala', icon: '⚽' },
+
   { id: 'BALONMANO', name: 'Balonmano', icon: '🤾' },
   { id: 'BALONCESTO', name: 'Baloncesto', icon: '🏀' },
   { id: 'VOLEY', name: 'Voleibol', icon: '🏐' },
