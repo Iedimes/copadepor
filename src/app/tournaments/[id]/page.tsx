@@ -6053,6 +6053,22 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
   const [editingSide, setEditingSide] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
+  // Filter out teams already assigned in the same round
+  const assignedTeamIds = new Set<string>()
+  if (match) {
+    matches
+      .filter((m: any) =>
+        m.id !== matchId &&
+        m.roundName === match.roundName &&
+        m.phaseName === match.phaseName
+      )
+      .forEach((m: any) => {
+        if (m.homeTeamId) assignedTeamIds.add(m.homeTeamId)
+        if (m.awayTeamId) assignedTeamIds.add(m.awayTeamId)
+      })
+  }
+  const filteredTeams = allTeams.filter((t: any) => !assignedTeamIds.has(t.team?.id))
+
   useEffect(() => {
     if (match) {
       setLocalHomeTeam(match.homeTeam)
@@ -6131,7 +6147,7 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
                   <span className="text-[10px] font-black opacity-0 group-hover:opacity-100 uppercase tracking-widest bg-white/20 px-3 py-1 rounded-full">Seleccionar</span>
                 </button>
 
-                {allTeams.map((t: any) => (
+                {filteredTeams.map((t: any) => (
                   <button
                     key={t.team.id}
                     onClick={() => handleUpdateTeam(editingSide as any, t.team.id)}

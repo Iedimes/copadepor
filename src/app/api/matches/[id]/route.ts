@@ -102,6 +102,42 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const existingMatch = await prisma.match.findUnique({ where: { id: matchId } })
     const resolvedHomeTeamId = homeTeamId !== undefined ? homeTeamId : (existingMatch?.homeTeamId ?? null)
     const resolvedAwayTeamId = awayTeamId !== undefined ? awayTeamId : (existingMatch?.awayTeamId ?? null)
+
+    // Prevent a team from being assigned to two matches in the same round
+    if (homeTeamId !== undefined && homeTeamId !== null) {
+      const dup = await prisma.match.findFirst({
+        where: {
+          tournamentId: existingMatch?.tournamentId,
+          phaseName: existingMatch?.phaseName,
+          roundName: existingMatch?.roundName,
+          id: { not: matchId },
+          OR: [
+            { homeTeamId },
+            { awayTeamId }
+          ]
+        }
+      })
+      if (dup) {
+        return NextResponse.json({ error: 'Este equipo ya está asignado a otro partido en esta misma instancia' }, { status: 409 })
+      }
+    }
+    if (awayTeamId !== undefined && awayTeamId !== null) {
+      const dup = await prisma.match.findFirst({
+        where: {
+          tournamentId: existingMatch?.tournamentId,
+          phaseName: existingMatch?.phaseName,
+          roundName: existingMatch?.roundName,
+          id: { not: matchId },
+          OR: [
+            { homeTeamId: awayTeamId },
+            { awayTeamId: awayTeamId }
+          ]
+        }
+      })
+      if (dup) {
+        return NextResponse.json({ error: 'Este equipo ya está asignado a otro partido en esta misma instancia' }, { status: 409 })
+      }
+    }
     
     if (resolvedHomeTeamId === null || resolvedAwayTeamId === null) {
       finalNotes = 'FECHA_LIBRE'
