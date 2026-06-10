@@ -3268,7 +3268,42 @@ export default function TournamentPage() {
             <div className="text-center font-black text-slate-300 text-xs mb-2">VS</div>
             <h3 className="text-2xl font-black text-center mb-8 text-slate-900">{selectedMatch.awayTeam.name}</h3>
             <div className="space-y-3">
-              <button onClick={() => { setEditingMatchId(selectedMatch.id); setShowEditResult(true); setSelectedMatch(null); }} className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"><span>📝</span> EDITAR RESULTADO</button>
+              <button onClick={async () => {
+                const sm = selectedMatch
+                if (!sm) return
+                const token = localStorage.getItem('token')
+                const checkPlayers = async (teamId: string) => {
+                  try {
+                    const res = await fetch(`/api/teams/${teamId}/members`, { headers: { Authorization: `Bearer ${token}` } })
+                    if (res.ok) {
+                      const members = await res.json()
+                      const players = members.filter((mem: any) => mem.role === 'PLAYER' || mem.playerId)
+                      return players.length
+                    }
+                  } catch (e) {}
+                  return -1
+                }
+                const homeCount = await checkPlayers(sm.homeTeam.id)
+                const awayCount = await checkPlayers(sm.awayTeam.id)
+                const MIN_PLAYERS = 3
+                if (homeCount >= 0 && homeCount < MIN_PLAYERS) {
+                  const go = confirm(`"${sm.homeTeam.name}" solo tiene ${homeCount} jugador(es). Necesita al menos ${MIN_PLAYERS}. ¿Ir a cargar jugadores?`)
+                  if (go) {
+                    router.push(`/tournaments/${tournamentId}/add-players?teamId=${sm.homeTeam.id}&teamName=${encodeURIComponent(sm.homeTeam.name)}`)
+                    setSelectedMatch(null)
+                    return
+                  }
+                }
+                if (awayCount >= 0 && awayCount < MIN_PLAYERS) {
+                  const go = confirm(`"${sm.awayTeam.name}" solo tiene ${awayCount} jugador(es). Necesita al menos ${MIN_PLAYERS}. ¿Ir a cargar jugadores?`)
+                  if (go) {
+                    router.push(`/tournaments/${tournamentId}/add-players?teamId=${sm.awayTeam.id}&teamName=${encodeURIComponent(sm.awayTeam.name)}`)
+                    setSelectedMatch(null)
+                    return
+                  }
+                }
+                setEditingMatchId(sm.id); setShowEditResult(true); setSelectedMatch(null);
+              }} className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"><span>📝</span> EDITAR RESULTADO</button>
               <button onClick={() => setSelectedMatch(null)} className="w-full py-4 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">Cerrar</button>
             </div>
           </div>
@@ -3892,13 +3927,44 @@ export default function TournamentPage() {
                   <>
                     <MenuOption icon="📖" label="Ver partido" onClick={() => setShowMatchMenu(false)} />
                     <MenuOption icon="📋" label="Seleccionar equipos" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
-                    <MenuOption icon="✔️" label="Editar resultado" onClick={() => {
+                    <MenuOption icon="✔️" label="Editar resultado" onClick={async () => {
                       if (!m?.homeTeam || !m?.awayTeam) {
                         alert('Primero seleccioná los equipos con "Seleccionar equipos"');
                         setShowMatchMenu(false);
                         return;
                       }
                       if (m) {
+                        const token = localStorage.getItem('token')
+                        const checkPlayers = async (teamId: string, teamName: string) => {
+                          try {
+                            const res = await fetch(`/api/teams/${teamId}/members`, { headers: { Authorization: `Bearer ${token}` } })
+                            if (res.ok) {
+                              const members = await res.json()
+                              const players = members.filter((mem: any) => mem.role === 'PLAYER' || mem.playerId)
+                              return players.length
+                            }
+                          } catch (e) {}
+                          return -1
+                        }
+                        const homeCount = await checkPlayers(m.homeTeam.id, m.homeTeam.name)
+                        const awayCount = await checkPlayers(m.awayTeam.id, m.awayTeam.name)
+                        const MIN_PLAYERS = 3
+                        if (homeCount >= 0 && homeCount < MIN_PLAYERS) {
+                          const go = confirm(`"${m.homeTeam.name}" solo tiene ${homeCount} jugador(es). Necesita al menos ${MIN_PLAYERS}. ¿Ir a cargar jugadores?`)
+                          if (go) {
+                            router.push(`/tournaments/${tournamentId}/add-players?teamId=${m.homeTeam.id}&teamName=${encodeURIComponent(m.homeTeam.name)}`)
+                            setShowMatchMenu(false)
+                            return
+                          }
+                        }
+                        if (awayCount >= 0 && awayCount < MIN_PLAYERS) {
+                          const go = confirm(`"${m.awayTeam.name}" solo tiene ${awayCount} jugador(es). Necesita al menos ${MIN_PLAYERS}. ¿Ir a cargar jugadores?`)
+                          if (go) {
+                            router.push(`/tournaments/${tournamentId}/add-players?teamId=${m.awayTeam.id}&teamName=${encodeURIComponent(m.awayTeam.name)}`)
+                            setShowMatchMenu(false)
+                            return
+                          }
+                        }
                         setEditingMatchData({ id: m.id, homeScore: m.homeScore, awayScore: m.awayScore, status: m.status });
                         setEditingMatchId(m.id);
                         setShowEditResult(true);

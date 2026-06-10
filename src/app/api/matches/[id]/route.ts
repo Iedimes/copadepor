@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         homeTeam: { select: { id: true, name: true } },
         awayTeam: { select: { id: true, name: true } },
         tournament: { select: { id: true, name: true, sportType: true } },
-        category: { select: { id: true, name: true, sportType: true } },
+        category: { select: { id: true, name: true } },
         events: {
           include: {
             player: { select: { id: true, name: true } },
