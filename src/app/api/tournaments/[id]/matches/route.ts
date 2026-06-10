@@ -832,11 +832,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           const homeId = finalTeamIds ? finalTeamIds[i * 2] : null
           const awayId = finalTeamIds ? finalTeamIds[i * 2 + 1] : null
           
+          const isNullTeam = !homeId && !awayId
           const matchData = {
             tournamentId: params.id,
             categoryId: categoryId || phase?.categoryId || null,
             homeTeamId: homeId || null,
             awayTeamId: awayId || null,
+            homePlaceholder: isNullTeam ? `Pendiente #${i * 2 + 1}` : null,
+            awayPlaceholder: isNullTeam ? `Pendiente #${i * 2 + 2}` : null,
             matchDate: roundDate,
             roundName: startRound,
             groupName: `#${i + 1}`,

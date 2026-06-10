@@ -656,8 +656,8 @@ export default function TournamentPage() {
     return (
       <div
         key={m.id}
-        onClick={() => hasTeams && isCompleted && setMatchSummary(m)}
-        className={`relative flex flex-col p-5 group transition-all rounded-[1.5rem] border border-slate-200/50 bg-slate-50/40 hover:bg-slate-50 cursor-pointer ${hasTeams ? 'shadow-xs hover:shadow-sm' : 'cursor-not-allowed opacity-70'} ${isE ? 'bg-white shadow-lg border-blue-100' : ''}`}
+        onClick={() => { if (hasTeams && isCompleted) setMatchSummary(m); else if (!hasTeams) handleOpenMatchModal(m); }}
+        className={`relative flex flex-col p-5 group transition-all rounded-[1.5rem] border border-slate-200/50 bg-slate-50/40 hover:bg-slate-50 cursor-pointer ${hasTeams ? 'shadow-xs hover:shadow-sm' : 'opacity-70'} ${isE ? 'bg-white shadow-lg border-blue-100' : ''}`}
       >
         {isBye ? (
           <div className="bg-emerald-50/50 border border-emerald-200/50 p-5 rounded-[1.5rem] flex items-center justify-between relative overflow-hidden group cursor-pointer hover:shadow-xs transition-all text-center">
@@ -691,9 +691,9 @@ export default function TournamentPage() {
 
               <div className="flex flex-col items-center shrink-0">
                 <button
-                  onClick={(e) => { e.stopPropagation(); hasTeams && handleOpenMatchModal(m); }}
+                  onClick={(e) => { e.stopPropagation(); handleOpenMatchModal(m); }}
                   title="Editar resultado"
-                  className={`flex items-center gap-3 px-4 py-1.5 border border-slate-200 rounded-xl font-black text-lg text-slate-900 shadow-xs min-w-[80px] justify-center transition-all ${hasTeams ? 'bg-white hover:bg-blue-50 hover:border-blue-200 cursor-pointer' : 'bg-white cursor-default'}`}
+                  className={`flex items-center gap-3 px-4 py-1.5 border border-slate-200 rounded-xl font-black text-lg text-slate-900 shadow-xs min-w-[80px] justify-center transition-all bg-white hover:bg-blue-50 hover:border-blue-200 cursor-pointer`}
                 >
                   <span style={hS !== null && aS !== null && hS > aS ? { color: themeColor } : undefined} className={hS !== null && aS !== null && hS > aS ? 'font-bold' : 'text-slate-700'}>
                     {hS !== null ? hS : '-'}
@@ -3891,7 +3891,7 @@ export default function TournamentPage() {
                 return (
                   <>
                     <MenuOption icon="📖" label="Ver partido" onClick={() => setShowMatchMenu(false)} />
-                    <MenuOption icon="📋" label="Seleccionar equipos" onClick={() => setShowMatchMenu(false)} />
+                    <MenuOption icon="📋" label="Seleccionar equipos" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
                     <MenuOption icon="✔️" label="Editar resultado" onClick={() => {
                       if (m) {
                         setEditingMatchData({ id: m.id, homeScore: m.homeScore, awayScore: m.awayScore, status: m.status });
