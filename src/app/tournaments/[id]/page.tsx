@@ -3893,6 +3893,11 @@ export default function TournamentPage() {
                     <MenuOption icon="📖" label="Ver partido" onClick={() => setShowMatchMenu(false)} />
                     <MenuOption icon="📋" label="Seleccionar equipos" onClick={() => { setShowChangeTeamsModal(true); setShowMatchMenu(false); }} />
                     <MenuOption icon="✔️" label="Editar resultado" onClick={() => {
+                      if (!m?.homeTeam || !m?.awayTeam) {
+                        alert('Primero seleccioná los equipos con "Seleccionar equipos"');
+                        setShowMatchMenu(false);
+                        return;
+                      }
                       if (m) {
                         setEditingMatchData({ id: m.id, homeScore: m.homeScore, awayScore: m.awayScore, status: m.status });
                         setEditingMatchId(m.id);
@@ -6146,6 +6151,11 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
           {isSaving && (
             <div className="mt-8 flex justify-center">
               <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
+            </div>
+          )}
+          {!editingSide && (
+            <div className="mt-6 flex justify-center">
+              <button onClick={onSuccess} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">Guardar</button>
             </div>
           )}
         </div>
