@@ -6043,10 +6043,19 @@ function PitchV6({ lin, setLin, players, color, posSlots }: any) {
 
 function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: any) {
   const match = matches.find((m: any) => m.id === matchId)
-  const [editingSide, setEditingSide] = useState<string | null>(null) // 'home' or 'away'
+  const [localHomeTeam, setLocalHomeTeam] = useState<any>(null)
+  const [localAwayTeam, setLocalAwayTeam] = useState<any>(null)
+  const [editingSide, setEditingSide] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
-  const handleUpdateTeam = async (side: 'home' | 'away', newTeamId: string) => {
+  useEffect(() => {
+    if (match) {
+      setLocalHomeTeam(match.homeTeam)
+      setLocalAwayTeam(match.awayTeam)
+    }
+  }, [match])
+
+  const handleUpdateTeam = async (side: 'home' | 'away', newTeamId: string | null) => {
     setIsSaving(true)
     try {
       const token = localStorage.getItem('token')
@@ -6057,8 +6066,16 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
           [side === 'home' ? 'homeTeamId' : 'awayTeamId']: newTeamId
         }),
       })
-      if (res.ok) onSuccess()
-      else alert('Error al actualizar el equipo')
+      if (res.ok) {
+        const newTeam = newTeamId
+          ? allTeams.find((t: any) => t.team?.id === newTeamId)?.team || null
+          : null
+        if (side === 'home') setLocalHomeTeam(newTeam)
+        else setLocalAwayTeam(newTeam)
+        setEditingSide(null)
+      } else {
+        alert('Error al actualizar el equipo')
+      }
     } catch (e) {
       alert('Error de conexión')
     } finally {
@@ -6074,19 +6091,19 @@ function ChangeTeamsModal({ matchId, onClose, onSuccess, matches, allTeams }: an
         <div className="p-8">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Sustituir Equipos</h3>
-            <button onClick={onClose} className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-slate-400 hover:text-red-500 transition-all">✕</button>
+            <button onClick={onSuccess} className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-slate-400 hover:text-red-500 transition-all">✕</button>
           </div>
 
           {!editingSide ? (
             <div className="flex items-center gap-4 bg-white/50 p-6 rounded-[2.5rem] border border-white shadow-inner">
               <TeamSwapCard
-                team={match.homeTeam}
+                team={localHomeTeam}
                 label="Local"
                 onClick={() => setEditingSide('home')}
               />
               <div className="text-slate-300 font-black text-2xl italic px-2">VS</div>
               <TeamSwapCard
-                team={match.awayTeam}
+                team={localAwayTeam}
                 label="Visitante"
                 onClick={() => setEditingSide('away')}
               />
