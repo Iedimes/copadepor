@@ -374,7 +374,7 @@ export default function PublicTournamentPage() {
         const teamStats = stats[e.teamId]
         if (!teamStats) return
         if (e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD') teamStats.red++
-        else if (e.type === 'YELLOW_CARD') teamStats.yellow++
+        else if (e.type === 'YELLOW_CARD' || e.type === 'BLUE_CARD') teamStats.yellow++
       })
     })
 
@@ -1656,6 +1656,7 @@ export default function PublicTournamentPage() {
                 const renderBlock = (teamEvents: any[]) => {
                   const goals = teamEvents.filter((e: any) => e.type === 'GOAL')
                   const yellows = teamEvents.filter((e: any) => e.type === 'YELLOW_CARD')
+                  const blues = teamEvents.filter((e: any) => e.type === 'BLUE_CARD')
                   const reds = teamEvents.filter((e: any) => e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD')
                   const participants = getPlayerBadges(teamEvents)
                   const hasParticipants = participants.length > 0
@@ -1718,6 +1719,28 @@ export default function PublicTournamentPage() {
                                 {(y.minute !== undefined && y.minute !== null) || y.timeType ? (
                                   <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shrink-0 whitespace-nowrap">
                                     {y.timeType ? `${y.timeType.replace('°', '° ')}Tiempo` : ''}{(y.minute !== null && y.minute !== undefined) && y.timeType ? ' • ' : ''}{y.minute !== null && y.minute !== undefined ? `${y.minute}'` : ''}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>🟦</span> AZULES (2')</h4>
+                        {blues.length === 0 ? (
+                          <p className="text-[10px] text-slate-300 font-bold italic">—</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {blues.map((b: any) => (
+                              <div key={b.id} className="flex items-center gap-2.5 bg-blue-50/50 rounded-xl px-3 py-2 border border-blue-100/50">
+                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                  <span className="text-[10px]">🟦</span>
+                                </div>
+                                <span className="font-bold text-xs text-slate-700 flex-1">{b.player?.name || '—'}</span>
+                                {(b.minute !== undefined && b.minute !== null) || b.timeType ? (
+                                  <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shrink-0 whitespace-nowrap">
+                                    {b.timeType ? `${b.timeType.replace('°', '° ')}Tiempo` : ''}{(b.minute !== null && b.minute !== undefined) && b.timeType ? ' • ' : ''}{b.minute !== null && b.minute !== undefined ? `${b.minute}'` : ''}
                                   </span>
                                 ) : null}
                               </div>

@@ -1519,7 +1519,7 @@ export default function TournamentPage() {
         const teamStats = stats[e.teamId]
         if (!teamStats) return
         if (e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD') teamStats.red++
-        else if (e.type === 'YELLOW_CARD') teamStats.yellow++
+        else if (e.type === 'YELLOW_CARD' || e.type === 'BLUE_CARD') teamStats.yellow++
       })
     })
 
@@ -3142,6 +3142,7 @@ export default function TournamentPage() {
                 const renderBlock = (teamEvents: any[], teamLabel: string) => {
                   const goals = teamEvents.filter((e: any) => e.type === 'GOAL')
                   const yellows = teamEvents.filter((e: any) => e.type === 'YELLOW_CARD')
+                  const blues = teamEvents.filter((e: any) => e.type === 'BLUE_CARD')
                   const reds = teamEvents.filter((e: any) => e.type === 'RED_CARD' || e.type === 'DOUBLE_YELLOW_CARD')
                   const participants = getPlayerBadges(teamEvents)
                   const hasParticipants = participants.length > 0
@@ -3204,6 +3205,28 @@ export default function TournamentPage() {
                                 {(y.minute !== undefined && y.minute !== null) || y.timeType ? (
                                   <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shrink-0 whitespace-nowrap">
                                     {y.timeType ? `${y.timeType.replace('°', '° ')}Tiempo` : ''}{(y.minute !== null && y.minute !== undefined) && y.timeType ? ' • ' : ''}{y.minute !== null && y.minute !== undefined ? `${y.minute}'` : ''}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>🟦</span> AZULES (2')</h4>
+                        {blues.length === 0 ? (
+                          <p className="text-[10px] text-slate-300 font-bold italic">—</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {blues.map((b: any) => (
+                              <div key={b.id} className="flex items-center gap-2.5 bg-blue-50/50 rounded-xl px-3 py-2 border border-blue-100/50">
+                                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                  <span className="text-[10px]">🟦</span>
+                                </div>
+                                <span className="font-bold text-xs text-slate-700 flex-1">{b.player?.name || '—'}</span>
+                                {(b.minute !== undefined && b.minute !== null) || b.timeType ? (
+                                  <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shrink-0 whitespace-nowrap">
+                                    {b.timeType ? `${b.timeType.replace('°', '° ')}Tiempo` : ''}{(b.minute !== null && b.minute !== undefined) && b.timeType ? ' • ' : ''}{b.minute !== null && b.minute !== undefined ? `${b.minute}'` : ''}
                                   </span>
                                 ) : null}
                               </div>
@@ -4951,6 +4974,12 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
   const [timerDuration, setTimerDuration] = useState<number>(0)
   const [timerAddition, setTimerAddition] = useState<number>(0)
 
+  // Foul counter (Futsal: 5 fouls → free kick without barrier)
+  const [homeFouls1, setHomeFouls1] = useState(0)
+  const [homeFouls2, setHomeFouls2] = useState(0)
+  const [awayFouls1, setAwayFouls1] = useState(0)
+  const [awayFouls2, setAwayFouls2] = useState(0)
+
   // Timer Effect
   useEffect(() => {
     let interval: NodeJS.Timeout
@@ -5027,6 +5056,9 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
         setManualHomeScore(data.homeScore || 0)
         setManualAwayScore(data.awayScore || 0)
       } else {
+        if (!parsed?.timer && (data.tournament?.sportType === 'FUTSAL' || data.category?.sportType === 'FUTSAL')) {
+          setTimerDuration(20)
+        }
         if (parsed?.timer) {
           setTimerPeriod(parsed.timer.p)
           setTimerRunning(parsed.timer.run)
@@ -5049,6 +5081,12 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       setHomePenTakers((data.events || []).filter((e: any) => e.teamId === data.homeTeam?.id && (e.type === 'PENALTY_SCORED' || e.type === 'PENALTY_MISSED')).map((e: any) => ({ playerId: e.playerId || '', playerName: e.detail || e.player?.name || '', scored: e.type === 'PENALTY_SCORED' })))
       setAwayPenTakers((data.events || []).filter((e: any) => e.teamId === data.awayTeam?.id && (e.type === 'PENALTY_SCORED' || e.type === 'PENALTY_MISSED')).map((e: any) => ({ playerId: e.playerId || '', playerName: e.detail || e.player?.name || '', scored: e.type === 'PENALTY_SCORED' })))
       if (parsed?.timer?.goldenGoal) setUseGoldenGoal(true)
+      if (parsed?.fouls) {
+        setHomeFouls1(parsed.fouls.h?.[0] ?? 0)
+        setHomeFouls2(parsed.fouls.h?.[1] ?? 0)
+        setAwayFouls1(parsed.fouls.a?.[0] ?? 0)
+        setAwayFouls2(parsed.fouls.a?.[1] ?? 0)
+      }
 
       const parse = (tId: string, type: any) => (data.events || [])
         .filter((e: any) => e.teamId === tId && (Array.isArray(type) ? type.includes(e.type) : e.type === type))
@@ -5072,7 +5110,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       }
 
       setHG(parse(data.homeTeam?.id, 'GOAL'));
-      setHC(parse(data.homeTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD']));
+      setHC(parse(data.homeTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD', 'BLUE_CARD']));
       setHF(parse(data.homeTeam?.id, 'FOUL'));
       setHS(parse(data.homeTeam?.id, 'SUBSTITUTION'));
       setHO(parse(data.homeTeam?.id, 'OWN_GOAL'));
@@ -5081,7 +5119,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
       setHL(parse(data.homeTeam?.id, 'LINEUP'))
 
       setAG(parse(data.awayTeam?.id, 'GOAL'));
-      setAC(parse(data.awayTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD']));
+      setAC(parse(data.awayTeam?.id, ['YELLOW_CARD', 'RED_CARD', 'DOUBLE_YELLOW_CARD', 'BLUE_CARD']));
       setAF(parse(data.awayTeam?.id, 'FOUL'));
       setAS(parse(data.awayTeam?.id, 'SUBSTITUTION'));
       setAO(parse(data.awayTeam?.id, 'OWN_GOAL'));
@@ -5149,7 +5187,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
           homePenaltyScore: homePenalties === '' ? null : Number(homePenalties),
           awayPenaltyScore: awayPenalties === '' ? null : Number(awayPenalties),
           advancingTeamId: isWO ? woWinnerId : (advancingTeamId || null),
-          notes: isWO ? 'W.O' : JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now(), duration: timerDuration || undefined, addition: timerAddition || undefined, stage: timerStage, goldenGoal: useGoldenGoal } }),
+          notes: isWO ? 'W.O' : JSON.stringify({ timer: { p: timerPeriod, m: timerMinutes, s: timerSeconds, run: timerRunning, ts: Date.now(), duration: timerDuration || undefined, addition: timerAddition || undefined, stage: timerStage, goldenGoal: useGoldenGoal }, fouls: { h: [homeFouls1, homeFouls2], a: [awayFouls1, awayFouls2] } }),
           events: all
         })
       })
@@ -5240,9 +5278,79 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
               )}
             </div>
 
+            {(match.tournament?.sportType === 'FUTSAL' || match.category?.sportType === 'FUTSAL') && (
+              <>
+                <div className="w-full border-t border-slate-200 pt-4 mt-2">
+                  <div className="flex items-center justify-center gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">FALTAS / PERIODO</div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 rounded-xl bg-white border" style={{ borderColor: (timerPeriod === 1 ? homeFouls1 : homeFouls2) >= 5 ? '#f59e0b' : '#e2e8f0', backgroundColor: (timerPeriod === 1 ? homeFouls1 : homeFouls2) >= 5 ? '#fffbeb' : 'white' }}>
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1 truncate">{match.homeTeam?.name}</span>
+                      <span className={`text-2xl font-black ${(timerPeriod === 1 ? homeFouls1 : homeFouls2) >= 5 ? 'text-amber-600' : 'text-slate-700'}`}>{timerPeriod === 1 ? homeFouls1 : homeFouls2}</span>
+                      <div className="flex gap-1 justify-center mt-2">
+                        <button onClick={() => { timerPeriod === 1 ? setHomeFouls1(Math.max(0, homeFouls1 - 1)) : setHomeFouls2(Math.max(0, homeFouls2 - 1)); }} className="w-7 h-7 rounded-lg bg-red-100 text-red-600 text-sm font-black hover:bg-red-200 transition-all">−</button>
+                        <button onClick={() => { timerPeriod === 1 ? setHomeFouls1(homeFouls1 + 1) : setHomeFouls2(homeFouls2 + 1); }} className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 text-sm font-black hover:bg-blue-200 transition-all">+</button>
+                      </div>
+                      {(timerPeriod === 1 ? homeFouls1 : homeFouls2) >= 5 && <span className="text-[7px] font-black text-amber-600 block mt-1">⚠ TIRO LIBRE SIN BARRERA</span>}
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-white border" style={{ borderColor: (timerPeriod === 1 ? awayFouls1 : awayFouls2) >= 5 ? '#f59e0b' : '#e2e8f0', backgroundColor: (timerPeriod === 1 ? awayFouls1 : awayFouls2) >= 5 ? '#fffbeb' : 'white' }}>
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1 truncate">{match.awayTeam?.name}</span>
+                      <span className={`text-2xl font-black ${(timerPeriod === 1 ? awayFouls1 : awayFouls2) >= 5 ? 'text-amber-600' : 'text-slate-700'}`}>{timerPeriod === 1 ? awayFouls1 : awayFouls2}</span>
+                      <div className="flex gap-1 justify-center mt-2">
+                        <button onClick={() => { timerPeriod === 1 ? setAwayFouls1(Math.max(0, awayFouls1 - 1)) : setAwayFouls2(Math.max(0, awayFouls2 - 1)); }} className="w-7 h-7 rounded-lg bg-red-100 text-red-600 text-sm font-black hover:bg-red-200 transition-all">−</button>
+                        <button onClick={() => { timerPeriod === 1 ? setAwayFouls1(awayFouls1 + 1) : setAwayFouls2(awayFouls2 + 1); }} className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 text-sm font-black hover:bg-blue-200 transition-all">+</button>
+                      </div>
+                      {(timerPeriod === 1 ? awayFouls1 : awayFouls2) >= 5 && <span className="text-[7px] font-black text-amber-600 block mt-1">⚠ TIRO LIBRE SIN BARRERA</span>}
+                    </div>
+                  </div>
+                </div>
+                {(() => {
+                  const allBlues = [...hC, ...aC].filter(e => e.type === 'BLUE_CARD')
+                  const homeBlues = allBlues.filter(b => b.teamId === match.homeTeam?.id)
+                  const awayBlues = allBlues.filter(b => b.teamId === match.awayTeam?.id)
+                  if (allBlues.length === 0) return null
+                  return (
+                    <div className="w-full border-t border-slate-200 pt-4">
+                      <div className="flex items-center justify-center gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">🟦 EXCLUSIONES (2')</div>
+                      {[homeBlues, awayBlues].map((items, i) => {
+                        const teamName = i === 0 ? (match.homeTeam?.name || 'Local') : (match.awayTeam?.name || 'Visitante')
+                        return (
+                          <div key={i} className="mb-3 last:mb-0">
+                            <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 truncate">{teamName}</div>
+                            {items.length === 0 ? (
+                              <div className="text-[10px] text-slate-300 font-bold italic text-center py-2">—</div>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {items.map((b: any) => {
+                                  const returnMin = (b.minute ?? 0) + 2
+                                  const isExcluded = timerMinutes > 0 && timerMinutes < returnMin && b.minute != null
+                                  const remaining = returnMin - timerMinutes
+                                  return (
+                                    <div key={b.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold ${isExcluded ? 'bg-blue-50 border border-blue-200' : 'bg-emerald-50 border border-emerald-200'}`}>
+                                      <span>{isExcluded ? '🟦' : '✅'}</span>
+                                      <span className="flex-1 truncate text-slate-700">{b.player?.name || '—'}</span>
+                                      <span className={`font-black ${isExcluded ? 'text-blue-600' : 'text-emerald-600'}`}>
+                                        {isExcluded ? `vuelve ${returnMin}' (${remaining}' restan)` : `Recuperado ${returnMin}'`}
+                                      </span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </>
+            )}
             <div className="flex w-full gap-3">
-              <button onClick={() => { setTimerRunning(false); setShowTimerModal(false); }} className="flex-1 py-3 text-red-500 font-black text-sm hover:bg-red-50 rounded-xl transition-all">Parar</button>
-              <button onClick={() => { setTimerRunning(true); setShowTimerModal(false); setSt('EN_VIVO'); }} className="flex-1 py-3 text-blue-500 font-black text-sm hover:bg-blue-50 rounded-xl transition-all">Iniciar</button>
+              <button onClick={() => { setShowTimerModal(false); }} className="flex-1 py-3 text-slate-500 font-black text-sm hover:bg-slate-50 rounded-xl transition-all">Cerrar</button>
+              {st === 'EN_VIVO' ? (
+                <button onClick={() => { setTimerRunning(true); setShowTimerModal(false); }} className="flex-1 py-3 text-blue-500 font-black text-sm hover:bg-blue-50 rounded-xl transition-all">Iniciar</button>
+              ) : (
+                <button onClick={() => { setShowTimerModal(false); setSt('EN_VIVO'); }} className="flex-1 py-3 text-green-600 font-black text-sm hover:bg-green-50 rounded-xl transition-all">Iniciar EN VIVO</button>
+              )}
             </div>
           </div>
         </div>
@@ -5254,20 +5362,18 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
           <h2 className="text-xl font-black tracking-tight">{match.homeTeam.name} <span className="text-blue-400 mx-2">{isWO ? manualHomeScore : (isBasketball ? getBasketballScore(hG) : (hG.length + aO.length))} : {isWO ? manualAwayScore : (isBasketball ? getBasketballScore(aG) : (aG.length + hO.length))}</span> {match.awayTeam.name}</h2>
         </div>
         <div className="flex items-center gap-6">
-          {st === 'EN_VIVO' && (
-            <button onClick={() => setShowTimerModal(true)} className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl border border-slate-700 transition-all shadow-inner group">
-              <span className="text-lg">⏱</span>
-              <div className="flex flex-col items-start leading-none">
-                <span className="text-[9px] text-blue-400 font-black tracking-widest uppercase">{getTimerPeriodLabel(timerStage, timerPeriod)}</span>
-                <span className="text-sm font-black text-white font-mono tracking-wider">
-                  {timerMinutes}:{timerSeconds.toString().padStart(2, '0')}
-                  {timerDuration > 0 && timerMinutes < timerDuration && <span className="text-[8px] text-slate-400 ml-1">-{timerDuration - timerMinutes}'</span>}
-                  {timerDuration > 0 && timerMinutes >= timerDuration && <span className="text-[8px] text-red-400 ml-1">⏰</span>}
-                  {timerAddition > 0 && timerMinutes >= timerDuration && <span className="text-[8px] text-yellow-400 ml-1">+{timerAddition}'</span>}
-                </span>
-              </div>
-            </button>
-          )}
+          <button onClick={() => setShowTimerModal(true)} className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl border border-slate-700 transition-all shadow-inner group">
+            <span className="text-lg">⏱</span>
+            <div className="flex flex-col items-start leading-none">
+              <span className="text-[9px] text-blue-400 font-black tracking-widest uppercase">{getTimerPeriodLabel(timerStage, timerPeriod)}</span>
+              <span className="text-sm font-black text-white font-mono tracking-wider">
+                {timerMinutes}:{timerSeconds.toString().padStart(2, '0')}
+                {timerDuration > 0 && timerMinutes < timerDuration && <span className="text-[8px] text-slate-400 ml-1">-{timerDuration - timerMinutes}'</span>}
+                {timerDuration > 0 && timerMinutes >= timerDuration && <span className="text-[8px] text-red-400 ml-1">⏰</span>}
+                {timerAddition > 0 && timerMinutes >= timerDuration && <span className="text-[8px] text-yellow-400 ml-1">+{timerAddition}'</span>}
+              </span>
+            </div>
+          </button>
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado:</span>
             <select value={st} onChange={e => setSt(e.target.value)} className="bg-slate-800 text-[10px] font-black rounded-xl px-4 py-2 outline-none border border-slate-700 hover:border-blue-500 transition-all">
@@ -5302,6 +5408,46 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
           </div>
         )}
       </div>
+
+      {/* Fouls counter + Sin Bin */}
+      {match && (
+        <div className="bg-blue-50/60 px-8 py-3 border-b border-blue-100 flex items-center gap-8 overflow-x-auto">
+          <div className="flex items-center gap-4 shrink-0">
+            <span className="text-[9px] font-black text-blue-700 uppercase tracking-widest shrink-0">Faltas:</span>
+            <div className="flex items-center gap-2 text-[10px] font-bold">
+              <span className="text-slate-500">1°T</span>
+              <span className={`px-2 py-0.5 rounded-lg ${homeFouls1 >= 5 ? 'bg-amber-100 text-amber-800' : 'bg-white text-slate-700'}`}>{match.homeTeam?.name} {homeFouls1}</span>
+              <span className="text-xs font-black text-slate-300">|</span>
+              <span className={`px-2 py-0.5 rounded-lg ${awayFouls1 >= 5 ? 'bg-amber-100 text-amber-800' : 'bg-white text-slate-700'}`}>{match.awayTeam?.name} {awayFouls1}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold">
+              <span className="text-slate-500">2°T</span>
+              <span className={`px-2 py-0.5 rounded-lg ${homeFouls2 >= 5 ? 'bg-amber-100 text-amber-800' : 'bg-white text-slate-700'}`}>{match.homeTeam?.name} {homeFouls2}</span>
+              <span className="text-xs font-black text-slate-300">|</span>
+              <span className={`px-2 py-0.5 rounded-lg ${awayFouls2 >= 5 ? 'bg-amber-100 text-amber-800' : 'bg-white text-slate-700'}`}>{match.awayTeam?.name} {awayFouls2}</span>
+            </div>
+          </div>
+          {(() => {
+            const allBlues = [...hC, ...aC].filter(e => e.type === 'BLUE_CARD')
+            if (allBlues.length === 0) return null
+            const active = allBlues.filter(b => timerMinutes > 0 && timerMinutes < (b.minute ?? 0) + 2 && b.minute != null)
+            const recovered = allBlues.filter(b => !(timerMinutes > 0 && timerMinutes < (b.minute ?? 0) + 2 && b.minute != null))
+            return (
+              <div className="flex items-center gap-4 shrink-0">
+                <span className="text-[9px] font-black text-blue-700 uppercase tracking-widest shrink-0">🟦 Exclusiones:</span>
+                {active.length > 0 && active.map((b: any) => (
+                  <span key={b.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-100 text-blue-800 text-[10px] font-bold whitespace-nowrap">
+                    🟦 {b.player?.name || '—'} <span className="text-[8px] text-blue-500">vuelve {(b.minute ?? 0) + 2}' (restan {(b.minute ?? 0) + 2 - timerMinutes}')</span>
+                  </span>
+                ))}
+                {recovered.length > 0 && (
+                  <span className="text-[10px] font-bold text-emerald-700 whitespace-nowrap">✅ Recuperados: {recovered.map(b => b.player?.name || '—').join(', ')}</span>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      )}
 
       {/* Main Body - Row for Each Team */}
       <div className={`flex-1 overflow-y-auto px-8 pt-5 pb-4 bg-[#FDFDFD] space-y-6 custom-scrollbar ${isWO ? 'opacity-40 pointer-events-none' : ''}`}>
@@ -5884,6 +6030,7 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
           )}
           {tab === 'tarjetas' && <RowFormSection title="🟨 Tarjetas disciplinarias" evs={cards} setEvs={setCards} players={team.players || []} color={color} isType={true} type="YELLOW_CARD" opts={[
             { v: 'YELLOW_CARD', label: '🟨 Amarilla', hint: '1ª falta' },
+            { v: 'BLUE_CARD', label: '🟦 Azul (2\')', hint: 'Exclusión 2 minutos' },
             { v: 'DOUBLE_YELLOW_CARD', label: '🟨🟥 2ª Amarilla → Expulsado', hint: 'Acumulación' },
             { v: 'RED_CARD', label: '🟥 Roja Directa', hint: 'Expulsión inmediata' },
           ]} timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} />}
