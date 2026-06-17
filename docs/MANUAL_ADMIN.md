@@ -1,43 +1,133 @@
-# 🛠️ Manual de Usuario Administrador - CopaDepor
+# Manual de Administrador — CopaDepor
 
-Bienvenido al panel de administración de CopaDepor. Este manual detalla las funciones críticas para la gestión de torneos, equipos y fixtures.
+Panel de administración para gestión de torneos, equipos, fixtures y resultados.
 
 ## 1. Gestión de Torneos
-Desde el Dashboard principal, puede ver la lista de torneos activos o crear nuevos.
-*   **Crear Torneo**: Haga clic en el botón "+" en la lista de torneos.
-*   **Configuración**: Dentro de un torneo, use el botón de engranaje ⚙️ para acceder a la configuración global.
+
+### 1.1 Crear Torneo
+1. Desde el Dashboard, click en "+ Nuevo Campeonato"
+2. Elegir tipo: Único o con Categorías
+3. Seleccionar deporte
+4. Configurar criterios de clasificación (orden por drag-and-drop)
+5. Completar nombre, fechas, formato y crear
+
+### 1.2 Configuración del Torneo
+Dentro de un torneo, click en ⚙️ (engranaje):
+- **Información General**: Nombre, descripción, fechas
+- **Color del Menú Público**: Color de la barra lateral (por defecto negro)
+- **Logo y Banner**: Imagen del torneo
+- **Formato de Fases**: Agregar/eliminar fases (Liga, Eliminatoria)
+- **Patrocinadores**: Gestionar sponsors
+- **Noticias**: Publicar novedades
+- **Personalización**: Deporte, criterios de clasificación, plan
+
+### 1.3 Eliminar Torneo
+- Click en el ícono de eliminar en la lista del Dashboard
+- Siempre pide confirmación antes de eliminar
 
 ## 2. Gestión de Equipos
-Antes de generar un fixture, es obligatorio que el torneo tenga equipos asignados.
-*   **Agregar Equipos**: Vaya a "Equipos" en el menú de configuración.
-*   **Validación**: El sistema no permitirá generar partidos si el torneo tiene 0 equipos.
 
-## 3. Gestión del Fixture (Calendario)
-El sistema utiliza el formato **Round Robin** para la generación de partidos.
+1. Ir a "Equipos" en el menú de configuración
+2. **Agregar**: Click en "+" y completar nombre
+3. **Miembros**: Click en el equipo para gestionar jugadores y cuerpo técnico
+4. **Asignar a Torneo**: Desde la página del torneo, "Seleccionar equipos"
 
-### 🚀 Generación Inicial
-1.  Haga clic en el botón "+" del lado derecho del calendario de fechas.
-2.  Seleccione **"⚽ SOLO IDA"** o **"🔄 IDA Y VUELTA"**.
-3.  El sistema distribuirá automáticamente los equipos en rondas (fechas).
+## 3. Gestión del Fixture
 
-### 🔄 Regeneración
-Si necesita cambiar el formato o se equivocó al agregar equipos:
-1.  Hace clic en el mismo botón "+".
-2.  El sistema le avisará que ya existen partidos y le dará la opción de **"Borrar todo y regenerar"**.
-3.  *Nota: Esto eliminará todos los partidos actuales de la fase seleccionada.*
+### 3.1 Generar Partidos
+1. Click en "+" al lado del calendario de fechas
+2. Elegir: "⚽ SOLO IDA" o "🔄 IDA Y VUELTA"
+3. El sistema distribuye los equipos en rondas automáticamente
 
-### 🧹 Limpiar/Restaurar Resultados
-Si ya ha registrado goles o tarjetas pero desea reiniciar la fase manteniendo los mismos partidos:
-1.  En el modal de fixture, seleccione la opción **"🧹 Limpiar resultados y tarjetas"**.
-2.  Esto pondrá todos los marcadores en 0 (o nulos), borrará todos los eventos registrados y pondrá los partidos en estado "Programado".
+### 3.2 Regenerar
+1. Click en "+" nuevamente
+2. Confirmar "Borrar todo y regenerar"
+3. Se eliminan todos los partidos de la fase y se crean nuevos
 
-## 4. Registro de Partidos
-Para cargar datos de un partido:
-1.  Haga clic en un partido del calendario.
-2.  Se abrirá el **Modal de Gestión de Partido**.
-3.  **Goles**: Registre el autor del gol, el minuto y el tipo.
-4.  **Tarjetas**: Registre amarillas y rojas vinculadas a jugadores específicos.
-5.  **Estado**: Cambie el estado a "EN VIVO" para seguimiento en tiempo real o "FINALIZADO" para cerrar el acta.
+### 3.3 Limpiar Resultados
+Opción "🧹 Limpiar resultados y tarjetas": reinicia marcadores y eventos sin eliminar la estructura del fixture.
 
----
-*CopaDepor - Sistema de Gestión de Torneos*
+### 3.4 Eliminatoria
+1. Desde el menú de fases, click en "🏆 GENERAR ELIMINATORIA"
+2. Seleccionar teams clasificados
+3. El sistema genera el bracket automáticamente
+
+## 4. Edición de Partidos
+
+Click en un partido del calendario para abrir el modal de gestión:
+
+### 4.1 Resultado
+- Goles de local y visitante
+- Goles de penal (para eliminatorias)
+- Estado: Programado → EN VIVO → Finalizado
+- W.O. si corresponde
+
+### 4.2 Goles
+- Seleccionar jugador, minuto y período
+- Goles en contra (own goal)
+
+### 4.3 Tarjetas
+- **🟡 Amarilla**: Advertencia
+- **🟦 Azul (Futsal)**: Exclusión temporal de 2 minutos — aparece en el sin bin tracker
+- **🔴 Roja**: Expulsión
+
+### 4.4 Faltas (Futsal)
+- Se cuentan automáticamente por equipo y período (1°T / 2°T)
+- Al llegar a 5 faltas en un período, se muestra una advertencia naranja
+- Las faltas se computan de amarillas + azules registradas en el partido
+
+### 4.5 Timer (Futsal)
+- Click en el botón ⏱ para abrir el control de tiempo
+- Por defecto 20 minutos para Futsal
+- Botones: "Iniciar" / "Iniciar EN VIVO" / "Cerrar"
+- Muestra faltas por período y estado del sin bin
+
+### 4.6 Sin Bin (Futsal)
+- Cuando se registra una tarjeta azul, el jugador entra en exclusión temporal
+- Se muestra en el timer modal: "🟦 [Jugador] vuelve X' (restan N')"
+- Al cumplirse los 2 minutos, pasa a "✅ Recuperados"
+
+### 4.7 Seleccionar Equipos
+- "Seleccionar equipos" asigna/remplaza equipos al partido
+- "Cambiar equipos" permite cambiar un equipo específico
+- Valida que el equipo no juegue contra sí mismo
+- Valida que el equipo no esté en otro partido de la misma ronda
+
+## 5. Fases del Torneo
+
+- **Liga (Todos contra todos)**: Round Robin con ida o ida y vuelta
+- **Eliminatoria**: Bracket de eliminación directa
+- **Liga + Eliminatoria**: Fase de grupos seguida de playoffs
+- Se pueden crear fases adicionales desde configuración
+
+## 6. Estadísticas
+
+- **Tabla de Posiciones**: PJ, PG, PE, PP, GF, GC, DG, PTS
+- **Goleadores**: Ranking de jugadores con más goles
+- **Fair Play**: Tarjetas por equipo
+- **Estadísticas de Fecha**: Totales de juegos y goles por jornada
+
+## 7. Panel Público
+
+- URL pública: `/public/tournaments/[id]`
+- Vista de calendario, clasificación y estadísticas
+- Optimizado para mobile
+- Muestra tarjetas azules en el resumen del partido
+
+## 8. Deportes Soportados
+
+- Fútbol 11 (FUTBOL_11)
+- **Futsal (FUTSAL)** — con tarjeta azul, faltas, timer 20'
+- Fútbol 7 (FUTBOL_7)
+- Balonmano, Baloncesto, Vóley, Vóley Playa
+- Tenis, Tenis de Mesa, Beach Tennis
+- Ajedrez, Atletismo
+- Deporte Genérico, Disparos
+- Battle Royale, MOBA LoL, MOBA Dota
+
+## Atajos y Tips
+
+- Los torneos nuevos se crean con color negro por defecto
+- Al crear un torneo, el color se puede personalizar después desde configuración
+- Para pruebas locales, la BD apunta a `localhost:3306`
+- En producción (Vercel), la BD es Aiven MySQL con SSL

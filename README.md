@@ -1,43 +1,78 @@
-# 🏆 CopaDepor - Tournament Management System
+# CopaDepor — Tournament Management System
 
-CopaDepor es una plataforma moderna y robusta diseñada para la gestión integral de torneos de fútbol. El sistema permite administrar desde la creación de equipos hasta la generación automatizada de fixtures y el seguimiento de estadísticas en tiempo real.
+Sistema de gestión integral de torneos multideportivos. Creación de torneos, equipos, fixtures automatizados, seguimiento de estadísticas en tiempo real y soporte para reglas de Futsal (tarjeta azul, faltas acumulativas, timer 20').
 
-## 🚀 Características Principales
+## Stack Tecnológico
 
-*   **Gestión de Torneos**: Creación y configuración dinámica de fases y rondas.
-*   **Fixture Automatizado**: Generación de partidos mediante algoritmos Round Robin (Ida o Ida y Vuelta).
-*   **Seguimiento en Vivo**: Registro detallado de eventos de partido (goles, tarjetas amarillas/rojas, etc.).
-*   **Estadísticas Automáticas**: Tablas de posiciones, goleadores y fair play actualizados al instante.
-*   **Sistema de Limpieza Avanzado**: Capacidad para restaurar resultados de una fase sin perder la estructura del fixture.
+- **Frontend**: Next.js 14 (App Router), React, Tailwind CSS, TypeScript
+- **Backend**: Next.js API Routes
+- **Base de Datos**: MySQL 8.0 (local) / Aiven MySQL (producción)
+- **ORM**: Prisma 5.22
+- **Deploy**: Vercel (free tier)
+- **Auth**: JWT + bcrypt
 
-## 🛠️ Stack Tecnológico
+## Deploy
 
-*   **Frontend**: Next.js (App Router), React, Tailwind CSS.
-*   **Backend**: Next.js API Routes.
-*   **Base de Datos**: PostgreSQL / MySQL (según entorno).
-*   **ORM**: Prisma.
+- **Producción**: https://copadepor.vercel.app
+- **Base de datos**: Aiven MySQL (sslca=prisma/ca.pem)
+- **Dominio**: copadepor.vercel.app
 
-## 📖 Documentación y Manuales
+## Características
 
-Para facilitar el uso del sistema, hemos creado guías detalladas:
+- Gestión de torneos (único o por categorías)
+- Fixture Round Robin (ida / ida y vuelta) + Eliminatoria directa
+- Registro de eventos: goles, amarillas, rojas, **tarjeta azul (Futsal)**
+- Contador de faltas por período (1°T / 2°T) con alerta al llegar a 5
+- Timer de 20' con control de EN VIVO
+- Seguimiento de exclusión temporal (sin bin) con cuenta regresiva
+- Tablas de posiciones con criterios de desempate configurables
+- Estadísticas de goleadores y fair play
+- Gestión de equipos, jugadores y sponsors
+- W.O. y fechas libres
+- Panel público de consulta de resultados
 
-*   [**📘 Manual de Administrador**](./docs/MANUAL_ADMIN.md): Todo sobre gestión de torneos, equipos y fixtures.
-*   [**📙 Manual de Usuario (Front-End)**](./docs/MANUAL_FRONTEND.md): Guía para consulta de resultados y tablas.
+## Documentación
 
-## 📂 Estructura del Proyecto
+- [Manual de Administrador](./docs/MANUAL_ADMIN.md)
+- [Manual de Usuario Frontend](./docs/MANUAL_FRONTEND.md)
+- [Manual del Programador](./docs/MANUAL_PROGRAMADOR.md)
 
-*   `/src/app`: Rutas y componentes de la aplicación (Next.js App Router).
-*   `/src/app/api`: Endpoints de la API para gestión de datos.
-*   `/prisma`: Esquema de la base de datos y migraciones.
-*   `/database`: Backups de la base de datos (SQL).
-*   `/docs`: Documentación detallada del proyecto.
+## Instalación Local
 
-## 🛠️ Instalación y Desarrollo
+```bash
+npm install
+# Configurar .env con DATABASE_URL local
+npm run dev
+```
 
-1.  Instalar dependencias: `npm install`
-2.  Configurar variables de entorno en `.env`.
-3.  Ejecutar el servidor de desarrollo: `npm run dev`
-4.  Acceder a `http://localhost:3000` (o `3001` si el 3000 está en uso).
+## Estructura del Proyecto
 
----
-*Desarrollado con ❤️ para la comunidad deportiva.*
+```
+src/
+  app/
+    api/               # API routes (Next.js)
+    (dashboard)/       # Dashboard pages
+    tournaments/       # Tournament management
+    public/            # Public view pages
+  lib/
+    prisma.ts          # Prisma client singleton
+    auth.ts            # JWT + bcrypt utilities
+    generated/         # Generated Prisma client
+prisma/
+  schema.prisma
+  migrations/
+  ca.pem               # Aiven CA certificate
+docs/
+  MANUAL_ADMIN.md
+  MANUAL_FRONTEND.md
+  MANUAL_PROGRAMADOR.md
+```
+
+## Variables de Entorno
+
+- `DATABASE_URL`: MySQL connection string
+- `JWT_SECRET`: Secret for JWT tokens
+
+## Licencia
+
+Uso interno — Iedimes

@@ -1,28 +1,56 @@
-# 👁️ Manual de Usuario (Front-End) - CopaDepor
+# Manual de Usuario (Frontend) — CopaDepor
 
-Este manual está dirigido a los usuarios que consultan la información de los torneos, resultados y estadísticas.
+Guía para usuarios que consultan información de torneos, resultados y estadísticas.
 
-## 1. Navegación de Torneos
-Al ingresar a la plataforma, verá los torneos disponibles. Haga clic en cualquiera para entrar al detalle.
+## 1. Navegación
 
-## 2. Consulta de Resultados (Calendario)
-*   **Fechas**: Use el selector de fechas o navegue lateralmente para ver los partidos de cada jornada.
-*   **Detalle**: Haga clic en un partido para ver quiénes anotaron los goles y quiénes recibieron tarjetas (si el partido ya tiene datos cargados).
+Acceder a https://copadepor.vercel.app para ver la plataforma pública.
 
-## 3. Tabla de Posiciones (Clasificación)
-En la pestaña de **Clasificación**, podrá ver el rendimiento de los equipos:
-*   **PJ**: Partidos Jugados.
-*   **PG/PE/PP**: Ganados, Empatados, Perdidos.
-*   **GF/GC/DG**: Goles a Favor, en Contra y Diferencia.
-*   **PTS**: Puntos totales.
+- **Torneos disponibles**: Lista de torneos activos
+- **Click en un torneo**: Ver detalle completo
 
-## 4. Estadísticas y Goleadores
-Cambie a la pestaña de **Estadísticas** para ver:
-*   **Máximos Goleadores**: Lista de jugadores con más goles en el torneo.
-*   **Fair Play**: Tabla de equipos o jugadores con más/menos tarjetas.
+## 2. Calendario de Partidos
 
-## 5. Fases del Torneo
-Si el torneo tiene múltiples fases (ej: Fase de Grupos, Eliminatorias), use el selector de fase en la parte superior para cambiar la vista.
+### 2.1 Navegar Fechas
+- Usar flechas izquierda/derecha para cambiar de jornada
+- Selector de fecha para ir a una fecha específica
+- Las fechas libres (W.O.) aparecen como "FECHA LIBRE"
+
+### 2.2 Ver Detalle de Partido
+Click en un partido para ver:
+- Resultado (local vs visitante)
+- Goles con autores y minuto
+- **Tarjetas amarillas, azules (Futsal) y rojas**
+- Estado del partido
+
+### 2.3 Fases
+Si el torneo tiene múltiples fases, usar el selector de fase en la parte superior.
+
+## 3. Clasificación
+
+Pestaña de **Clasificación**:
+- **PJ**: Partidos Jugados
+- **PG/PE/PP**: Ganados, Empatados, Perdidos
+- **GF/GC/DG**: Goles a Favor, en Contra, Diferencia
+- **PTS**: Puntos
+- Criterios de desempate configurables por el organizador
+
+## 4. Estadísticas
+
+Pestaña de **Estadísticas**:
+- **Goleadores**: Ranking de jugadores con más goles
+- **Fair Play**: Tarjetas por equipo
+
+## 5. Futsal (Características Especiales)
+
+En torneos de Futsal, el resumen del partido muestra:
+- **Tarjetas azules**: Se muestran entre amarillas y rojas
+- **Faltas por período**: 1°T y 2°T con conteo visible
+
+## 6. Mobile
+
+El sitio está optimizado para dispositivos móviles. Toda la funcionalidad está disponible desde el celular.
 
 ---
-*CopaDepor - Información deportiva al instante*
+
+*CopaDepor — Información deportiva al instante*
