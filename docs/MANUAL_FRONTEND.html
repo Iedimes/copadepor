@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de Usuario — CopaDepor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; background: #f8fafc; line-height: 1.6; }
+  header { background: #18181b; color: white; padding: 2rem 1.5rem; text-align: center; }
+  header h1 { font-size: 1.5rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+  header p { margin-top: 0.5rem; font-size: 0.875rem; color: #94a3b8; }
+  main { max-width: 800px; margin: 2rem auto; padding: 0 1.5rem 4rem; }
+  section { background: white; border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 1.5rem; margin-bottom: 1.5rem; }
+  h2 { font-size: 1.25rem; font-weight: 800; color: #18181b; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0; }
+  h3 { font-size: 1rem; font-weight: 700; color: #334155; margin: 1rem 0 0.5rem; }
+  p { margin-bottom: 0.75rem; color: #475569; }
+  ul { margin: 0.5rem 0 1rem 1.25rem; }
+  li { margin-bottom: 0.375rem; color: #475569; }
+  strong { color: #18181b; }
+  .badge { display: inline-block; background: #dcfce7; color: #166534; font-size: 0.75rem; font-weight: 700; padding: 0.125rem 0.5rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
+  footer { text-align: center; padding: 2rem; color: #94a3b8; font-size: 0.875rem; }
+  @media (max-width: 640px) { header h1 { font-size: 1.25rem; } main { padding: 0 1rem 3rem; } section { padding: 1.25rem; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Manual de Usuario</h1>
+  <p>CopaDepor — Información deportiva al instante</p>
+</header>
+
+<main>
+
+<section>
+  <h2>1. Navegación</h2>
+  <p>Accedé a <strong>https://copadepor.vercel.app</strong> para ver la plataforma pública.</p>
+  <ul>
+    <li><strong>Torneos disponibles</strong>: Lista de torneos activos en la página principal.</li>
+    <li><strong>Click en un torneo</strong>: Te lleva al detalle completo (calendario, clasificación, estadísticas).</li>
+  </ul>
+</section>
+
+<section>
+  <h2>2. Calendario de Partidos</h2>
+
+  <h3>2.1 Navegar Fechas</h3>
+  <ul>
+    <li>Usá las flechas izquierda/derecha para cambiar de jornada.</li>
+    <li>Usá el selector de fecha para ir a una fecha específica.</li>
+    <li>Las fechas libres (W.O.) aparecen como <strong>"FECHA LIBRE"</strong>.</li>
+  </ul>
+
+  <h3>2.2 Ver Detalle de Partido</h3>
+  <p>Hacé click en un partido para ver:</p>
+  <ul>
+    <li>Resultado (local vs visitante).</li>
+    <li>Goles con autores y minuto.</li>
+    <li><strong>Tarjetas amarillas</strong>, <strong>azules</strong> (Futsal) y <strong>rojas</strong>.</li>
+    <li>Estado del partido (Programado, EN VIVO, Finalizado).</li>
+  </ul>
+
+  <h3>2.3 Fases</h3>
+  <p>Si el torneo tiene múltiples fases (ej: Fase de Grupos, Eliminatorias), usá el selector de fase en la parte superior para cambiar la vista.</p>
+</section>
+
+<section>
+  <h2>3. Clasificación</h2>
+  <p>En la pestaña de <strong>Clasificación</strong> podés ver el rendimiento de los equipos:</p>
+  <ul>
+    <li><strong>PJ</strong>: Partidos Jugados.</li>
+    <li><strong>PG / PE / PP</strong>: Ganados, Empatados, Perdidos.</li>
+    <li><strong>GF / GC / DG</strong>: Goles a Favor, en Contra y Diferencia.</li>
+    <li><strong>PTS</strong>: Puntos totales.</li>
+  </ul>
+  <p>Los criterios de desempate son configurables por el organizador del torneo.</p>
+</section>
+
+<section>
+  <h2>4. Estadísticas</h2>
+  <p>En la pestaña de <strong>Estadísticas</strong>:</p>
+  <ul>
+    <li><strong>Goleadores</strong>: Ranking de jugadores con más goles en el torneo.</li>
+    <li><strong>Fair Play</strong>: Tabla de tarjetas por equipo.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>5. Futsal — Características Especiales</h2>
+  <p>En torneos de <span class="badge">Futsal</span> el resumen del partido incluye:</p>
+  <ul>
+    <li><strong>Tarjetas azules</strong> 🟦: Se muestran entre amarillas y rojas. Indican exclusión temporal de 2 minutos.</li>
+    <li><strong>Faltas por período</strong>: Conteo de faltas acumuladas en 1°T y 2°T visible en la interfaz.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>6. Vista en Celular</h2>
+  <p>El sitio está optimizado para dispositivos móviles. Toda la funcionalidad (calendario, clasificación, estadísticas) está disponible desde el celular sin necesidad de hacer zoom.</p>
+</section>
+
+</main>
+
+<footer>
+  CopaDepor — Sistema de Gestión de Torneos
+</footer>
+
+</body>
+</html>
