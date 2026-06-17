@@ -174,7 +174,7 @@ export default function DashboardPage() {
     setDeleting(true)
     
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${deleteConfirm.tournament.id}`, {
+    const res = await fetch(`/api/tournaments/${deleteConfirm.tournament.id}?force=true`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
