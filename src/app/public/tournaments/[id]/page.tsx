@@ -161,7 +161,7 @@ export default function PublicTournamentPage() {
   const [loggedUser, setLoggedUser] = useState<any>(null)
   const [sendingMessage, setSendingMessage] = useState(false)
 
-  const themeColor = tournament?.themeColor || '#FF6B00'
+  const themeColor = tournament?.themeColor || '#18181B'
 
   // Check if user is already logged in
   useEffect(() => {
@@ -1507,7 +1507,7 @@ export default function PublicTournamentPage() {
                         {/* Two circles side-by-side: Juegos and Goles */}
                         <div className="flex items-center justify-around border-b border-slate-100 pb-5 mb-5">
                           <div className="flex flex-col items-center">
-                            <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-[#FF6B00] text-sm bg-slate-50 shadow-xs">
+                            <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-sm bg-slate-50 shadow-xs" style={{ color: themeColor || '#18181B' }}>
                               {activePhase?.type === 'ELIMINATORIA' 
                                 ? matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).length
                                 : activeRoundMatches.filter(m => m.notes !== 'FECHA_LIBRE').length
@@ -1517,7 +1517,7 @@ export default function PublicTournamentPage() {
                           </div>
 
                           <div className="flex flex-col items-center">
-                            <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-[#FF6B00] text-sm bg-slate-50 shadow-xs">
+                            <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-sm bg-slate-50 shadow-xs" style={{ color: themeColor || '#18181B' }}>
                               {activePhase?.type === 'ELIMINATORIA'
                                 ? matches.filter(m => (m.phaseName || firstPhaseName) === selectedPhase).reduce((acc, m) => acc + (m.homeScore || 0) + (m.awayScore || 0), 0)
                                 : activeRoundMatches.reduce((acc, m) => acc + (m.homeScore || 0) + (m.awayScore || 0), 0)

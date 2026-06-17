@@ -482,7 +482,7 @@ export default function TournamentPage() {
   const [configDescription, setConfigDescription] = useState('')
   const [configLogo, setConfigLogo] = useState('')
   const [configBanner, setConfigBanner] = useState('')
-  const [configThemeColor, setConfigThemeColor] = useState('#FF6B00')
+  const [configThemeColor, setConfigThemeColor] = useState('#18181B')
   const [configStartDate, setConfigStartDate] = useState('')
   const [configEndDate, setConfigEndDate] = useState('')
   const [configContact, setConfigContact] = useState('')
@@ -560,7 +560,7 @@ export default function TournamentPage() {
       setConfigDescription(tournament.description || '')
       setConfigLogo(tournament.logo || '')
       setConfigBanner(tournament.banner || '')
-      setConfigThemeColor(tournament.themeColor || '#FF6B00')
+      setConfigThemeColor(tournament.themeColor || '#18181B')
       setConfigStartDate(tournament.startDate ? new Date(tournament.startDate).toISOString().split('T')[0] : '')
       setConfigEndDate(tournament.endDate ? new Date(tournament.endDate).toISOString().split('T')[0] : '')
       setConfigContact(tournament.contact || '')
@@ -1707,7 +1707,7 @@ export default function TournamentPage() {
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/public/tournaments/${tournamentId}` : '';
   const sportIcon = getSportIcon(activeCategory?.sportType || tournament?.sportType || '')
-  const themeColor = tournament?.themeColor || '#FF6B00'
+  const themeColor = tournament?.themeColor || '#18181B'
 
   if (loading && !tournament) return <div className="p-8 text-center font-black text-slate-400 uppercase tracking-widest">Cargando Torneo...</div>
   if (!tournament) return <div className="p-8 text-center text-slate-400 font-bold italic">No se encontró el torneo.</div>
@@ -1820,7 +1820,7 @@ export default function TournamentPage() {
         {tournament?.format === 'categorias' && !activeCategory && activeMenu !== 'configuracion' ? (
           <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
             {/* Banner Portada con Logo Oficial */}
-            <div className="relative h-72 rounded-[2.5rem] overflow-hidden shadow-2xl" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+            <div className="relative h-72 rounded-[2.5rem] overflow-hidden shadow-2xl" style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
               <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={
@@ -2083,12 +2083,12 @@ export default function TournamentPage() {
                   <div className="flex flex-wrap items-center gap-4">
                     {/* Preset Colors */}
                     {[
-                      { hex: '#FF6B00', name: 'Naranja Sajonia' },
+                      { hex: '#18181B', name: 'Negro Premium' },
                       { hex: '#0F172A', name: 'Azul Profundo' },
                       { hex: '#059669', name: 'Verde Esmeralda' },
                       { hex: '#7C3AED', name: 'Púrpura Imperial' },
                       { hex: '#DC2626', name: 'Rojo Fuego' },
-                      { hex: '#18181B', name: 'Negro Premium' },
+                      { hex: '#FF6B00', name: 'Naranja Sajonia' },
                     ].map(preset => (
                       <button
                         key={preset.hex}
@@ -2440,12 +2440,12 @@ export default function TournamentPage() {
                 {/* Centered Tab Button - Floating */}
                 <div className="absolute left-1/2 -translate-x-1/2 top-0 z-50">
                   <div className="relative group">
-                    <button style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
+                    <button style={{ backgroundColor: tournament?.themeColor || '#18181B' }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
                       <span className="text-lg font-light leading-none mb-1">+</span>
                     </button>
 
                     {/* Dropdown Menu */}
-                    <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                    <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                       <div className="py-2">
                         <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                           <span className="text-lg">📋</span> Equipos
@@ -2477,7 +2477,7 @@ export default function TournamentPage() {
                   <p className="text-slate-500 font-bold mb-6 italic">Aún no hay equipos</p>
                   <button
                     onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)}
-                    style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
+                    style={{ backgroundColor: tournament?.themeColor || '#18181B' }}
                     className="text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:brightness-110 hover:scale-105 transition-all shadow-xl shadow-slate-200"
                   >
                     AGREGAR EQUIPOS
@@ -2508,12 +2508,12 @@ export default function TournamentPage() {
                       {/* Centered Tab Button */}
                       <div className="absolute left-1/2 -translate-x-1/2 -top-8 z-50">
                         <div className="relative group">
-                          <button style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
+                          <button style={{ backgroundColor: tournament?.themeColor || '#18181B' }} className="text-white w-16 h-7 rounded-b-2xl flex items-center justify-center transition-colors shadow-md border-t-0">
                             <span className="text-lg font-light leading-none mb-1">+</span>
                           </button>
 
                           {/* Dropdown Menu */}
-                          <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                          <div className="absolute left-1/2 -translate-x-1/2 top-7 w-64 rounded-xl shadow-2xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 overflow-hidden" style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                             <div className="py-2">
                               <button onClick={() => router.push(`/tournaments/${tournamentId}/add-teams${activeCategory ? `?categoryId=${activeCategory.id}` : ''}`)} className="w-full flex items-center gap-4 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors">
                                 <span className="text-lg">📋</span> Equipos
@@ -2553,7 +2553,7 @@ export default function TournamentPage() {
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">{isBasketball ? '🏀 Anotadores' : '🥅 Goleadores'}</h3>
                             <div className="overflow-hidden rounded-2xl border border-slate-50">
                               <table className="w-full text-xs">
-                                <thead className="text-white" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                                <thead className="text-white" style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                                   <tr className="uppercase tracking-widest font-black">
                                     <th className="p-4 text-center w-12">Pos</th>
                                     <th className="p-4 text-left">Jugador</th>
@@ -2582,7 +2582,7 @@ export default function TournamentPage() {
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">🟨 Sanciones</h3>
                             <div className="overflow-hidden rounded-2xl border border-slate-50">
                               <table className="w-full text-xs">
-                                <thead className="text-white" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                                <thead className="text-white" style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                                   <tr className="uppercase tracking-widest font-black">
                                     <th className="p-4 text-center w-12">Pos</th>
                                     <th className="p-4 text-left">Jugador</th>
@@ -2649,7 +2649,7 @@ export default function TournamentPage() {
                                     <table className="w-full text-sm">
                                       <thead>
                                         <tr
-                                          style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
+                                          style={{ backgroundColor: tournament?.themeColor || '#18181B' }}
                                           className="text-white font-black text-[10px] uppercase tracking-wider"
                                         >
                                           <th className="p-4 text-center w-16">Pos</th>
@@ -2746,7 +2746,7 @@ export default function TournamentPage() {
 
                 {/* Calendar */}
                 <div className="w-full xl:w-[480px] bg-white rounded-[2rem] border border-slate-200 shadow-sm flex flex-col flex-shrink-0 overflow-hidden">
-                  <div className="px-6 py-4 flex items-center justify-between shadow-xs" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                  <div className="px-6 py-4 flex items-center justify-between shadow-xs" style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                     <h2 className="text-xl font-black text-white flex items-center gap-2">Juegos</h2>
                     <div className="flex border border-white rounded-full overflow-hidden">
                       <select
@@ -2789,12 +2789,12 @@ export default function TournamentPage() {
 
                   {/* CENTRAL ACTION BUTTON (+) */}
                   <div className="relative flex justify-center -mt-3 z-20" ref={roundActionsRef}>
-                    <div className="px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:brightness-110 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)} style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                    <div className="px-6 py-1.5 rounded-b-[1.2rem] shadow-lg cursor-pointer hover:brightness-110 transition-all flex items-center justify-center group" onClick={() => setShowRoundActions(!showRoundActions)} style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                       <span className="text-white font-black text-lg group-hover:scale-110 transition-transform">+</span>
                     </div>
 
                     {showRoundActions && (
-                      <div className="absolute top-10 w-64 rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                      <div className="absolute top-10 w-64 rounded-2xl shadow-2xl border border-white/10 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                         <div className="p-2 space-y-1">
                           <MenuOption icon="➕" label="Agregar fecha" onClick={handleAddNextRound} />
                           <MenuOption icon="➕" label="Agregar partido" onClick={() => { setShowAddMatchModal(true); setShowRoundActions(false); }} />
@@ -2831,7 +2831,7 @@ export default function TournamentPage() {
                             else setShowGenType(true);
                           }}
                           className="w-full py-4 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-lg active:scale-95"
-                          style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
+                          style={{ backgroundColor: tournament?.themeColor || '#18181B' }}
                         >
                           Generar Partidos
                         </button>
@@ -2857,7 +2857,7 @@ export default function TournamentPage() {
                       <button
                         onClick={() => setShowAddMatchModal(true)}
                         className="w-full py-4 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-lg active:scale-95"
-                        style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
+                        style={{ backgroundColor: tournament?.themeColor || '#18181B' }}
                       >
                         AGREGAR PARTIDO
                       </button>
@@ -2873,7 +2873,7 @@ export default function TournamentPage() {
                             <button
                               onClick={() => setShowAddMatchModal(true)}
                               className="w-full py-4 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-lg active:scale-95"
-                              style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}
+                              style={{ backgroundColor: tournament?.themeColor || '#18181B' }}
                             >
                               AGREGAR PARTIDO
                             </button>
@@ -2918,7 +2918,7 @@ export default function TournamentPage() {
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
                   <table className="w-full text-sm">
-                    <thead style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                    <thead style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                       <tr className="text-white font-black text-[10px] uppercase tracking-wider">
                         <th className="p-4 text-center">Pos</th>
                         <th className="p-4 text-left">Jugador</th>
@@ -2950,7 +2950,7 @@ export default function TournamentPage() {
                 </div>
                 <div className="overflow-hidden rounded-3xl border border-slate-100">
                   <table className="w-full text-sm">
-                    <thead style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>
+                    <thead style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>
                       <tr className="text-white font-black text-[10px] uppercase tracking-wider">
                         <th className="p-4 text-center">Pos</th>
                         <th className="p-4 text-left">Jugador</th>
@@ -3086,7 +3086,7 @@ export default function TournamentPage() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[120] p-4 animate-in fade-in duration-300" onClick={() => setMatchSummary(null)}>
           <div className="bg-white rounded-[2.5rem] max-w-2xl w-full max-h-[85vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }} className="px-6 py-5 text-white relative">
+            <div style={{ backgroundColor: tournament?.themeColor || '#18181B' }} className="px-6 py-5 text-white relative">
               <div className="flex items-center justify-between">
                 <div className="flex-1 text-right pr-4">
                   <span className="font-black text-sm block truncate">{matchSummary.homeTeam?.name}</span>
@@ -6518,21 +6518,21 @@ function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: 
   return (
     <div className="space-y-8">
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        <div className="px-6 py-4 shadow-xs" style={{ backgroundColor: themeColor || '#FF6B00' }}>
+        <div className="px-6 py-4 shadow-xs" style={{ backgroundColor: themeColor || '#18181B' }}>
           <span className="text-white font-black text-sm uppercase tracking-wider">Estadísticas de la fecha</span>
         </div>
 
         <div className="p-6">
           <div className="flex items-center justify-around border-b border-slate-100 pb-5 mb-5">
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-[#FF6B00] text-sm bg-slate-50 shadow-xs">
+              <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-sm bg-slate-50 shadow-xs" style={{ color: themeColor || '#18181B' }}>
                 {stats.matches}
               </div>
               <span className="mt-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">Juegos</span>
             </div>
 
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-[#FF6B00] text-sm bg-slate-50 shadow-xs">
+              <div className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center font-black text-sm bg-slate-50 shadow-xs" style={{ color: themeColor || '#18181B' }}>
                 {stats.goals}
               </div>
               <span className="mt-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">Goles</span>
@@ -6542,7 +6542,7 @@ function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: 
 
       <section>
         <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-          <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor || '#FF6B00' }}>Goleadores</div>
+          <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor || '#18181B' }}>Goleadores</div>
           <div className="divide-y divide-slate-50">
             {topScorers.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topScorers.map((s, i) => (
               <div key={i} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -6563,7 +6563,7 @@ function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: 
       <div className="flex flex-col gap-6">
         <section>
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor || '#FF6B00' }}>Tarjeta Amarilla</div>
+            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: themeColor || '#18181B' }}>Tarjeta Amarilla</div>
             <div className="divide-y divide-slate-50">
               {topYellows.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topYellows.map(s => (
                 <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -6583,7 +6583,7 @@ function RoundStatistics({ matches, themeColor }: { matches: any[]; themeColor: 
 
         <section>
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest text-red-500" style={{ backgroundColor: themeColor || '#FF6B00' }}>Tarjeta Roja</div>
+            <div className="text-white p-3 text-center text-[10px] font-black uppercase tracking-widest text-red-500" style={{ backgroundColor: themeColor || '#18181B' }}>Tarjeta Roja</div>
             <div className="divide-y divide-slate-50">
               {topReds.length === 0 ? <div className="p-4 text-center text-[10px] text-slate-300 font-black italic">Sin datos</div> : topReds.map(s => (
                 <div key={s.name} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
@@ -6831,7 +6831,7 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
     const visibleCols = tableColumns.filter((c: any) => c.visible)
 
     const TableHeader = ({ className, bgColor }: { className?: string; bgColor?: string }) => (
-      <thead className={className} style={{ backgroundColor: bgColor || (tournament?.themeColor || '#FF6B00') }}>
+      <thead className={className} style={{ backgroundColor: bgColor || (tournament?.themeColor || '#18181B') }}>
         <tr className="uppercase tracking-widest font-black text-[10px]">
           <th className="p-3 text-center w-10 text-white">Pos</th>
           <th className="p-3 text-left min-w-[150px] text-white">Equipo</th>
@@ -6855,12 +6855,12 @@ function ExportModal({ tournament, tournamentTeams, standings, tableColumns, exp
       return (
         <div ref={tableRef} className="bg-white p-10 rounded-xl w-full">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-black uppercase" style={{ color: tournament?.themeColor || "#FF6B00" }}>{tournament.name}</h2>
+            <h2 className="text-3xl font-black uppercase" style={{ color: tournament?.themeColor || "#18181B" }}>{tournament.name}</h2>
             <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-xs mt-2">Tabla de Posiciones</p>
           </div>
           {Object.entries(groupedStandings).map(([group, teams]: [any, any]) => (
             <div key={group} className="mb-8 last:mb-0">
-              {group !== 'General' && <h3 className="text-white py-2 px-4 inline-block rounded-t-lg font-black text-xs uppercase mb-0" style={{ backgroundColor: tournament?.themeColor || '#FF6B00' }}>Grupo {group}</h3>}
+              {group !== 'General' && <h3 className="text-white py-2 px-4 inline-block rounded-t-lg font-black text-xs uppercase mb-0" style={{ backgroundColor: tournament?.themeColor || '#18181B' }}>Grupo {group}</h3>}
               <div className="border border-slate-100 overflow-hidden rounded-xl rounded-tl-none shadow-sm">
                 <table className="w-full text-xs">
                   <TableHeader />

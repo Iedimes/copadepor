@@ -88,13 +88,7 @@ export async function POST(request: NextRequest) {
       'eliminacion': 'ELIMINATORIA',
     }
 
-    // Get the most recently updated tournament by the same organizer to inherit its graphical styles (themeColor)
-    const latestTournament = await prisma.tournament.findFirst({
-      where: { organizerId: payload.userId },
-      orderBy: { updatedAt: 'desc' },
-      select: { themeColor: true }
-    })
-    const defaultThemeColor = latestTournament?.themeColor || '#FF6B00'
+    const defaultThemeColor = '#18181B'
 
     const tournament = await prisma.tournament.create({
       data: {
