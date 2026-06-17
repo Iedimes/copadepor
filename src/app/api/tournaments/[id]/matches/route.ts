@@ -405,53 +405,78 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           }
         }
       } else {
-        // STANDARD Round Robin
-        const shuffledIds = [...teamIds].sort(() => Math.random() - 0.5)
-        const isOdd = shuffledIds.length % 2 !== 0
-        
-        // Si la cantidad es impar, agregamos null como equipo dummy para la rotación par estándar
-        const tempTeams = isOdd ? [...shuffledIds, null] : [...shuffledIds]
-        const n = tempTeams.length
-        const numRounds = n - 1
-        
-        let rotatingTeams = [...tempTeams]
-        
-        for (let round = 1; round <= numRounds; round++) {
-          const roundName = `${round}`
-          for (let i = 0; i < n / 2; i++) {
-            const home = rotatingTeams[i]
-            const away = rotatingTeams[n - 1 - i]
-            
-            if (home === null || away === null) {
-              // Uno de los dos es el equipo dummy, por lo tanto el otro tiene FECHA LIBRE
-              const playingTeam = home === null ? away : home
-              if (playingTeam) {
-                matches.push({
-                  homeTeamId: playingTeam,
-                  awayTeamId: null as any,
-                  roundName,
-                  notes: 'FECHA_LIBRE'
-                })
+        // STANDARD Round Robin — group-aware: separate round-robin per group
+        const generateRoundRobin = (teamList: string[], roundOffset: number) => {
+          const shuffledIds = [...teamList].sort(() => Math.random() - 0.5)
+          const isOdd = shuffledIds.length % 2 !== 0
+          const tempTeams = isOdd ? [...shuffledIds, null] : [...shuffledIds]
+          const n = tempTeams.length
+          const numRounds = n - 1
+          let rotatingTeams = [...tempTeams]
+          const groupMatches: typeof matches = []
+          
+          for (let round = 1; round <= numRounds; round++) {
+            const roundName = `${roundOffset + round}`
+            for (let i = 0; i < n / 2; i++) {
+              const home = rotatingTeams[i]
+              const away = rotatingTeams[n - 1 - i]
+              
+              if (home === null || away === null) {
+                const playingTeam = home === null ? away : home
+                if (playingTeam) {
+                  groupMatches.push({
+                    homeTeamId: playingTeam,
+                    awayTeamId: null as any,
+                    roundName,
+                    notes: 'FECHA_LIBRE'
+                  })
+                }
+              } else {
+                groupMatches.push({ homeTeamId: home, awayTeamId: away, roundName })
               }
-            } else {
-              matches.push({ homeTeamId: home, awayTeamId: away, roundName })
+            }
+            rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
+          }
+          
+          if (matchType === 'idayvuelta') {
+            const currentCount = groupMatches.length
+            for (let i = 0; i < currentCount; i++) {
+              const m = groupMatches[i]
+              groupMatches.push({ 
+                homeTeamId: m.awayTeamId, 
+                awayTeamId: m.homeTeamId, 
+                roundName: String(Number(m.roundName) + numRounds),
+                notes: m.notes || null
+              })
             }
           }
-          // Rotación circular estándar: mantiene el primero fijo, rota el resto
-          rotatingTeams = [rotatingTeams[0], rotatingTeams[n - 1], ...rotatingTeams.slice(1, n - 1)]
+          
+          return groupMatches
         }
-        
-        if (matchType === 'idayvuelta') {
-          const currentCount = matches.length
-          for (let i = 0; i < currentCount; i++) {
-            const m = matches[i]
-            matches.push({ 
-              homeTeamId: m.awayTeamId, 
-              awayTeamId: m.homeTeamId, 
-              roundName: String(Number(m.roundName) + numRounds),
-              notes: m.notes || null
-            })
+
+        // Check if teams have groupNames
+        const teamsByGroup: Record<string, string[]> = {}
+        allTournamentTeams.forEach(tt => {
+          const gn = tt.groupName || '__NO_GROUP__'
+          if (!teamsByGroup[gn]) teamsByGroup[gn] = []
+          teamsByGroup[gn].push(tt.teamId)
+        })
+
+        const groupNames = Object.keys(teamsByGroup)
+        const hasGroups = groupNames.length > 1 || (groupNames.length === 1 && groupNames[0] !== '__NO_GROUP__')
+
+        if (hasGroups) {
+          let roundOffset = 0
+          for (const gn of groupNames) {
+            if (gn === '__NO_GROUP__') continue
+            const gMatches = generateRoundRobin(teamsByGroup[gn], roundOffset)
+            matches.push(...gMatches)
+            const roundsUsed = gMatches.length > 0 ? Math.max(...gMatches.map(m => Number(m.roundName))) : 0
+            roundOffset = roundsUsed
           }
+        } else {
+          const gMatches = generateRoundRobin(teamIds, 0)
+          matches.push(...gMatches)
         }
       }
  
@@ -709,8 +734,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       try {
         const { teamIds, teamCount: rawTeamCount, phaseName, matchType, selectionMode, generationMode } = body
         const count = generationMode === 'vacios'
-          ? Number(rawTeamCount || 0)
-          : (teamIds ? teamIds.length : 0)
+          ? Math.max(Number(rawTeamCount || 0), 2)
+          : Math.max(teamIds ? teamIds.length : 0, 2)
         
         const phase = await prisma.phase.findFirst({
           where: {

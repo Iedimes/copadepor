@@ -729,6 +729,7 @@ export default function TournamentPage() {
             </div>
 
             <div className="border-t border-slate-200/40 pt-3 w-full flex flex-col items-center justify-center gap-0.5">
+              {m.phaseName && m.phaseName.startsWith('Grupo ') && <span className="text-[8px] font-black text-blue-500 uppercase tracking-wider mb-1">{m.phaseName}</span>}
               <span className="text-[10px] font-black text-slate-800 tracking-tight">{m.location ? m.location.split(' @ ')[0] : 'Por definir'}</span>
               <span className="text-[9px] font-bold text-slate-500 lowercase first-letter:uppercase">
                 {formatMatchDate(m.matchDate)}
@@ -1422,7 +1423,8 @@ export default function TournamentPage() {
       body: JSON.stringify({
         numGroups,
         seedTeamIds: selectedSeeds,
-        continueFromId
+        continueFromId,
+        categoryId: activeCategory?.id || null
       }),
     })
     if (res.ok) {
@@ -3213,7 +3215,7 @@ export default function TournamentPage() {
                         )}
                       </div>
                       <div>
-                        <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>🟦</span> AZULES (2')</h4>
+                        <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>🟦</span> AZULES</h4>
                         {blues.length === 0 ? (
                           <p className="text-[10px] text-slate-300 font-bold italic">—</p>
                         ) : (
@@ -3291,40 +3293,9 @@ export default function TournamentPage() {
             <div className="text-center font-black text-slate-300 text-xs mb-2">VS</div>
             <h3 className="text-2xl font-black text-center mb-8 text-slate-900">{selectedMatch.awayTeam.name}</h3>
             <div className="space-y-3">
-              <button onClick={async () => {
+              <button onClick={() => {
                 const sm = selectedMatch
                 if (!sm) return
-                const token = localStorage.getItem('token')
-                const checkPlayers = async (teamId: string) => {
-                  try {
-                    const res = await fetch(`/api/teams/${teamId}/members`, { headers: { Authorization: `Bearer ${token}` } })
-                    if (res.ok) {
-                      const members = await res.json()
-                      const players = members.filter((mem: any) => mem.role === 'PLAYER' || mem.playerId)
-                      return players.length
-                    }
-                  } catch (e) {}
-                  return -1
-                }
-                const homeCount = await checkPlayers(sm.homeTeam.id)
-                const awayCount = await checkPlayers(sm.awayTeam.id)
-                const MIN_PLAYERS = 3
-                if (homeCount >= 0 && homeCount < MIN_PLAYERS) {
-                  const go = confirm(`"${sm.homeTeam.name}" solo tiene ${homeCount} jugador(es). Necesita al menos ${MIN_PLAYERS}. ¿Ir a cargar jugadores?`)
-                  if (go) {
-                    router.push(`/tournaments/${tournamentId}/add-players?teamId=${sm.homeTeam.id}&teamName=${encodeURIComponent(sm.homeTeam.name)}`)
-                    setSelectedMatch(null)
-                    return
-                  }
-                }
-                if (awayCount >= 0 && awayCount < MIN_PLAYERS) {
-                  const go = confirm(`"${sm.awayTeam.name}" solo tiene ${awayCount} jugador(es). Necesita al menos ${MIN_PLAYERS}. ¿Ir a cargar jugadores?`)
-                  if (go) {
-                    router.push(`/tournaments/${tournamentId}/add-players?teamId=${sm.awayTeam.id}&teamName=${encodeURIComponent(sm.awayTeam.name)}`)
-                    setSelectedMatch(null)
-                    return
-                  }
-                }
                 setEditingMatchId(sm.id); setShowEditResult(true); setSelectedMatch(null);
               }} className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"><span>📝</span> EDITAR RESULTADO</button>
               <button onClick={() => setSelectedMatch(null)} className="w-full py-4 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all">Cerrar</button>
@@ -5303,45 +5274,7 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
                     </div>
                   </div>
                 </div>
-                {(() => {
-                  const allBlues = [...hC, ...aC].filter(e => e.type === 'BLUE_CARD')
-                  const homeBlues = allBlues.filter(b => b.teamId === match.homeTeam?.id)
-                  const awayBlues = allBlues.filter(b => b.teamId === match.awayTeam?.id)
-                  if (allBlues.length === 0) return null
-                  return (
-                    <div className="w-full border-t border-slate-200 pt-4">
-                      <div className="flex items-center justify-center gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">🟦 EXCLUSIONES (2')</div>
-                      {[homeBlues, awayBlues].map((items, i) => {
-                        const teamName = i === 0 ? (match.homeTeam?.name || 'Local') : (match.awayTeam?.name || 'Visitante')
-                        return (
-                          <div key={i} className="mb-3 last:mb-0">
-                            <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 truncate">{teamName}</div>
-                            {items.length === 0 ? (
-                              <div className="text-[10px] text-slate-300 font-bold italic text-center py-2">—</div>
-                            ) : (
-                              <div className="space-y-1.5">
-                                {items.map((b: any) => {
-                                  const returnMin = (b.minute ?? 0) + 2
-                                  const isExcluded = timerMinutes > 0 && timerMinutes < returnMin && b.minute != null
-                                  const remaining = returnMin - timerMinutes
-                                  return (
-                                    <div key={b.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold ${isExcluded ? 'bg-blue-50 border border-blue-200' : 'bg-emerald-50 border border-emerald-200'}`}>
-                                      <span>{isExcluded ? '🟦' : '✅'}</span>
-                                      <span className="flex-1 truncate text-slate-700">{b.player?.name || '—'}</span>
-                                      <span className={`font-black ${isExcluded ? 'text-blue-600' : 'text-emerald-600'}`}>
-                                        {isExcluded ? `vuelve ${returnMin}' (${remaining}' restan)` : `Recuperado ${returnMin}'`}
-                                      </span>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })()}
+
               </>
             )}
             <div className="flex w-full gap-3">
@@ -5462,33 +5395,40 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
             <span className="text-xl">🏆</span>
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Definición</h3>
           </div>
-          <div className="flex flex-wrap gap-8 items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-            {['Cuartos de final', 'Cuartos'].includes(match.roundName) && (
-              <div className="flex items-center gap-3 bg-blue-50 px-4 py-2 rounded-xl">
-                <input type="checkbox" id="advCheck" checked={useAdvantage} onChange={e => setUseAdvantage(e.target.checked)} className="w-5 h-5 rounded accent-blue-600 cursor-pointer" />
-                <label htmlFor="advCheck" className="text-xs font-black text-blue-900 cursor-pointer uppercase tracking-wider">Aplicar Ventaja Deportiva</label>
-              </div>
-            )}
-
-            {(!['Cuartos de final', 'Cuartos'].includes(match.roundName) || !useAdvantage) && (
-              <>
-                <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Penales:</span>
-                  <div className="flex items-center gap-2">
-                    <input type="number" placeholder="0" value={homePenalties} onChange={e => setHomePenalties(e.target.value ? Number(e.target.value) : '')} className="w-14 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
+          <div className="flex flex-col gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex flex-wrap gap-3 items-center">
+              {['Cuartos de final', 'Cuartos'].includes(match.roundName) && (
+                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl">
+                  <input type="checkbox" id="advCheck" checked={useAdvantage} onChange={e => setUseAdvantage(e.target.checked)} className="w-4 h-4 rounded accent-blue-600 cursor-pointer" />
+                  <label htmlFor="advCheck" className="text-[9px] font-black text-blue-900 cursor-pointer uppercase tracking-wider">Ventaja Deportiva</label>
+                </div>
+              )}
+              {(!['Cuartos de final', 'Cuartos'].includes(match.roundName) || !useAdvantage) && (
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Penales:</span>
+                  <div className="flex items-center gap-1">
+                    <input type="number" placeholder="0" value={homePenalties} onChange={e => setHomePenalties(e.target.value ? Number(e.target.value) : '')} className="w-12 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
                     <span className="text-slate-400 font-bold">-</span>
-                    <input type="number" placeholder="0" value={awayPenalties} onChange={e => setAwayPenalties(e.target.value ? Number(e.target.value) : '')} className="w-14 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
+                    <input type="number" placeholder="0" value={awayPenalties} onChange={e => setAwayPenalties(e.target.value ? Number(e.target.value) : '')} className="w-12 bg-white text-center rounded-lg border border-slate-200 text-sm font-black py-1" />
                   </div>
                 </div>
-              </>
-            )}
+              )}
+              <div className="flex-1 flex items-center justify-end gap-2">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Avanza:</span>
+                <select value={advancingTeamId} onChange={e => setAdvancingTeamId(e.target.value)} className="bg-slate-900 text-white font-black text-[9px] px-3 py-2 rounded-xl outline-none shadow-md min-w-[140px]">
+                  <option value="">- GANADOR -</option>
+                  <option value={match.homeTeam.id}>{match.homeTeam.name} {match.advantageTeamId === match.homeTeam.id && '(V)'}</option>
+                  <option value={match.awayTeam.id}>{match.awayTeam.name} {match.advantageTeamId === match.awayTeam.id && '(V)'}</option>
+                </select>
+              </div>
+            </div>
             <div className="w-full bg-white rounded-xl border border-slate-100 overflow-hidden">
-              <button onClick={() => setShowPenTakers(!showPenTakers)} className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-all">
+              <button onClick={() => setShowPenTakers(!showPenTakers)} className="w-full flex items-center justify-between px-4 py-2 text-[9px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-all">
                 <span>👟 Lanzadores de Penales</span>
                 <span>{showPenTakers ? '▲' : '▼'}</span>
               </button>
               {showPenTakers && (
-                <div className="p-4 border-t border-slate-100 space-y-4">
+                <div className="grid grid-cols-2 gap-4 p-4 border-t border-slate-100">
                   <div>
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">{match.homeTeam?.name}</span>
                     <div className="max-h-48 overflow-y-auto space-y-1">
@@ -5537,15 +5477,6 @@ function EditResultModal({ matchId, onClose, onUpdate, isBasketball }: { matchId
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="flex-1 flex items-center justify-end gap-3 min-w-[250px]">
-              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Avanza:</span>
-              <select value={advancingTeamId} onChange={e => setAdvancingTeamId(e.target.value)} className="bg-slate-900 text-white font-black text-xs px-4 py-3 rounded-xl outline-none shadow-md flex-1">
-                <option value="">- SELECCIONAR GANADOR -</option>
-                <option value={match.homeTeam.id}>{match.homeTeam.name} {match.advantageTeamId === match.homeTeam.id && '(V)'}</option>
-                <option value={match.awayTeam.id}>{match.awayTeam.name} {match.advantageTeamId === match.awayTeam.id && '(V)'}</option>
-              </select>
             </div>
           </div>
         </div>
@@ -6030,7 +5961,7 @@ function TeamRowSection({ isBasketball, team, goals, setGoals, cards, setCards, 
           )}
           {tab === 'tarjetas' && <RowFormSection title="🟨 Tarjetas disciplinarias" evs={cards} setEvs={setCards} players={team.players || []} color={color} isType={true} type="YELLOW_CARD" opts={[
             { v: 'YELLOW_CARD', label: '🟨 Amarilla', hint: '1ª falta' },
-            { v: 'BLUE_CARD', label: '🟦 Azul (2\')', hint: 'Exclusión 2 minutos' },
+            { v: 'BLUE_CARD', label: '🟦 Azul', hint: 'Tarjeta azul' },
             { v: 'DOUBLE_YELLOW_CARD', label: '🟨🟥 2ª Amarilla → Expulsado', hint: 'Acumulación' },
             { v: 'RED_CARD', label: '🟥 Roja Directa', hint: 'Expulsión inmediata' },
           ]} timerPeriod={timerPeriod} timerMinutes={timerMinutes} timerStage={timerStage} />}

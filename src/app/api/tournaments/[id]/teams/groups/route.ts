@@ -23,7 +23,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    const { numGroups, seedTeamIds, continueFromId } = await request.json()
+    const { numGroups, seedTeamIds, continueFromId, categoryId } = await request.json()
 
     if (numGroups === undefined || numGroups === null || numGroups < 0) {
       return NextResponse.json({ error: 'Número de grupos inválido' }, { status: 400 })
@@ -33,16 +33,21 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (numGroups === 0) {
       await prisma.$transaction(async (tx) => {
         // Clear groupNames on teams
-        await tx.$executeRawUnsafe(
-          'UPDATE TournamentTeam SET groupName = NULL WHERE tournamentId = ?',
-          params.id
-        )
+        const teamClearWhere: any = { tournamentId: params.id }
+        if (categoryId) {
+          teamClearWhere.categoryId = categoryId
+        }
+        await tx.tournamentTeam.updateMany({
+          where: teamClearWhere,
+          data: { groupName: null }
+        })
 
         // Find phases starting with "Grupo "
         const groupPhases = await tx.phase.findMany({
           where: {
             tournamentId: params.id,
-            name: { startsWith: 'Grupo ' }
+            name: { startsWith: 'Grupo ' },
+            ...(categoryId ? { categoryId } : {})
           }
         })
         const groupPhaseIds = groupPhases.map(p => p.id)
@@ -71,8 +76,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ message: 'Grupos eliminados correctamente' })
     }
 
+    const tournamentTeamWhere: any = { tournamentId: params.id }
+    if (categoryId) {
+      tournamentTeamWhere.categoryId = categoryId
+    }
     const allTournamentTeams = await prisma.tournamentTeam.findMany({
-      where: { tournamentId: params.id },
+      where: tournamentTeamWhere,
     })
 
     if (allTournamentTeams.length < numGroups) {
@@ -117,11 +126,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       for (const groupLetter of groups) {
         const teamIds = groupTeams[groupLetter]
         if (teamIds.length > 0) {
+          const teamUpdateWhere: any = {
+            tournamentId: params.id,
+            teamId: { in: teamIds }
+          }
+          if (categoryId) {
+            teamUpdateWhere.categoryId = categoryId
+          }
           await tx.tournamentTeam.updateMany({
-            where: {
-              tournamentId: params.id,
-              teamId: { in: teamIds }
-            },
+            where: teamUpdateWhere,
             data: {
               groupName: groupLetter
             }
@@ -133,7 +146,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const existingGroupPhases = await tx.phase.findMany({
         where: {
           tournamentId: params.id,
-          name: { startsWith: 'Grupo ' }
+          name: { startsWith: 'Grupo ' },
+          ...(categoryId ? { categoryId } : {})
         }
       })
       const groupPhaseIds = existingGroupPhases.map(p => p.id)
@@ -171,7 +185,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             isClassification: true,
             order: i,
             teams: JSON.stringify(teamIds),
-            continueFromId: continueFromId || null
+            continueFromId: continueFromId || null,
+            ...(categoryId ? { categoryId } : {})
           }
         })
       }

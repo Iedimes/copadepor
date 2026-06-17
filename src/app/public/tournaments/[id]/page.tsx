@@ -1727,7 +1727,7 @@ export default function PublicTournamentPage() {
                         )}
                       </div>
                       <div>
-                        <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>🟦</span> AZULES (2')</h4>
+                        <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-1.5"><span>🟦</span> AZULES</h4>
                         {blues.length === 0 ? (
                           <p className="text-[10px] text-slate-300 font-bold italic">—</p>
                         ) : (
