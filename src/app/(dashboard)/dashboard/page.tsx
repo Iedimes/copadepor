@@ -164,32 +164,9 @@ export default function DashboardPage() {
   } | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const handleDeleteTournament = async (e: React.MouseEvent, tournament: Tournament) => {
+  const handleDeleteTournament = (e: React.MouseEvent, tournament: Tournament) => {
     e.stopPropagation()
-    
-    const token = localStorage.getItem('token')
-    
-    // First attempt without force - check if tournament has data
-    const res = await fetch(`/api/tournaments/${tournament.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    
-    if (res.ok) {
-      // Tournament had no data and was deleted directly
-      setTournaments(tournaments.filter(t => t.id !== tournament.id))
-      setStats({ ...stats, tournaments: stats.tournaments - 1 })
-      return
-    }
-    
-    const data = await res.json()
-    
-    if (res.status === 409 && data.error === 'CONFIRM_DELETE') {
-      // Tournament has data - show confirmation modal
-      setDeleteConfirm({ tournament, details: data.details })
-    } else {
-      alert(data.error || 'Error al eliminar')
-    }
+    setDeleteConfirm({ tournament, details: { teams: 0, matches: 0, categories: 0, phases: 0, sponsors: 0, news: 0 } })
   }
 
   const handleConfirmForceDelete = async () => {
@@ -197,7 +174,7 @@ export default function DashboardPage() {
     setDeleting(true)
     
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/tournaments/${deleteConfirm.tournament.id}?force=true`, {
+    const res = await fetch(`/api/tournaments/${deleteConfirm.tournament.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -658,47 +635,8 @@ export default function DashboardPage() {
             </div>
             <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">¿Eliminar Campeonato?</h2>
             <p className="text-gray-600 text-center mb-4">
-              <strong>&quot;{deleteConfirm.tournament.name}&quot;</strong> tiene datos asociados que se perderán:
+              <strong>&quot;{deleteConfirm.tournament.name}&quot;</strong> se eliminará permanentemente.
             </p>
-            
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 space-y-2">
-              {deleteConfirm.details.teams > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">🏟️ Equipos inscritos</span>
-                  <span className="font-semibold text-red-700">{deleteConfirm.details.teams}</span>
-                </div>
-              )}
-              {deleteConfirm.details.matches > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">⚽ Partidos</span>
-                  <span className="font-semibold text-red-700">{deleteConfirm.details.matches}</span>
-                </div>
-              )}
-              {deleteConfirm.details.categories > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">📂 Categorías</span>
-                  <span className="font-semibold text-red-700">{deleteConfirm.details.categories}</span>
-                </div>
-              )}
-              {deleteConfirm.details.phases > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">📋 Fases</span>
-                  <span className="font-semibold text-red-700">{deleteConfirm.details.phases}</span>
-                </div>
-              )}
-              {deleteConfirm.details.sponsors > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">💰 Patrocinadores</span>
-                  <span className="font-semibold text-red-700">{deleteConfirm.details.sponsors}</span>
-                </div>
-              )}
-              {deleteConfirm.details.news > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">📰 Noticias</span>
-                  <span className="font-semibold text-red-700">{deleteConfirm.details.news}</span>
-                </div>
-              )}
-            </div>
 
             <p className="text-sm text-red-600 text-center mb-6 font-medium">
               Esta acción no se puede deshacer.
