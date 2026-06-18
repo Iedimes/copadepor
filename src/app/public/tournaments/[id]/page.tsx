@@ -1289,8 +1289,11 @@ export default function PublicTournamentPage() {
                                       style={!isCompleted ? { color: themeColor } : undefined} 
                                       className={isCompleted ? 'text-emerald-500' : 'animate-pulse'}
                                     >
-                                      {isCompleted ? 'Finalizado' : 'Programado'}
+                                      {isCompleted ? (m.notes === 'W.O' ? 'W.O.' : 'Finalizado') : 'Programado'}
                                     </span>
+                                    {isCompleted && m.notes === 'W.O' && (
+                                      <span className="text-[7px] text-red-400 font-black uppercase tracking-wider">Walkover</span>
+                                    )}
                                   </div>
                                   
                                   <div className="space-y-1.5 font-bold">
@@ -1452,10 +1455,13 @@ export default function PublicTournamentPage() {
                                             </div>
                                           ) : (
                                             <span className={`mt-2 px-2.5 py-0.5 rounded text-[8px] font-black border uppercase tracking-wider ${
-                                              isCompleted ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'
+                                              isCompleted ? (m.notes === 'W.O' ? 'bg-white text-red-500 border-red-300' : 'bg-blue-50 text-blue-500 border-blue-100') : 'bg-amber-50 text-amber-500 border-amber-100 animate-pulse'
                                             }`}>
-                                              {isCompleted ? 'Finalizado' : 'Programado'}
+                                              {isCompleted ? (m.notes === 'W.O' ? 'W.O.' : 'Finalizado') : 'Programado'}
                                             </span>
+                                          )}
+                                          {isCompleted && m.notes === 'W.O' && (
+                                            <span className="mt-1 text-[7px] font-black text-red-400 uppercase tracking-widest">Walkover</span>
                                           )}
                                         </div>
 
@@ -1615,7 +1621,8 @@ export default function PublicTournamentPage() {
                 </div>
               </div>
               <div className="flex items-center justify-center gap-2 mt-2">
-                <span className="bg-white/20 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Finalizado</span>
+                <span className="bg-white/20 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">{selectedMatch.notes === 'W.O' ? 'W.O.' : 'Finalizado'}</span>
+                {selectedMatch.notes === 'W.O' && <span className="text-red-300 text-[8px] font-black uppercase tracking-wider">Walkover</span>}
                 {selectedMatch.location && (
                   <span className="text-white/60 text-[8px] font-black uppercase tracking-wider">{selectedMatch.location.split(' @ ')[0]}</span>
                 )}
